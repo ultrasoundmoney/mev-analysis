@@ -70,7 +70,7 @@ async fn start_cache_update(state: AppState) -> JoinHandle<()> {
                     error!("failed to update cache: {}", err);
                 }
             }
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            tokio::time::sleep(Duration::from_secs(5 * 60)).await;
         }
     })
 }
