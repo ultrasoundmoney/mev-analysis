@@ -33,44 +33,45 @@ use builder::Builder;
 
 use crate::beacon_api::BeaconAPI;
 
+use self::validator::ValidatorStatsBody;
+
 type CachedValue<T> = RwLock<Option<T>>;
 
 struct Cache {
     top_builders: CachedValue<Vec<Builder>>,
+    validator_stats: CachedValue<ValidatorStatsBody>,
 }
 
 async fn update_cache(
     pool: &Pool<Postgres>,
-    cache: &CachedValue<Vec<Builder>>,
+    redis_client: &redis::Client,
+    cache: &Cache,
 ) -> Result<(), String> {
-    let new_builders = builder::get_top_builders(pool).await;
+    let new_builders = builder::get_top_builders(pool).await?;
+    let new_validator_stats = validator::get_validator_stats(pool, redis_client).await?;
 
-    match new_builders {
-        Ok(builders) => {
-            let mut new_cache = cache.write().unwrap();
-            *new_cache = Some(builders);
-            Ok(())
-        }
-        Err(err) => {
-            error!("failed to get new builders during cache update");
-            Err(err)
-        }
-    }
+    let mut builders_cache = cache.top_builders.write().unwrap();
+    *builders_cache = Some(new_builders);
+
+    let mut validator_stats_cache = cache.validator_stats.write().unwrap();
+    *validator_stats_cache = Some(new_validator_stats);
+
+    Ok(())
 }
 
 async fn start_cache_update(state: AppState) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            let res = update_cache(&state.db_pool, &state.cache.top_builders).await;
+            let res = update_cache(&state.db_pool, &state.redis_client, &state.cache).await;
             match res {
                 Ok(_) => {
-                    debug!("cache updated");
+                    info!("cache updated successfully");
                 }
                 Err(err) => {
                     error!("failed to update cache: {}", err);
                 }
             }
-            tokio::time::sleep(Duration::from_secs(5 * 60)).await;
+            tokio::time::sleep(Duration::from_secs(3 * 60)).await;
         }
     })
 }
@@ -107,6 +108,7 @@ pub async fn start_server() {
 
     let cache = Arc::new(Cache {
         top_builders: RwLock::new(None),
+        validator_stats: RwLock::new(None),
     });
 
     let beacon_api = BeaconAPI::new(&APP_CONFIG.consensus_nodes);
@@ -139,6 +141,11 @@ pub async fn start_server() {
         .layer(cors);
 
     let update_cache_thread = start_cache_update(shared_state.clone()).await;
+
+    let cache_warm_wait_secs = 120;
+    info!("waiting {} secs for cache to warm", &cache_warm_wait_secs);
+    tokio::time::sleep(Duration::from_secs(cache_warm_wait_secs)).await;
+
     let server_thread = axum::Server::bind(&addr).serve(app.into_make_service());
 
     info!("listening on {}", addr);
