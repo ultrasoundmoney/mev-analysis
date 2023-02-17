@@ -1,0 +1,34 @@
+mod bigquery;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+
+#[derive(Debug)]
+pub struct Block {
+    block_number: i64,
+    block_hash: String,
+    block_timestamp: DateTime<Utc>,
+    fee_recipient: String,
+    extra_data: String,
+    tx_count: i64,
+    gas_limit: i64,
+    gas_used: i64,
+    base_fee_per_gas: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Tx {
+    pub tx_hash: String,
+    pub tx_index: i64,
+    pub block_number: i64,
+    pub max_fee: Option<i64>,
+    pub max_prio_fee: Option<i64>,
+    pub address_trace: Vec<String>,
+}
+
+#[async_trait]
+pub trait ChainStore {
+    async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>>;
+    async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>>;
+}
