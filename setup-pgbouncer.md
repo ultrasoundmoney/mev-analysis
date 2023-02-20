@@ -2,7 +2,7 @@ Setting up a pgbouncer gateway.
 
 - Set up a VM. Size unknown, starting with N2D-standard-2.
 - Either allow http/https traffic or set up a firewall tag plus rule for pgbouncer's port, default 6543.
-- On the machine, install pgbouncer: `apt install pgbouncer`.
+- On the machine, install pgbouncer: `apt install pgbouncer`. This will create a systemd service which is launched automatically.
 - Edit `/etc/pgbouncer/pgbouncer.ini` to list the database connection details.
 
 ```ini
@@ -15,3 +15,4 @@ Setting up a pgbouncer gateway.
 ```txt
 "postgres" "T9K3nPFRbjds_BCz4kKG"
 ```
+- Restart the service with `systemctl restart pgbouncer`
