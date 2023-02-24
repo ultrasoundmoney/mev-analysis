@@ -6,6 +6,7 @@ use chrono::Duration;
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
+use tracing::{debug, error};
 
 use self::format::{parse_tx_data, TxTuple};
 
@@ -44,6 +45,35 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
     txs.sort_by_key(|tx| (tx.block_number, tx.tx_index));
     rows.sort_by_key(|row| row.block_number);
 
+    let uniq_nrs = txs
+        .iter()
+        .map(|tx| tx.block_number)
+        .unique()
+        .collect_vec()
+        .len();
+
+    debug!("uniq nrs {}", uniq_nrs);
+
+    let nrs2 = rows
+        .iter()
+        .map(|r| r.block_number)
+        .unique()
+        .collect_vec()
+        .len();
+
+    debug!("uniq nrs {}", nrs2);
+
+    debug!(
+        "txs: {} to {}",
+        txs.first().unwrap().block_number,
+        txs.last().unwrap().block_number
+    );
+    debug!(
+        "extractors: {} to {}",
+        rows.first().unwrap().block_number,
+        rows.last().unwrap().block_number
+    );
+
     let txs_by_block: Vec<(BlockNumber, Vec<Tx>)> = txs
         .into_iter()
         .group_by(|tx| tx.block_number)
@@ -57,6 +87,21 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
         .into_iter()
         .map(|(key, group)| (key, group.into_iter().collect()))
         .collect();
+
+    debug!(
+        "txs_by_block: {}, extractors_by_block: {}",
+        txs_by_block.len(),
+        extractors_by_block.len()
+    );
+
+    if txs_by_block.len() != extractors_by_block.len() {
+        error!(
+            "expected equal number of blocks when tagging transactions, got {} and {}",
+            txs_by_block.len(),
+            extractors_by_block.len()
+        );
+        panic!("expected equal number of blocks when tagging transactions");
+    }
 
     assert!(
         txs_by_block.len() == extractors_by_block.len(),
@@ -108,20 +153,35 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
 #[async_trait]
 impl TimestampService for ZeroMev {
     async fn fetch_tx_timestamps(&self, txs: Vec<Tx>) -> Result<Vec<TaggedTx>> {
-        let block_number = 16648338;
+        let start_block = txs
+            .first()
+            .expect("fetch_tx_timestamps received empty vector")
+            .block_number;
 
+        let end_block = txs
+            .last()
+            .expect("fetch_tx_timestamps received empty vector")
+            .block_number;
+
+        // In cases where there are duplicate extractors for a block, use the most recent
+        // https://stackoverflow.com/a/45018194
         let query = format!(
             "
-               SELECT
-                    eb.block_number,
-                    e.code AS extractor,
-                    eb.tx_data
-               FROM extractor_block eb
-               INNER JOIN extractor e USING (extractor_index)
-               WHERE eb.block_number = {}
-               ORDER BY eb.block_number DESC
+            SELECT DISTINCT ON (block_number, extractor)
+                block_number,
+                block_time,
+                extractor.code AS extractor,
+                tx_data
+            FROM
+                extractor_block
+            INNER JOIN extractor USING (extractor_index)
+            WHERE
+                block_number >= {}
+                AND block_number <= {}
+            ORDER BY
+                block_number, extractor, block_time DESC
             ",
-            block_number
+            start_block, end_block
         );
 
         let results: Vec<BlockExtractorRow> = sqlx::query(&query)

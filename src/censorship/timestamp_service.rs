@@ -48,12 +48,12 @@ impl FromStr for ExtractorId {
 
 #[derive(Debug)]
 pub struct ExtractorTimestamp {
-    id: ExtractorId,
-    timestamp: DateTime<Utc>,
+    pub id: ExtractorId,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug)]
 pub struct TaggedTx {
-    timestamps: Vec<ExtractorTimestamp>,
-    tx: Tx,
+    pub timestamps: Vec<ExtractorTimestamp>,
+    pub tx: Tx,
 }
