@@ -17,6 +17,9 @@ pub struct BlockProductionData {
 
 #[async_trait]
 pub trait CensorshipDB {
+    // checkpoint for onchain data
+    async fn get_chain_checkpoint(&self) -> Result<Option<DateTime<Utc>>>;
+    // checkpoint for offchain (relay) data
+    async fn get_block_production_checkpoint(&self) -> Result<Option<i64>>;
     async fn persist_chain_data(&self, blocks: Vec<Block>, txs: Vec<TaggedTx>) -> Result<()>;
-    async fn get_block_checkpoint(&self) -> Result<Option<DateTime<Utc>>>;
 }

@@ -1,0 +1,21 @@
+{
+  "db": "PostgreSQL",
+  "567c4f271b33e91b4fd31cca7057c03aed3fc1c1b91b21090e4d17f1c2cc6b56": {
+    "describe": {
+      "columns": [
+        {
+          "name": "timestamp",
+          "ordinal": 0,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT timestamp FROM blocks ORDER BY timestamp DESC LIMIT 1"
+  }
+}
