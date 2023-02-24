@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use reqwest::Url;
 use serde::Deserialize;
 
-use super::{DeliveredPayload, RelayService};
+use super::{DeliveredPayload, RelayApi};
 
 pub struct RelayServiceHttp {
     url: Url,
@@ -26,7 +26,7 @@ struct DeliveredPayloadResponse {
 }
 
 #[async_trait]
-impl RelayService for RelayServiceHttp {
+impl RelayApi for RelayServiceHttp {
     async fn fetch_delivered_payloads(&self, end_slot: &i64) -> Result<Vec<DeliveredPayload>> {
         let url = format!(
             "{}relay/v1/data/bidtraces/proposer_payload_delivered?cursor={}",

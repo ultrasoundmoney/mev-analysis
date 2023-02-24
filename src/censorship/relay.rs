@@ -17,6 +17,6 @@ pub struct DeliveredPayload {
 }
 
 #[async_trait]
-pub trait RelayService {
+pub trait RelayApi {
     async fn fetch_delivered_payloads(&self, end_slot: &i64) -> Result<Vec<DeliveredPayload>>;
 }

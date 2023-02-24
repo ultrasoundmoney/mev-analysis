@@ -29,6 +29,7 @@ pub struct Tx {
 
 #[async_trait]
 pub trait ChainStore {
+    // start is our previous checkpoint, so start = exclusive, end = inclusive
     async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>>;
     async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>>;
 }

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, QueryBuilder};
 
-use super::{CensorshipDB, Checkpoint};
+use super::CensorshipDB;
 use crate::censorship::{chain_store::Block, env::APP_CONFIG, timestamp_service::TaggedTx};
 
 pub struct PostgresCensorshipDB {

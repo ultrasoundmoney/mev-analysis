@@ -1,7 +1,7 @@
 mod chain_store;
 mod db;
 mod env;
-mod relay_service;
+mod relay;
 mod timestamp_service;
 
 use anyhow::Result;
@@ -40,24 +40,41 @@ pub async fn start_ingestion() -> Result<()> {
 
     let db = PostgresCensorshipDB::new().await?;
 
-    let checkpoint = *MERGE_CHECKPOINT;
+    loop {
+        let checkpoint = db
+            .get_block_checkpoint()
+            .await?
+            .unwrap_or(*MERGE_CHECKPOINT);
 
-    let start_time = checkpoint;
-    let end_time = start_time.add(Duration::minutes(60));
+        let start_time = checkpoint;
+        let end_time = start_time.add(Duration::hours(2));
 
-    info!(
-        "starting chain data ingestion from {} until {}",
-        start_time, end_time
-    );
+        info!(
+            "starting chain data ingestion from {} until {}",
+            start_time, end_time
+        );
 
-    let blocks = chain_store.fetch_blocks(&start_time, &end_time).await?;
-    let txs = chain_store.fetch_txs(&start_time, &end_time).await?;
+        let begin = Utc::now();
 
-    info!("received {} blocks and {} txs", blocks.len(), txs.len());
+        let (blocks_result, txs_result) = tokio::join!(
+            chain_store.fetch_blocks(&start_time, &end_time),
+            chain_store.fetch_txs(&start_time, &end_time)
+        );
+        let blocks = blocks_result?;
+        let txs = txs_result?;
 
-    let timestamped_txs = ts_service.fetch_tx_timestamps(txs).await?;
+        let block_count = blocks.len();
+        let tx_count = txs.len();
 
-    db.persist_chain_data(blocks, timestamped_txs).await?;
+        info!("received {} blocks and {} txs", &block_count, &tx_count);
 
-    Ok(())
+        let timestamped_txs = ts_service.fetch_tx_timestamps(txs).await?;
+
+        db.persist_chain_data(blocks, timestamped_txs).await?;
+
+        info!(
+            "persisted chain data in {} seconds",
+            (Utc::now() - begin).num_seconds()
+        );
+    }
 }
