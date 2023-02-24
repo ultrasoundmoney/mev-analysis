@@ -8,7 +8,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
 
 use self::format::{parse_tx_data, TxTuple};
-use super::{ExtractorId, ExtractorTimestamp, TaggedTx, TimestampService, Tx};
+use super::{MempoolTimestamp, SourceId, TaggedTx, TimestampService, Tx};
 use crate::censorship::env::APP_CONFIG;
 
 pub struct ZeroMev {
@@ -30,10 +30,10 @@ impl ZeroMev {
 
 pub type BlockNumber = i64;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct BlockExtractorRow {
     block_number: BlockNumber,
-    extractor: ExtractorId,
+    extractor: SourceId,
     tx_data: Vec<TxTuple>,
 }
 
@@ -69,11 +69,11 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
             assert!(b0 == b1, "mismatched block numbers during zip");
 
             txs.iter().map(|tx| {
-                let timestamps: Vec<ExtractorTimestamp> = extractors
+                let timestamps: Vec<MempoolTimestamp> = extractors
                     .iter()
                     // filter out extractors that don't have a tx count that matches what's on chain
                     .filter(|row| row.tx_data.len() == txs.len())
-                    .map(|ex| ExtractorTimestamp {
+                    .map(|ex| MempoolTimestamp {
                         id: ex.extractor.clone(),
                         timestamp: ex
                             .tx_data
@@ -144,7 +144,7 @@ impl TimestampService for ZeroMev {
                 rows.iter()
                     .map(|row| BlockExtractorRow {
                         block_number: row.get("block_number"),
-                        extractor: ExtractorId::from_str(&row.get::<String, _>("extractor"))
+                        extractor: SourceId::from_str(&row.get::<String, _>("extractor"))
                             .expect("failed to parse extractor id"),
                         tx_data: parse_tx_data(row.get("tx_data")),
                     })
@@ -160,7 +160,7 @@ mod tests {
     use chrono::{Duration, Utc};
     use std::ops::Add;
 
-    use super::{tag_transactions, BlockExtractorRow, ExtractorId, Tx};
+    use super::{tag_transactions, BlockExtractorRow, SourceId, Tx};
 
     #[test]
     fn test_tag_transactions() {
@@ -169,7 +169,7 @@ mod tests {
                 tx_hash: "lol123".to_string(),
                 tx_index: 0,
                 block_number: 1000,
-                max_fee: None,
+                base_fee: None,
                 max_prio_fee: None,
                 address_trace: vec![],
             },
@@ -177,7 +177,7 @@ mod tests {
                 tx_hash: "bal234".to_string(),
                 tx_index: 1,
                 block_number: 1000,
-                max_fee: None,
+                base_fee: None,
                 max_prio_fee: None,
                 address_trace: vec![],
             },
@@ -189,12 +189,12 @@ mod tests {
         let rows = vec![
             BlockExtractorRow {
                 block_number: 1000,
-                extractor: ExtractorId::ZMevUS,
+                extractor: SourceId::ZeroMevUs,
                 tx_data: vec![(d0, 1000), (d0, 1000)],
             },
             BlockExtractorRow {
                 block_number: 1000,
-                extractor: ExtractorId::ZMevEU,
+                extractor: SourceId::ZeroMevEu,
                 tx_data: vec![(d1, 1000), (d1, 1000)],
             },
         ];
@@ -204,15 +204,15 @@ mod tests {
         assert_eq!(res.len(), 2);
 
         assert_eq!(res[0].tx.tx_hash, "lol123".to_string());
-        assert_eq!(res[0].timestamps[0].id, ExtractorId::ZMevUS);
+        assert_eq!(res[0].timestamps[0].id, SourceId::ZeroMevUs);
         assert_eq!(res[0].timestamps[0].timestamp, d0);
-        assert_eq!(res[0].timestamps[1].id, ExtractorId::ZMevEU);
+        assert_eq!(res[0].timestamps[1].id, SourceId::ZeroMevEu);
         assert_eq!(res[0].timestamps[1].timestamp, d1);
 
         assert_eq!(res[1].tx.tx_hash, "bal234".to_string());
-        assert_eq!(res[1].timestamps[0].id, ExtractorId::ZMevUS);
+        assert_eq!(res[1].timestamps[0].id, SourceId::ZeroMevUs);
         assert_eq!(res[1].timestamps[0].timestamp, d0);
-        assert_eq!(res[1].timestamps[1].id, ExtractorId::ZMevEU);
+        assert_eq!(res[1].timestamps[1].id, SourceId::ZeroMevEu);
         assert_eq!(res[1].timestamps[1].timestamp, d1);
     }
 }

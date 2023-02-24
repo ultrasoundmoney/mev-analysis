@@ -22,7 +22,7 @@ pub struct Tx {
     pub tx_hash: String,
     pub tx_index: i64,
     pub block_number: i64,
-    pub max_fee: Option<i64>,
+    pub base_fee: Option<i64>,
     pub max_prio_fee: Option<i64>,
     pub address_trace: Vec<String>,
 }

@@ -227,7 +227,7 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .unwrap()
             .parse::<i64>()
             .unwrap(),
-        max_fee: columns[3]
+        base_fee: columns[3]
             .clone()
             .value
             .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),

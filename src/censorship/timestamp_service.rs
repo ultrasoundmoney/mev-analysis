@@ -1,13 +1,11 @@
 mod zeromev;
 
-use std::str::FromStr;
-
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::{fmt, str::FromStr};
 
 use super::chain_store::Tx;
-
 pub use zeromev::ZeroMev;
 
 // service for timestamping transactions based on their appearance in the mempool(s)
@@ -16,28 +14,40 @@ pub trait TimestampService {
     async fn fetch_tx_timestamps(&self, mut txs: Vec<Tx>) -> Result<Vec<TaggedTx>>;
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub enum ExtractorId {
-    ZMevInf,
-    ZMevQn,
-    ZMevUS,
-    ZMevEU,
-    ZMevAS,
+#[derive(Clone)]
+pub struct MempoolTimestamp {
+    pub id: SourceId,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Clone)]
+pub struct TaggedTx {
+    pub timestamps: Vec<MempoolTimestamp>,
+    pub tx: Tx,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum SourceId {
+    ZeroMevInf,
+    ZeroMevQn,
+    ZeroMevUs,
+    ZeroMevEu,
+    ZeroMevAs,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseExtractorIdError(String);
 
-impl FromStr for ExtractorId {
+impl FromStr for SourceId {
     type Err = ParseExtractorIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Inf" => Ok(ExtractorId::ZMevInf),
-            "Qn" => Ok(ExtractorId::ZMevQn),
-            "US" => Ok(ExtractorId::ZMevUS),
-            "EU" => Ok(ExtractorId::ZMevEU),
-            "AS" => Ok(ExtractorId::ZMevAS),
+            "Inf" => Ok(SourceId::ZeroMevInf),
+            "Qn" => Ok(SourceId::ZeroMevQn),
+            "US" => Ok(SourceId::ZeroMevUs),
+            "EU" => Ok(SourceId::ZeroMevEu),
+            "AS" => Ok(SourceId::ZeroMevAs),
             unknown => Err(ParseExtractorIdError(format!(
                 "unknown extractor id: {}",
                 unknown
@@ -46,14 +56,15 @@ impl FromStr for ExtractorId {
     }
 }
 
-#[derive(Debug)]
-pub struct ExtractorTimestamp {
-    pub id: ExtractorId,
-    pub timestamp: DateTime<Utc>,
-}
-
-#[derive(Debug)]
-pub struct TaggedTx {
-    pub timestamps: Vec<ExtractorTimestamp>,
-    pub tx: Tx,
+impl fmt::Display for SourceId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let str = match &self {
+            SourceId::ZeroMevInf => "zeromev-inf",
+            SourceId::ZeroMevQn => "zeromev-qn",
+            SourceId::ZeroMevUs => "zeromev-us",
+            SourceId::ZeroMevEu => "zeromev-eu",
+            SourceId::ZeroMevAs => "zeromev-as",
+        };
+        write!(f, "{}", str)
+    }
 }

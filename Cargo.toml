@@ -23,7 +23,8 @@ sqlx = { version = "0.6", features = [
   "chrono",
   "postgres",
   "runtime-tokio-native-tls",
-  "bigdecimal"
+  "bigdecimal",
+  "offline"
 ] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1.12"

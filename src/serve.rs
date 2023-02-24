@@ -17,7 +17,7 @@ use std::{
 };
 use tokio::task::JoinHandle;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 extern crate redis;
 

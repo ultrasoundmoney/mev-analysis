@@ -14,6 +14,7 @@ use tracing::info;
 
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
+use self::relay::RelayServiceHttp;
 use self::{
     chain_store::ChainStore,
     timestamp_service::{TimestampService, ZeroMev},
@@ -42,7 +43,7 @@ pub async fn start_ingestion() -> Result<()> {
 
     loop {
         let checkpoint = db
-            .get_block_checkpoint()
+            .get_chain_checkpoint()
             .await?
             .unwrap_or(*MERGE_CHECKPOINT);
 
@@ -77,4 +78,14 @@ pub async fn start_ingestion() -> Result<()> {
             (Utc::now() - begin).num_seconds()
         );
     }
+}
+
+async fn ingest_block_production_data() -> Result<()> {
+    let url = APP_CONFIG.relay_urls.first().unwrap().clone();
+    let relay_api = RelayServiceHttp::new(url);
+    let db = PostgresCensorshipDB::new().await?;
+
+    let checkpoint = db.get_block_production_checkpoint().await?;
+
+    Ok(())
 }
