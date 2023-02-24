@@ -26,7 +26,7 @@ impl ChainStore for Client {
                 blocks.gas_used,
                 blocks.base_fee_per_gas
             FROM bigquery-public-data.crypto_ethereum.blocks
-            WHERE timestamp >= "{start}"
+            WHERE timestamp > "{start}"
               AND timestamp <= "{end}"
             ORDER BY timestamp ASC
             "#,

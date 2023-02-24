@@ -6,10 +6,8 @@ use chrono::Duration;
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
-use tracing::{debug, error};
 
 use self::format::{parse_tx_data, TxTuple};
-
 use super::{ExtractorId, ExtractorTimestamp, TaggedTx, TimestampService, Tx};
 use crate::censorship::env::APP_CONFIG;
 
@@ -32,7 +30,7 @@ impl ZeroMev {
 
 pub type BlockNumber = i64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct BlockExtractorRow {
     block_number: BlockNumber,
     extractor: ExtractorId,
@@ -44,35 +42,6 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
     // on our side, so we need to make sure everything is sorted
     txs.sort_by_key(|tx| (tx.block_number, tx.tx_index));
     rows.sort_by_key(|row| row.block_number);
-
-    let uniq_nrs = txs
-        .iter()
-        .map(|tx| tx.block_number)
-        .unique()
-        .collect_vec()
-        .len();
-
-    debug!("uniq nrs {}", uniq_nrs);
-
-    let nrs2 = rows
-        .iter()
-        .map(|r| r.block_number)
-        .unique()
-        .collect_vec()
-        .len();
-
-    debug!("uniq nrs {}", nrs2);
-
-    debug!(
-        "txs: {} to {}",
-        txs.first().unwrap().block_number,
-        txs.last().unwrap().block_number
-    );
-    debug!(
-        "extractors: {} to {}",
-        rows.first().unwrap().block_number,
-        rows.last().unwrap().block_number
-    );
 
     let txs_by_block: Vec<(BlockNumber, Vec<Tx>)> = txs
         .into_iter()
@@ -88,21 +57,6 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
         .map(|(key, group)| (key, group.into_iter().collect()))
         .collect();
 
-    debug!(
-        "txs_by_block: {}, extractors_by_block: {}",
-        txs_by_block.len(),
-        extractors_by_block.len()
-    );
-
-    if txs_by_block.len() != extractors_by_block.len() {
-        error!(
-            "expected equal number of blocks when tagging transactions, got {} and {}",
-            txs_by_block.len(),
-            extractors_by_block.len()
-        );
-        panic!("expected equal number of blocks when tagging transactions");
-    }
-
     assert!(
         txs_by_block.len() == extractors_by_block.len(),
         "expected equal number of blocks when tagging transactions"
@@ -114,22 +68,11 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
         .map(|((b0, txs), (b1, extractors))| {
             assert!(b0 == b1, "mismatched block numbers during zip");
 
-            let extractor_tx_counts_match = extractors
-                .iter()
-                .map(|ex| ex.tx_data.len())
-                .unique()
-                .into_iter()
-                .count()
-                == 1;
-
-            assert!(
-                extractor_tx_counts_match,
-                "expected every extractor to contain equal amount of txs"
-            );
-
             txs.iter().map(|tx| {
                 let timestamps: Vec<ExtractorTimestamp> = extractors
                     .iter()
+                    // filter out extractors that don't have a tx count that matches what's on chain
+                    .filter(|row| row.tx_data.len() == txs.len())
                     .map(|ex| ExtractorTimestamp {
                         id: ex.extractor.clone(),
                         timestamp: ex
@@ -140,6 +83,11 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
                     })
                     .collect();
 
+                assert!(
+                    timestamps.len() > 0,
+                    "expected at least one extractor with matching tx count"
+                );
+
                 TaggedTx {
                     timestamps,
                     tx: tx.clone(),
@@ -149,6 +97,9 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
         .flatten()
         .collect()
 }
+
+// when there's an empty block, this is what tx_data will be set to
+const GZIP_HEADER_HEX: &str = "\\x1f8b080000000000000303000000000000000000";
 
 #[async_trait]
 impl TimestampService for ZeroMev {
@@ -174,14 +125,16 @@ impl TimestampService for ZeroMev {
                 tx_data
             FROM
                 extractor_block
-            INNER JOIN extractor USING (extractor_index)
+            INNER JOIN
+                extractor USING (extractor_index)
             WHERE
                 block_number >= {}
                 AND block_number <= {}
+                AND tx_data != '{}'
             ORDER BY
                 block_number, extractor, block_time DESC
             ",
-            start_block, end_block
+            start_block, end_block, &GZIP_HEADER_HEX
         );
 
         let results: Vec<BlockExtractorRow> = sqlx::query(&query)
