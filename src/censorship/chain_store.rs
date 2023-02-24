@@ -6,15 +6,15 @@ use chrono::{DateTime, Utc};
 
 #[derive(Debug)]
 pub struct Block {
-    block_number: i64,
-    block_hash: String,
-    block_timestamp: DateTime<Utc>,
-    fee_recipient: String,
-    extra_data: String,
-    tx_count: i64,
-    gas_limit: i64,
-    gas_used: i64,
-    base_fee_per_gas: i64,
+    pub block_number: i64,
+    pub block_hash: String,
+    pub timestamp: DateTime<Utc>,
+    pub fee_recipient: String,
+    pub extra_data: String,
+    pub tx_count: i64,
+    pub gas_limit: i64,
+    pub gas_used: i64,
+    pub base_fee_per_gas: i64,
 }
 
 #[derive(Clone, Debug)]
