@@ -2,58 +2,68 @@ use super::{Block, ChainStore, Tx};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
-use gcp_bigquery_client::{model::query_request::QueryRequest, Client};
+use chrono::{DateTime, Utc};
+use futures::TryStreamExt;
+use gcp_bigquery_client::{
+    model::{job_configuration_query::JobConfigurationQuery, table_row::TableRow},
+    Client,
+};
+use tokio_stream::StreamExt;
 
 #[async_trait]
 impl ChainStore for Client {
     async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>> {
         let query = format!(
-            "
-            SELECT * FROM bigquery-public-data.crypto_ethereum.blocks
-            WHERE timestamp >= \"{start}\"
-              AND timestamp <= \"{end}\"
+            r#"
+            SELECT
+                blocks.number,
+                blocks.hash,
+                FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", blocks.timestamp),
+                blocks.miner,
+                blocks.extra_data,
+                blocks.transaction_count,
+                blocks.gas_limit,
+                blocks.gas_used,
+                blocks.base_fee_per_gas
+            FROM bigquery-public-data.crypto_ethereum.blocks
+            WHERE timestamp >= "{start}"
+              AND timestamp <= "{end}"
             ORDER BY timestamp ASC
-            ",
+            "#,
             start = start,
             end = end
         );
 
-        let mut res = self
+        let blocks: Vec<Block> = self
             .job()
-            // TODO: read from env
-            .query("ultra-sound-relay", QueryRequest::new(&query))
-            .await?;
-
-        let mut blocks: Vec<Block> = Vec::new();
-
-        while res.next_row() {
-            let ts = res.get_i64_by_name("timestamp")?.unwrap();
-
-            blocks.push(Block {
-                block_number: res.get_i64_by_name("number")?.unwrap(),
-                block_hash: res.get_string_by_name("hash")?.unwrap(),
-                block_timestamp: Utc.timestamp_opt(ts, 0).unwrap(),
-                fee_recipient: res.get_string_by_name("miner")?.unwrap(),
-                extra_data: res.get_string_by_name("extra_data")?.unwrap(),
-                tx_count: res.get_i64_by_name("transaction_count")?.unwrap(),
-                gas_limit: res.get_i64_by_name("gas_limit")?.unwrap(),
-                gas_used: res.get_i64_by_name("gas_used")?.unwrap(),
-                base_fee_per_gas: res.get_i64_by_name("base_fee_per_gas")?.unwrap(),
-            });
-        }
+            .query_all(
+                "ultra-sound-relay",
+                JobConfigurationQuery {
+                    query,
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                },
+                None,
+            )
+            .map_err(Into::into)
+            .collect::<Result<Vec<_>>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .map(parse_block_row)
+            .collect();
 
         Ok(blocks)
     }
 
     async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
         let query = format!(
-            "
+            r#"
             WITH
             txs AS (
                 SELECT * FROM bigquery-public-data.crypto_ethereum.transactions
-                WHERE block_timestamp >= \"{start}\"
-                AND block_timestamp <= \"{end}\"
+                WHERE block_timestamp > "{start}"
+                AND block_timestamp <= "{end}"
                 ORDER BY
                 block_number ASC,
                 transaction_index ASC
@@ -66,8 +76,8 @@ impl ChainStore for Client {
                         ARRAY_AGG(to_address IGNORE NULLS)
                     ) AS addresses
                 FROM bigquery-public-data.crypto_ethereum.traces
-                WHERE block_timestamp >= \"{start}\"
-                AND block_timestamp <= \"{end}\"
+                WHERE block_timestamp > "{start}"
+                AND block_timestamp <= "{end}"
                 GROUP BY transaction_hash
             )
 
@@ -82,43 +92,161 @@ impl ChainStore for Client {
                 ) AS address_trace
             FROM txs INNER JOIN traces ON txs.hash = traces.transaction_hash
             ORDER BY txs.block_timestamp, txs.transaction_index
-        ",
+        "#,
             start = start,
             end = end
         );
 
-        let mut res = self
+        let txs: Vec<Tx> = self
             .job()
-            // TODO: read from env
-            .query("ultra-sound-relay", QueryRequest::new(&query))
-            .await?;
-
-        let mut txs: Vec<Tx> = Vec::new();
-
-        while res.next_row() {
-            let address_trace = res
-                .get_json_value_by_name("address_trace")?
-                .unwrap()
-                .as_array()
-                .unwrap()
-                .iter()
-                // as_array returns strings nested in an object like { "v": "0x123" }
-                .map(|obj| {
-                    let map = obj.as_object().unwrap();
-                    map.get("v").unwrap().as_str().unwrap().to_owned()
-                })
-                .collect();
-
-            txs.push(Tx {
-                tx_hash: res.get_string_by_name("hash")?.unwrap(),
-                tx_index: res.get_i64_by_name("transaction_index")?.unwrap(),
-                block_number: res.get_i64_by_name("block_number")?.unwrap(),
-                max_fee: res.get_i64_by_name("max_fee_per_gas")?,
-                max_prio_fee: res.get_i64_by_name("max_priority_fee_per_gas")?,
-                address_trace,
-            });
-        }
+            .query_all(
+                "ultra-sound-relay",
+                JobConfigurationQuery {
+                    query,
+                    use_legacy_sql: Some(false),
+                    ..Default::default()
+                },
+                None,
+            )
+            .map_err(Into::into)
+            .collect::<Result<Vec<_>>>()
+            .await?
+            .into_iter()
+            .flatten()
+            .map(parse_tx_row)
+            .collect();
 
         Ok(txs)
+    }
+}
+
+// bigquery returns everything as strings, so this becomes quite the unwrap fest
+fn parse_block_row(row: TableRow) -> Block {
+    let columns = row.columns.unwrap();
+    Block {
+        block_number: columns[0]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+
+        block_hash: columns[1]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+
+        timestamp: DateTime::parse_from_rfc3339(
+            columns[2].clone().value.unwrap().as_str().unwrap(),
+        )
+        .unwrap()
+        .with_timezone(&Utc),
+
+        fee_recipient: columns[3]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+
+        extra_data: columns[4]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+
+        tx_count: columns[5]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+
+        gas_limit: columns[6]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+
+        gas_used: columns[7]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+
+        base_fee_per_gas: columns[8]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+    }
+}
+
+fn parse_tx_row(row: TableRow) -> Tx {
+    let columns = row.columns.unwrap();
+    Tx {
+        tx_hash: columns[0]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        tx_index: columns[1]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        block_number: columns[2]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        max_fee: columns[3]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
+        max_prio_fee: columns[4]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
+        address_trace: columns[5]
+            .clone()
+            .value
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            // as_array returns strings nested in an object like { "v": "0x123" }
+            .map(|obj| {
+                let map = obj.as_object().unwrap();
+                map.get("v").unwrap().as_str().unwrap().to_owned()
+            })
+            .collect(),
     }
 }
