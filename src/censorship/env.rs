@@ -9,7 +9,7 @@ pub struct AppConfig {
 
 fn get_app_config() -> AppConfig {
     let db_connection_str = std::env::var("DATABASE_URL");
-    let zeromev_connection_str = std::env::var("DATABASE_URL");
+    let zeromev_connection_str = std::env::var("ZEROMEV_DATABASE_URL");
     let relay_urls = vec![
         Url::parse("https://boost-relay.flashbots.net").unwrap(),
         Url::parse("https://relay.ultrasound.money").unwrap(),
