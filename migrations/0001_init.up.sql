@@ -1,5 +1,6 @@
 CREATE TABLE blocks (
   id bigserial PRIMARY KEY,
+  inserted_at timestamptz NOT NULL DEFAULT now(),
   timestamp timestamptz NOT NULL,
   block_number bigint UNIQUE NOT NULL,
   block_hash varchar(66) UNIQUE NOT NULL,
@@ -41,8 +42,13 @@ CREATE TABLE tx_blacklists (
 
 CREATE TABLE block_production (
   id bigserial PRIMARY KEY,
-  block_number bigint UNIQUE NOT NULL,
+  inserted_at timestamptz NOT NULL DEFAULT now(),
+  slot_number bigint NOT NULL,
+  block_number bigint NOT NULL,
+  block_hash varchar(66) NOT NULL,
   builder_pubkey varchar(98),
   proposer_pubkey varchar(98),
-  relays text array
+  relays text array,
+
+  UNIQUE (slot_number, block_number, block_hash)
 );

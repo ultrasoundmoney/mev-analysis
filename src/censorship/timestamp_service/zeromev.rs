@@ -3,6 +3,7 @@ mod format;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Duration;
+use im::vector::{Iter, Vector};
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
@@ -37,25 +38,27 @@ struct BlockExtractorRow {
     tx_data: Vec<TxTuple>,
 }
 
+fn test_txs(txs: Vector<Tx>, rows: Vector<BlockExtractorRow>) {}
+
 fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<TaggedTx> {
     // we rely on transaction index to associate timestamps from zeromev to transactions
     // on our side, so we need to make sure everything is sorted
     txs.sort_by_key(|tx| (tx.block_number, tx.tx_index));
     rows.sort_by_key(|row| row.block_number);
 
-    let txs_by_block: Vec<(BlockNumber, Vec<Tx>)> = txs
+    let txs_by_block = txs
         .into_iter()
         .group_by(|tx| tx.block_number)
         .into_iter()
-        .map(|(key, group)| (key, group.into_iter().collect()))
-        .collect();
+        .map(|(key, group)| (key, group.into_iter().collect_vec()))
+        .collect_vec();
 
-    let extractors_by_block: Vec<(BlockNumber, Vec<BlockExtractorRow>)> = rows
+    let extractors_by_block = rows
         .into_iter()
         .group_by(|row| row.block_number)
         .into_iter()
-        .map(|(key, group)| (key, group.into_iter().collect()))
-        .collect();
+        .map(|(key, group)| (key, group.into_iter().collect_vec()))
+        .collect_vec();
 
     assert!(
         txs_by_block.len() == extractors_by_block.len(),

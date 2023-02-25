@@ -35,7 +35,7 @@ fn to_i64_vec(bytes: Vec<u8>) -> Vec<i64> {
 }
 
 pub fn parse_tx_data(bytes: Vec<u8>) -> Vec<TxTuple> {
-    let mut decomp_bytes: Vec<u8> = vec![];
+    let mut decomp_bytes = vec![];
 
     GzDecoder::new(&bytes[..])
         .read_to_end(&mut decomp_bytes)

@@ -3,17 +3,7 @@ use async_trait::async_trait;
 use reqwest::Url;
 use serde::Deserialize;
 
-use super::{DeliveredPayload, RelayApi};
-
-pub struct RelayServiceHttp {
-    url: Url,
-}
-
-impl RelayServiceHttp {
-    pub fn new(url: Url) -> Self {
-        Self { url }
-    }
-}
+use super::{DeliveredPayload, RelayApi, RelayId};
 
 #[derive(Deserialize)]
 struct DeliveredPayloadResponse {
@@ -25,12 +15,24 @@ struct DeliveredPayloadResponse {
     proposer_fee_recipient: String,
 }
 
+// Set to the lowest max which is bloxroute
+const PAYLOAD_LIMIT: usize = 100;
+
 #[async_trait]
-impl RelayApi for RelayServiceHttp {
-    async fn fetch_delivered_payloads(&self, end_slot: &i64) -> Result<Vec<DeliveredPayload>> {
+impl RelayApi for RelayId {
+    async fn fetch_delivered_payloads(
+        &self,
+        end_slot: &Option<i64>,
+    ) -> Result<Vec<DeliveredPayload>> {
+        let url: Url = self.clone().into();
+        let limit = format!("?limit={}", PAYLOAD_LIMIT);
+        let query = end_slot
+            .map(|end_slot| format!("{}&cursor={}", &limit, &end_slot))
+            .unwrap_or(limit);
+
         let url = format!(
-            "{}relay/v1/data/bidtraces/proposer_payload_delivered?cursor={}",
-            &self.url, end_slot
+            "{}relay/v1/data/bidtraces/proposer_payload_delivered{}",
+            url, &query
         );
         reqwest::get(url)
             .await?
@@ -48,6 +50,7 @@ impl RelayApi for RelayServiceHttp {
                              proposer_pubkey,
                              proposer_fee_recipient,
                          }| DeliveredPayload {
+                            relay_id: self.clone(),
                             slot_number: slot.parse().unwrap(),
                             block_number: block_number.parse().unwrap(),
                             block_hash,

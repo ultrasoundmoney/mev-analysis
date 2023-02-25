@@ -1,4 +1,3 @@
-DROP TABLE relays;
 DROP TABLE block_production;
 DROP TABLE tx_blacklists;
 DROP TABLE blacklists;
