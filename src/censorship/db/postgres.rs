@@ -5,7 +5,9 @@ use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, QueryBuilder};
 
 use super::CensorshipDB;
-use crate::censorship::{chain_store::Block, env::APP_CONFIG, timestamp_service::TaggedTx};
+use crate::censorship::{
+    chain_store::Block, env::APP_CONFIG, relay::DeliveredPayload, timestamp_service::TaggedTx,
+};
 
 pub struct PostgresCensorshipDB {
     pool: Pool<Postgres>,
@@ -22,7 +24,7 @@ impl PostgresCensorshipDB {
     }
 }
 
-// it's not great but these are used to avoid the bind limit
+// It's not great but these are used to avoid the bind limit
 // when batch inserting rows, and have to be kept up to date
 const BIND_LIMIT: usize = 65535;
 const BLOCK_NUM_KEYS: usize = 9;
@@ -32,22 +34,55 @@ const TIMESTAMP_NUM_KEYS: usize = 3;
 #[async_trait]
 impl CensorshipDB for PostgresCensorshipDB {
     async fn get_chain_checkpoint(&self) -> Result<Option<DateTime<Utc>>> {
-        sqlx::query!("SELECT timestamp FROM blocks ORDER BY timestamp DESC LIMIT 1")
+        sqlx::query_scalar!("SELECT timestamp FROM blocks ORDER BY timestamp DESC LIMIT 1")
             .fetch_optional(&self.pool)
             .await
-            .map(|res| res.map(|row| row.timestamp))
             .map_err(Into::into)
     }
 
     async fn get_block_production_checkpoint(&self) -> Result<Option<i64>> {
-        sqlx::query!("SELECT block_number FROM block_production ORDER BY block_number DESC LIMIT 1")
-            .fetch_optional(&self.pool)
-            .await
-            .map(|res| res.map(|row| row.block_number))
-            .map_err(Into::into)
+        sqlx::query_scalar!(
+            "SELECT block_number FROM block_production ORDER BY block_number DESC LIMIT 1"
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Into::into)
     }
 
-    async fn persist_chain_data(&self, blocks: Vec<Block>, txs: Vec<TaggedTx>) -> Result<()> {
+    async fn upsert_delivered_payloads(&self, payloads: Vec<DeliveredPayload>) -> Result<()> {
+        for DeliveredPayload {
+            slot_number,
+            block_number,
+            block_hash,
+            builder_pubkey,
+            proposer_pubkey,
+            relay_id,
+            ..
+        } in payloads
+        {
+            // it's possible multiple relays will deliver the same block. in this case, append to array
+            sqlx::query!(
+                "
+                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (slot_number, block_number, block_hash)
+                DO UPDATE
+                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))
+                ",
+                slot_number,
+                block_number,
+                block_hash,
+                builder_pubkey,
+                proposer_pubkey,
+                &vec![relay_id.to_string()]
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+        Ok(())
+    }
+
+    async fn put_chain_data(&self, blocks: Vec<Block>, txs: Vec<TaggedTx>) -> Result<()> {
         let block_chunks = blocks
             .into_iter()
             .chunks(BIND_LIMIT / BLOCK_NUM_KEYS)

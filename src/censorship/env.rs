@@ -1,38 +1,47 @@
+use chrono::{DateTime, Duration, Utc};
 use lazy_static::lazy_static;
-use reqwest::Url;
 
 pub struct AppConfig {
     pub db_connection_str: String,
     pub zeromev_connection_str: String,
-    pub relay_urls: Vec<Url>,
+    pub backfill_until: DateTime<Utc>,
+    pub chain_data_interval: Duration,
+    pub block_production_interval: Duration,
 }
 
 fn get_app_config() -> AppConfig {
     let db_connection_str = std::env::var("DATABASE_URL");
     let zeromev_connection_str = std::env::var("ZEROMEV_DATABASE_URL");
-    let relay_urls = vec![
-        Url::parse("https://boost-relay.flashbots.net").unwrap(),
-        Url::parse("https://relay.ultrasound.money").unwrap(),
-        Url::parse("https://agnostic-relay.net").unwrap(),
-        Url::parse("https://bloxroute.max-profit.blxrbdn.com").unwrap(),
-        Url::parse("https://bloxroute.regulated.blxrbdn.com").unwrap(),
-        Url::parse("https://bloxroute.ethical.blxrbdn.com").unwrap(),
-        Url::parse("https://builder-relay-mainnet.blocknative.com").unwrap(),
-        Url::parse("https://relay.edennetwork.io").unwrap(),
-        Url::parse("https://relayooor.wtf").unwrap(),
-        Url::parse("https://relayooor.wtf").unwrap(),
-    ];
+    let backfill_until = std::env::var("BACKFILL_UNTIL");
+    let chain_data_interval = std::env::var("CHAIN_DATA_INTERVAL");
+    let block_production_interval = std::env::var("BLOCK_PRODUCTION_INTERVAL");
 
-    if let (Ok(db_connection_str), Ok(zeromev_connection_str)) =
-        (db_connection_str, zeromev_connection_str)
-    {
+    if let (
+        Ok(db_connection_str),
+        Ok(zeromev_connection_str),
+        Ok(backfill_until),
+        Ok(chain_data_interval),
+        Ok(block_production_interval),
+    ) = (
+        db_connection_str,
+        zeromev_connection_str,
+        backfill_until,
+        chain_data_interval,
+        block_production_interval,
+    ) {
         AppConfig {
             db_connection_str,
             zeromev_connection_str,
-            relay_urls,
+            backfill_until: DateTime::parse_from_rfc3339(&backfill_until)
+                .unwrap()
+                .with_timezone(&Utc),
+            chain_data_interval: Duration::minutes(chain_data_interval.parse().unwrap()),
+            block_production_interval: Duration::minutes(
+                block_production_interval.parse().unwrap(),
+            ),
         }
     } else {
-        panic!("failed to construct AppConfig")
+        panic!("missing environment variable(s)");
     }
 }
 
