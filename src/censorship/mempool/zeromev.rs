@@ -3,7 +3,6 @@ mod format;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Duration;
-use im::vector::{Iter, Vector};
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
@@ -37,8 +36,6 @@ struct BlockExtractorRow {
     extractor: SourceId,
     tx_data: Vec<TxTuple>,
 }
-
-fn test_txs(txs: Vector<Tx>, rows: Vector<BlockExtractorRow>) {}
 
 fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<TaggedTx> {
     // we rely on transaction index to associate timestamps from zeromev to transactions
