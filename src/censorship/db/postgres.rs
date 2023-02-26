@@ -1,8 +1,13 @@
+use std::str::FromStr;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, QueryBuilder};
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions},
+    ConnectOptions, Pool, Postgres, QueryBuilder,
+};
 
 use super::CensorshipDB;
 use crate::censorship::{
@@ -15,9 +20,14 @@ pub struct PostgresCensorshipDB {
 
 impl PostgresCensorshipDB {
     pub async fn new() -> Result<Self> {
+        let connect_opts = PgConnectOptions::from_str(&APP_CONFIG.db_connection_str)?
+            // logging the batch inserts makes the sql pretty printer crawl to a halt
+            .disable_statement_logging()
+            .to_owned();
+
         let pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&APP_CONFIG.db_connection_str)
+            .connect_with(connect_opts)
             .await?;
 
         Ok(Self { pool })
