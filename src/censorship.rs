@@ -24,7 +24,7 @@ use self::{
 
 async fn ingest_chain_data() -> Result<()> {
     let chain_store =
-        Client::from_service_account_key_file("ultra-sound-relay-ae2ce601f320.json").await?;
+        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
     let ts_service = ZeroMev::new().await;
     let db = PostgresCensorshipDB::new().await?;
     let fetch_interval = APP_CONFIG.chain_data_interval;
