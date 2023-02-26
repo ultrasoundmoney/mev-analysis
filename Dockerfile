@@ -23,6 +23,7 @@ RUN apt update && apt install -y libssl1.1 ca-certificates
 COPY --from=builder /app/target/release/relay-backend /usr/local/bin
 COPY --from=builder /app/target/release/phoenix-service /usr/local/bin
 COPY --from=builder /app/target/release/serve /usr/local/bin
+COPY --from=builder /app/target/release/censorship /usr/local/bin
 
 EXPOSE 3002
 ENTRYPOINT ["/usr/local/bin/relay-backend"]

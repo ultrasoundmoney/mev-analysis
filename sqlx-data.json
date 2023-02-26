@@ -17,5 +17,40 @@
       }
     },
     "query": "SELECT timestamp FROM blocks ORDER BY timestamp DESC LIMIT 1"
+  },
+  "84a32e140e6b60371040d71497cc0ff346dae0f3cf0aa5addeca42b4c057d28f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "TextArray"
+        ]
+      }
+    },
+    "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)\n                VALUES ($1, $2, $3, $4, $5, $6)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE\n                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))\n                "
+  },
+  "dc1b138f4b6c7d4b4f6a3c30153dabe6f45f41e22631c6721e2ec705e9c7b6c2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "block_number",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT block_number FROM block_production ORDER BY block_number DESC LIMIT 1"
   }
 }
