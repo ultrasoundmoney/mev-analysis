@@ -20,7 +20,7 @@ pub struct PostgresCensorshipDB {
 
 impl PostgresCensorshipDB {
     pub async fn new() -> Result<Self> {
-        let connect_opts = PgConnectOptions::from_str(&APP_CONFIG.db_connection_str)?
+        let connect_opts = PgConnectOptions::from_str(&APP_CONFIG.database_url)?
             // logging the batch inserts makes the sql pretty printer crawl to a halt
             .disable_statement_logging()
             .to_owned();

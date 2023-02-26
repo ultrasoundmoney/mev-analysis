@@ -5,13 +5,16 @@ mod mempool;
 mod relay;
 
 use anyhow::Result;
+use axum::{http::StatusCode, routing::get, Router};
 use chrono::{Duration, Utc};
 use enum_iterator::all;
 use futures::future;
 use gcp_bigquery_client::Client;
 use itertools::Itertools;
 use sqlx::{Connection, PgConnection};
+use std::net::SocketAddr;
 use std::ops::Add;
+use std::process;
 use tracing::{error, info};
 
 use self::db::{CensorshipDB, PostgresCensorshipDB};
@@ -136,23 +139,37 @@ async fn ingest_block_production_data() -> Result<()> {
 //     Ok(())
 // }
 
+async fn mount_health_route() {
+    let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
+    let app = Router::new().route("/", get(|| async { StatusCode::OK }));
+
+    info!("listening on {}", addr);
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
 pub async fn start_ingestion() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.db_connection_str).await?;
+    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
+
+    tokio::spawn(mount_health_route());
 
     let result = tokio::try_join!(ingest_chain_data(), ingest_block_production_data());
 
     match result {
         Ok(_) => {
             error!("ingestion task(s) completed unexpectedly without an error");
+            process::exit(1);
         }
         Err(err) => {
             error!("ingestion task(s) failed: {}", err);
+            process::exit(1);
         }
     }
-
-    Ok(())
 }
