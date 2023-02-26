@@ -6,7 +6,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres, QueryBuilder};
 
 use super::CensorshipDB;
 use crate::censorship::{
-    chain_store::Block, env::APP_CONFIG, relay::DeliveredPayload, timestamp_service::TaggedTx,
+    chain::Block, env::APP_CONFIG, mempool::TaggedTx, relay::DeliveredPayload,
 };
 
 pub struct PostgresCensorshipDB {

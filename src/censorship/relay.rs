@@ -14,6 +14,16 @@ pub trait RelayApi {
     ) -> Result<Vec<DeliveredPayload>>;
 }
 
+pub struct DeliveredPayload {
+    pub relay_id: RelayId,
+    pub slot_number: i64,
+    pub block_number: i64,
+    pub block_hash: String,
+    pub builder_pubkey: String,
+    pub proposer_pubkey: String,
+    pub proposer_fee_recipient: String,
+}
+
 #[derive(PartialEq, Sequence, Clone)]
 pub enum RelayId {
     UltraSound,
@@ -66,14 +76,4 @@ impl Into<Url> for RelayId {
             RelayId::Aestus => Url::parse("https://mainnet.aestus.live").unwrap(),
         }
     }
-}
-
-pub struct DeliveredPayload {
-    pub relay_id: RelayId,
-    pub slot_number: i64,
-    pub block_number: i64,
-    pub block_hash: String,
-    pub builder_pubkey: String,
-    pub proposer_pubkey: String,
-    pub proposer_fee_recipient: String,
 }

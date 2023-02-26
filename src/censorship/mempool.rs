@@ -5,12 +5,12 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::{fmt, str::FromStr};
 
-use super::chain_store::Tx;
+use super::chain::Tx;
 pub use zeromev::ZeroMev;
 
 // service for timestamping transactions based on their appearance in the mempool(s)
 #[async_trait]
-pub trait TimestampService {
+pub trait MempoolStore {
     async fn fetch_tx_timestamps(&self, mut txs: Vec<Tx>) -> Result<Vec<TaggedTx>>;
 }
 

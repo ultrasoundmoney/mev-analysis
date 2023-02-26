@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-use super::{chain_store::Block, relay::DeliveredPayload, timestamp_service::TaggedTx};
+use super::{chain::Block, mempool::TaggedTx, relay::DeliveredPayload};
 
 pub use postgres::PostgresCensorshipDB;
 

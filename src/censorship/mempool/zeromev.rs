@@ -9,7 +9,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
 
 use self::format::{parse_tx_data, TxTuple};
-use super::{MempoolTimestamp, SourceId, TaggedTx, TimestampService, Tx};
+use super::{MempoolStore, MempoolTimestamp, SourceId, TaggedTx, Tx};
 use crate::censorship::env::APP_CONFIG;
 
 pub struct ZeroMev {
@@ -105,7 +105,7 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
 const GZIP_HEADER_HEX: &str = "\\x1f8b080000000000000303000000000000000000";
 
 #[async_trait]
-impl TimestampService for ZeroMev {
+impl MempoolStore for ZeroMev {
     async fn fetch_tx_timestamps(&self, txs: Vec<Tx>) -> Result<Vec<TaggedTx>> {
         let start_block = txs
             .first()
