@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub backfill_until: DateTime<Utc>,
     pub chain_data_interval: Duration,
     pub block_production_interval: Duration,
+    pub bigquery_service_account: String,
 }
 
 fn get_app_config() -> AppConfig {
@@ -15,6 +16,7 @@ fn get_app_config() -> AppConfig {
     let backfill_until = std::env::var("BACKFILL_UNTIL");
     let chain_data_interval = std::env::var("CHAIN_DATA_INTERVAL");
     let block_production_interval = std::env::var("BLOCK_PRODUCTION_INTERVAL");
+    let bigquery_service_account = std::env::var("BIGQUERY_SERVICE_ACCOUNT");
 
     if let (
         Ok(db_connection_str),
@@ -22,12 +24,14 @@ fn get_app_config() -> AppConfig {
         Ok(backfill_until),
         Ok(chain_data_interval),
         Ok(block_production_interval),
+        Ok(bigquery_service_account),
     ) = (
         db_connection_str,
         zeromev_connection_str,
         backfill_until,
         chain_data_interval,
         block_production_interval,
+        bigquery_service_account,
     ) {
         AppConfig {
             db_connection_str,
@@ -39,6 +43,7 @@ fn get_app_config() -> AppConfig {
             block_production_interval: Duration::minutes(
                 block_production_interval.parse().unwrap(),
             ),
+            bigquery_service_account,
         }
     } else {
         panic!("missing environment variable(s)");
