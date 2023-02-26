@@ -1,8 +1,8 @@
-mod chain_store;
+mod chain;
 mod db;
 mod env;
+mod mempool;
 mod relay;
-mod timestamp_service;
 
 use anyhow::Result;
 use chrono::{Duration, Utc};
@@ -18,8 +18,8 @@ use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
 use self::relay::{RelayApi, RelayId};
 use self::{
-    chain_store::ChainStore,
-    timestamp_service::{TimestampService, ZeroMev},
+    chain::ChainStore,
+    mempool::{MempoolStore, ZeroMev},
 };
 
 async fn ingest_chain_data() -> Result<()> {
