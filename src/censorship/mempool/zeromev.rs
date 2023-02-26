@@ -20,7 +20,7 @@ impl ZeroMev {
         let db_pool = PgPoolOptions::new()
             .max_connections(3)
             .acquire_timeout(Duration::seconds(3).to_std().unwrap())
-            .connect(&APP_CONFIG.zeromev_connection_str)
+            .connect(&APP_CONFIG.zeromev_database_url)
             .await
             .expect("can't connect to zeromev database");
 
