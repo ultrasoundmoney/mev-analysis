@@ -16,15 +16,22 @@ impl ChainStore for Client {
         let query = format!(
             r#"
             SELECT
-                blocks.number,
+                blocks.base_fee_per_gas,
                 blocks.hash,
-                FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", blocks.timestamp),
-                blocks.miner,
+                blocks.number,
                 blocks.extra_data,
-                blocks.transaction_count,
+                blocks.miner,
                 blocks.gas_limit,
                 blocks.gas_used,
-                blocks.base_fee_per_gas
+                blocks.logs_bloom,
+                blocks.parent_hash,
+                blocks.receipts_root,
+                blocks.sha3_uncles,
+                blocks.size,
+                blocks.state_root,
+                FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", blocks.timestamp),
+                blocks.transaction_count,
+                blocks.transactions_root
             FROM bigquery-public-data.crypto_ethereum.blocks
             WHERE timestamp > "{start}"
               AND timestamp <= "{end}"
@@ -82,14 +89,28 @@ impl ChainStore for Client {
             )
 
             SELECT
-                txs.hash,
-                txs.transaction_index,
-                txs.block_number,
-                txs.max_fee_per_gas,
-                txs.max_priority_fee_per_gas,
                 ARRAY(
                   SELECT DISTINCT x FROM UNNEST(traces.addresses) AS x
-                ) AS address_trace
+                ) AS address_trace,
+                txs.block_number,
+                FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", txs.block_timestamp),
+                txs.from_address,
+                txs.gas,
+                txs.gas_price,
+                txs.input,
+                txs.max_fee_per_gas,
+                txs.max_priority_fee_per_gas,
+                txs.nonce,
+                txs.receipt_contract_address,
+                txs.receipt_cumulative_gas_used,
+                txs.receipt_effective_gas_price,
+                txs.receipt_gas_used,
+                txs.receipt_status,
+                txs.to_address,
+                txs.hash,
+                txs.transaction_index,
+                txs.transaction_type,
+                txs.value
             FROM txs INNER JOIN traces ON txs.hash = traces.transaction_hash
             ORDER BY txs.block_timestamp, txs.transaction_index
         "#,
@@ -124,7 +145,7 @@ impl ChainStore for Client {
 fn parse_block_row(row: TableRow) -> Block {
     let columns = row.columns.unwrap();
     Block {
-        block_number: columns[0]
+        base_fee_per_gas: columns[0]
             .clone()
             .value
             .unwrap()
@@ -132,7 +153,6 @@ fn parse_block_row(row: TableRow) -> Block {
             .unwrap()
             .parse::<i64>()
             .unwrap(),
-
         block_hash: columns[1]
             .clone()
             .value
@@ -140,85 +160,6 @@ fn parse_block_row(row: TableRow) -> Block {
             .as_str()
             .unwrap()
             .to_string(),
-
-        timestamp: DateTime::parse_from_rfc3339(
-            columns[2].clone().value.unwrap().as_str().unwrap(),
-        )
-        .unwrap()
-        .with_timezone(&Utc),
-
-        fee_recipient: columns[3]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string(),
-
-        extra_data: columns[4]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string(),
-
-        tx_count: columns[5]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .parse::<i64>()
-            .unwrap(),
-
-        gas_limit: columns[6]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .parse::<i64>()
-            .unwrap(),
-
-        gas_used: columns[7]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .parse::<i64>()
-            .unwrap(),
-
-        base_fee_per_gas: columns[8]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .parse::<i64>()
-            .unwrap(),
-    }
-}
-
-fn parse_tx_row(row: TableRow) -> Tx {
-    let columns = row.columns.unwrap();
-    Tx {
-        tx_hash: columns[0]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string(),
-        tx_index: columns[1]
-            .clone()
-            .value
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .parse::<i64>()
-            .unwrap(),
         block_number: columns[2]
             .clone()
             .value
@@ -227,15 +168,108 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .unwrap()
             .parse::<i64>()
             .unwrap(),
-        base_fee: columns[3]
+        extra_data: hex_to_option(
+            columns[3]
+                .clone()
+                .value
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+        ),
+        fee_recipient: columns[4]
             .clone()
             .value
-            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
-        max_prio_fee: columns[4]
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        gas_limit: columns[5]
             .clone()
             .value
-            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
-        address_trace: columns[5]
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        gas_used: columns[6]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        logs_bloom: columns[7]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        parent_hash: columns[8]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        receipts_root: columns[9]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        sha3_uncles: columns[10]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        size: columns[11]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        state_root: columns[12]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        timestamp: DateTime::parse_from_rfc3339(
+            columns[13].clone().value.unwrap().as_str().unwrap(),
+        )
+        .unwrap()
+        .with_timezone(&Utc),
+        tx_count: columns[14]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        txs_root: columns[15]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+    }
+}
+
+fn parse_tx_row(row: TableRow) -> Tx {
+    let columns = row.columns.unwrap();
+    Tx {
+        address_trace: columns[0]
             .clone()
             .value
             .unwrap()
@@ -248,5 +282,146 @@ fn parse_tx_row(row: TableRow) -> Tx {
                 map.get("v").unwrap().as_str().unwrap().to_owned()
             })
             .collect(),
+        block_number: columns[1]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        block_timestamp: DateTime::parse_from_rfc3339(
+            &columns[2]
+                .clone()
+                .value
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+        )
+        .unwrap()
+        .with_timezone(&Utc),
+        from_address: columns[3]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        gas: columns[4]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        gas_price: columns[5]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        input: hex_to_option(
+            columns[6]
+                .clone()
+                .value
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+        ),
+        max_fee_per_gas: columns[7]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
+        max_priority_fee_per_gas: columns[8]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
+        nonce: columns[9]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        receipt_contract_address: columns[10]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().to_string()),
+        receipt_cumulative_gas_used: columns[11]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        receipt_effective_gas_price: columns[12]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().parse::<i64>().unwrap()),
+        receipt_gas_used: columns[13]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        receipt_status: columns[14]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        to_address: columns[15]
+            .clone()
+            .value
+            .map(|v| v.as_str().unwrap().to_string()),
+        tx_hash: columns[16]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        tx_index: columns[17]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        tx_type: columns[18]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap(),
+        value: columns[19]
+            .clone()
+            .value
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+    }
+}
+
+fn hex_to_option(hex: String) -> Option<String> {
+    if hex == "0x" {
+        None
+    } else {
+        Some(hex)
     }
 }

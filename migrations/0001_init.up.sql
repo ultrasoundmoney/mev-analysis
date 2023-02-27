@@ -1,25 +1,46 @@
 CREATE TABLE blocks (
   id bigserial PRIMARY KEY,
-  inserted_at timestamptz NOT NULL DEFAULT now(),
-  timestamp timestamptz NOT NULL,
-  block_number bigint UNIQUE NOT NULL,
+  base_fee_per_gas bigint NOT NULL,
   block_hash varchar(66) UNIQUE NOT NULL,
-  fee_recipient varchar(42) NOT NULL,
+  block_number bigint UNIQUE NOT NULL,
   extra_data text,
-  tx_count int NOT NULL,
+  fee_recipient varchar(42) NOT NULL,
   gas_limit bigint NOT NULL,
   gas_used bigint NOT NULL,
-  base_fee_per_gas bigint NOT NULL
+  inserted_at timestamptz NOT NULL DEFAULT now(),
+  logs_bloom varchar(514) NOT NULL,
+  parent_hash varchar(66) NOT NULL,
+  receipts_root varchar(66) NOT NULL,
+  sha3_uncles varchar(66) NOT NULL,
+  size int NOT NULL,
+  state_root varchar(66) NOT NULL,
+  timestamp timestamptz NOT NULL UNIQUE,
+  tx_count int NOT NULL,
+  txs_root varchar(66) NOT NULL
 );
 
 CREATE TABLE txs (
   id bigserial PRIMARY KEY,
+  address_trace varchar(42) array NOT NULL,
+  block_number bigint REFERENCES blocks (block_number),
+  block_timestamp timestamptz REFERENCES blocks (timestamp),
+  from_address varchar(42) NOT NULL,
+  gas int NOT NULL,
+  gas_price bigint NOT NULL,
+  input text,
+  max_fee_per_gas bigint,
+  max_priority_fee_per_gas bigint,
+  nonce int NOT NULL,
+  receipt_contract_address varchar(42),
+  receipt_cumulative_gas_used int NOT NULL,
+  receipt_effective_gas_price bigint NOT NULL,
+  receipt_gas_used int NOT NULL,
+  receipt_status int NOT NULL,
+  to_address varchar(42),
   tx_hash varchar(66) UNIQUE NOT NULL,
   tx_index int NOT NULL,
-  block_number bigint REFERENCES blocks (block_number),
-  base_fee numeric,
-  max_prio_fee numeric,
-  address_trace varchar(42) array NOT NULL
+  tx_type int NOT NULL,
+  value numeric NOT NULL
 );
 
 CREATE TABLE mempool_timestamps (

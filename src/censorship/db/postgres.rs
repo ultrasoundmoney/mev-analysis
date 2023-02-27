@@ -37,8 +37,8 @@ impl PostgresCensorshipDB {
 // It's not great but these are used to avoid the bind limit
 // when batch inserting rows, and have to be kept up to date
 const BIND_LIMIT: usize = 65535;
-const BLOCK_NUM_KEYS: usize = 9;
-const TX_NUM_KEYS: usize = 6;
+const BLOCK_NUM_KEYS: usize = 16;
+const TX_NUM_KEYS: usize = 20;
 const TIMESTAMP_NUM_KEYS: usize = 3;
 
 #[async_trait]
@@ -104,30 +104,44 @@ impl CensorshipDB for PostgresCensorshipDB {
             let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "
                 INSERT INTO blocks (
-                    block_number,
+                    base_fee_per_gas,
                     block_hash,
-                    timestamp,
-                    fee_recipient,
+                    block_number,
                     extra_data,
-                    tx_count,
+                    fee_recipient,
                     gas_limit,
                     gas_used,
-                    base_fee_per_gas
+                    logs_bloom,
+                    parent_hash,
+                    receipts_root,
+                    sha3_uncles,
+                    size,
+                    state_root,
+                    timestamp,
+                    tx_count,
+                    txs_root
                 )
                 ",
             );
 
             query_builder.push_values(chunk, |mut builder, block| {
                 builder
-                    .push_bind(block.block_number)
+                    .push(block.base_fee_per_gas)
                     .push_bind(block.block_hash)
-                    .push_bind(block.timestamp)
-                    .push_bind(block.fee_recipient)
+                    .push_bind(block.block_number)
                     .push_bind(block.extra_data)
-                    .push_bind(block.tx_count)
+                    .push_bind(block.fee_recipient)
                     .push_bind(block.gas_limit)
                     .push_bind(block.gas_used)
-                    .push_bind(block.base_fee_per_gas);
+                    .push_bind(block.logs_bloom)
+                    .push_bind(block.parent_hash)
+                    .push_bind(block.receipts_root)
+                    .push_bind(block.sha3_uncles)
+                    .push_bind(block.size)
+                    .push_bind(block.state_root)
+                    .push_bind(block.timestamp)
+                    .push_bind(block.tx_count)
+                    .push_bind(block.txs_root);
             });
 
             query_builder.build().execute(&self.pool).await?;
@@ -144,24 +158,52 @@ impl CensorshipDB for PostgresCensorshipDB {
             let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "
                 INSERT INTO txs (
+                    address_trace,
+                    block_number,
+                    block_timestamp,
+                    from_address,
+                    gas,
+                    gas_price,
+                    input,
+                    max_fee_per_gas,
+                    max_priority_fee_per_gas,
+                    nonce,
+                    receipt_contract_address,
+                    receipt_cumulative_gas_used,
+                    receipt_effective_gas_price,
+                    receipt_gas_used,
+                    receipt_status,
+                    to_address,
                     tx_hash,
                     tx_index,
-                    block_number,
-                    base_fee,
-                    max_prio_fee,
-                    address_trace
+                    tx_type,
+                    value
                 )
                 ",
             );
 
             query_builder.push_values(chunk, |mut builder, TaggedTx { tx, .. }| {
                 builder
+                    .push_bind(tx.address_trace.clone())
+                    .push_bind(tx.block_number)
+                    .push_bind(tx.block_timestamp)
+                    .push_bind(tx.from_address.clone())
+                    .push_bind(tx.gas)
+                    .push_bind(tx.gas_price)
+                    .push_bind(tx.input.clone())
+                    .push_bind(tx.max_fee_per_gas)
+                    .push_bind(tx.max_priority_fee_per_gas)
+                    .push_bind(tx.nonce)
+                    .push_bind(tx.receipt_contract_address.clone())
+                    .push_bind(tx.receipt_cumulative_gas_used)
+                    .push_bind(tx.receipt_effective_gas_price)
+                    .push_bind(tx.receipt_gas_used)
+                    .push_bind(tx.receipt_status)
+                    .push_bind(tx.to_address.clone())
                     .push_bind(tx.tx_hash.clone())
                     .push_bind(tx.tx_index)
-                    .push_bind(tx.block_number)
-                    .push_bind(tx.base_fee)
-                    .push_bind(tx.max_prio_fee)
-                    .push_bind(tx.address_trace.clone());
+                    .push_bind(tx.tx_type)
+                    .push(format_args!("{}::numeric", tx.value.clone()));
             });
 
             query_builder.build().execute(&self.pool).await?;
