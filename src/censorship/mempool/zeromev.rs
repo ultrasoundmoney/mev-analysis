@@ -6,6 +6,7 @@ use chrono::Duration;
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
+use tracing::debug;
 
 use self::format::{parse_tx_data, TxTuple};
 use super::{MempoolStore, MempoolTimestamp, SourceId, TaggedTx, Tx};
@@ -118,19 +119,29 @@ impl MempoolStore for ZeroMev {
         // https://stackoverflow.com/a/45018194
         let query = format!(
             "
-            SELECT DISTINCT ON (block_number, extractor)
-                block_number,
-                block_time,
-                extractor.code AS extractor,
-                tx_data
+            WITH
+            latest_extractor_by_block AS (
+                SELECT DISTINCT ON (block_number, extractor)
+                    block_number,
+                    block_time,
+                    extractor.code AS extractor,
+                    tx_data
+                FROM
+                    extractor_block
+                INNER JOIN
+                    extractor USING (extractor_index)
+                WHERE
+                    block_number >= {}
+                    AND block_number <= {}
+                ORDER BY
+                    block_number, extractor, block_time DESC
+            )
+            SELECT
+                block_number, block_time, extractor, tx_data
             FROM
-                extractor_block
-            INNER JOIN
-                extractor USING (extractor_index)
+                latest_extractor_by_block
             WHERE
-                block_number >= {}
-                AND block_number <= {}
-                AND tx_data != '{}'
+                tx_data != '{}'
             ORDER BY
                 block_number, extractor, block_time DESC
             ",
@@ -153,6 +164,18 @@ impl MempoolStore for ZeroMev {
 
         Ok(tag_transactions(txs, results))
     }
+}
+
+#[allow(dead_code)]
+fn log_non_consecutive(id: &str, ns: Vec<&i64>) {
+    let first = ns.first().unwrap();
+    ns.iter().skip(1).fold(*first, |prev, n| {
+        if *n - prev > 1 {
+            debug!("{}: non-consecutive: {}", id, &n);
+            return n;
+        }
+        n
+    });
 }
 
 #[cfg(test)]
