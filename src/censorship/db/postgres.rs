@@ -118,8 +118,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     size,
                     state_root,
                     timestamp,
-                    tx_count,
-                    txs_root
+                    transaction_count,
+                    transactions_root
                 )
                 ",
             );
@@ -140,8 +140,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(block.size)
                     .push_bind(block.state_root)
                     .push_bind(block.timestamp)
-                    .push_bind(block.tx_count)
-                    .push_bind(block.txs_root);
+                    .push_bind(block.transaction_count)
+                    .push_bind(block.transactions_root);
             });
 
             query_builder.build().execute(&self.pool).await?;
@@ -157,7 +157,7 @@ impl CensorshipDB for PostgresCensorshipDB {
         for chunk in tx_chunks {
             let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "
-                INSERT INTO txs (
+                INSERT INTO transactions (
                     address_trace,
                     block_number,
                     block_timestamp,
@@ -174,9 +174,9 @@ impl CensorshipDB for PostgresCensorshipDB {
                     receipt_gas_used,
                     receipt_status,
                     to_address,
-                    tx_hash,
-                    tx_index,
-                    tx_type,
+                    transaction_hash,
+                    transaction_index,
+                    transaction_type,
                     value
                 )
                 ",
@@ -200,9 +200,9 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(tx.receipt_gas_used)
                     .push_bind(tx.receipt_status)
                     .push_bind(tx.to_address.clone())
-                    .push_bind(tx.tx_hash.clone())
-                    .push_bind(tx.tx_index)
-                    .push_bind(tx.tx_type)
+                    .push_bind(tx.transaction_hash.clone())
+                    .push_bind(tx.transaction_index)
+                    .push_bind(tx.transaction_type)
                     .push(format_args!("{}::numeric", tx.value.clone()));
             });
 
@@ -214,7 +214,7 @@ impl CensorshipDB for PostgresCensorshipDB {
             .flat_map(|TaggedTx { timestamps, tx }| {
                 timestamps
                     .into_iter()
-                    .map(move |ts| (tx.tx_hash.clone(), ts))
+                    .map(move |ts| (tx.transaction_hash.clone(), ts))
             })
             .chunks(BIND_LIMIT / TIMESTAMP_NUM_KEYS)
             .into_iter()
@@ -225,7 +225,7 @@ impl CensorshipDB for PostgresCensorshipDB {
             let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "
                 INSERT INTO mempool_timestamps (
-                    tx_hash,
+                    transaction_hash,
                     source_id,
                     timestamp
                 )

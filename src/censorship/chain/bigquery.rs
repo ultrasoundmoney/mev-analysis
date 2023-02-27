@@ -141,7 +141,6 @@ impl ChainStore for Client {
     }
 }
 
-// bigquery returns everything as strings, so this becomes quite the unwrap fest
 fn parse_block_row(row: TableRow) -> Block {
     let columns = row.columns.unwrap();
     Block {
@@ -248,7 +247,7 @@ fn parse_block_row(row: TableRow) -> Block {
         )
         .unwrap()
         .with_timezone(&Utc),
-        tx_count: columns[14]
+        transaction_count: columns[14]
             .clone()
             .value
             .unwrap()
@@ -256,7 +255,7 @@ fn parse_block_row(row: TableRow) -> Block {
             .unwrap()
             .parse::<i64>()
             .unwrap(),
-        txs_root: columns[15]
+        transactions_root: columns[15]
             .clone()
             .value
             .unwrap()
@@ -385,14 +384,14 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .clone()
             .value
             .map(|v| v.as_str().unwrap().to_string()),
-        tx_hash: columns[16]
+        transaction_hash: columns[16]
             .clone()
             .value
             .unwrap()
             .as_str()
             .unwrap()
             .to_string(),
-        tx_index: columns[17]
+        transaction_index: columns[17]
             .clone()
             .value
             .unwrap()
@@ -400,7 +399,7 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .unwrap()
             .parse::<i64>()
             .unwrap(),
-        tx_type: columns[18]
+        transaction_type: columns[18]
             .clone()
             .value
             .unwrap()

@@ -20,8 +20,8 @@ pub struct Block {
     pub size: i64,
     pub state_root: String,
     pub timestamp: DateTime<Utc>,
-    pub tx_count: i64,
-    pub txs_root: String,
+    pub transaction_count: i64,
+    pub transactions_root: String,
 }
 
 #[derive(Clone, Debug)]
@@ -42,9 +42,9 @@ pub struct Tx {
     pub receipt_gas_used: i64,
     pub receipt_status: i64,
     pub to_address: Option<String>,
-    pub tx_hash: String,
-    pub tx_index: i64,
-    pub tx_type: i64,
+    pub transaction_hash: String,
+    pub transaction_index: i64,
+    pub transaction_type: i64,
     pub value: String,
 }
 

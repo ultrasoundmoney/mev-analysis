@@ -15,11 +15,11 @@ CREATE TABLE blocks (
   size int NOT NULL,
   state_root varchar(66) NOT NULL,
   timestamp timestamptz NOT NULL UNIQUE,
-  tx_count int NOT NULL,
-  txs_root varchar(66) NOT NULL
+  transaction_count int NOT NULL,
+  transactions_root varchar(66) NOT NULL
 );
 
-CREATE TABLE txs (
+CREATE TABLE transactions (
   id bigserial PRIMARY KEY,
   address_trace varchar(42) array NOT NULL,
   block_number bigint REFERENCES blocks (block_number),
@@ -37,17 +37,17 @@ CREATE TABLE txs (
   receipt_gas_used int NOT NULL,
   receipt_status int NOT NULL,
   to_address varchar(42),
-  tx_hash varchar(66) UNIQUE NOT NULL,
-  tx_index int NOT NULL,
-  tx_type int NOT NULL,
+  transaction_hash varchar(66) UNIQUE NOT NULL,
+  transaction_index int NOT NULL,
+  transaction_type int NOT NULL,
   value numeric NOT NULL
 );
 
 CREATE TABLE mempool_timestamps (
-  tx_hash varchar(66) REFERENCES txs (tx_hash),
+  transaction_hash varchar(66) REFERENCES transactions (transaction_hash),
   source_id varchar(20) NOT NULL,
   timestamp timestamptz NOT NULL,
-  UNIQUE (tx_hash, source_id)
+  UNIQUE (transaction_hash, source_id)
 );
 
 CREATE TABLE blacklists (
@@ -56,8 +56,8 @@ CREATE TABLE blacklists (
   address_list varchar(42) array NOT NULL
 );
 
-CREATE TABLE tx_blacklists (
-  tx_id bigint REFERENCES txs (id),
+CREATE TABLE transaction_blacklists (
+  transaction_id bigint REFERENCES transactions (id),
   blacklist_id text REFERENCES blacklists (id)
 );
 

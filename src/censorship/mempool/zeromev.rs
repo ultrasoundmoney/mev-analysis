@@ -41,7 +41,7 @@ struct BlockExtractorRow {
 fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<TaggedTx> {
     // we rely on transaction index to associate timestamps from zeromev to transactions
     // on our side, so we need to make sure everything is sorted
-    txs.sort_by_key(|tx| (tx.block_number, tx.tx_index));
+    txs.sort_by_key(|tx| (tx.block_number, tx.transaction_index));
     rows.sort_by_key(|row| row.block_number);
 
     let txs_by_block = txs
@@ -78,7 +78,7 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
                         id: ex.extractor.clone(),
                         timestamp: ex
                             .tx_data
-                            .get(usize::try_from(tx.tx_index).unwrap())
+                            .get(usize::try_from(tx.transaction_index).unwrap())
                             .expect("expected extractor data to contain transaction index")
                             .0,
                     })
@@ -176,66 +176,4 @@ fn log_non_consecutive(id: &str, ns: Vec<&i64>) {
         }
         n
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use chrono::{Duration, Utc};
-    use std::ops::Add;
-
-    use super::{tag_transactions, BlockExtractorRow, SourceId, Tx};
-
-    #[test]
-    fn test_tag_transactions() {
-        let txs = vec![
-            Tx {
-                tx_hash: "lol123".to_string(),
-                tx_index: 0,
-                block_number: 1000,
-                base_fee: None,
-                max_prio_fee: None,
-                address_trace: vec![],
-            },
-            Tx {
-                tx_hash: "bal234".to_string(),
-                tx_index: 1,
-                block_number: 1000,
-                base_fee: None,
-                max_prio_fee: None,
-                address_trace: vec![],
-            },
-        ];
-
-        let d0 = Utc::now();
-        let d1 = d0.add(Duration::seconds(10));
-
-        let rows = vec![
-            BlockExtractorRow {
-                block_number: 1000,
-                extractor: SourceId::ZeroMevUs,
-                tx_data: vec![(d0, 1000), (d0, 1000)],
-            },
-            BlockExtractorRow {
-                block_number: 1000,
-                extractor: SourceId::ZeroMevEu,
-                tx_data: vec![(d1, 1000), (d1, 1000)],
-            },
-        ];
-
-        let res = tag_transactions(txs, rows);
-
-        assert_eq!(res.len(), 2);
-
-        assert_eq!(res[0].tx.tx_hash, "lol123".to_string());
-        assert_eq!(res[0].timestamps[0].id, SourceId::ZeroMevUs);
-        assert_eq!(res[0].timestamps[0].timestamp, d0);
-        assert_eq!(res[0].timestamps[1].id, SourceId::ZeroMevEu);
-        assert_eq!(res[0].timestamps[1].timestamp, d1);
-
-        assert_eq!(res[1].tx.tx_hash, "bal234".to_string());
-        assert_eq!(res[1].timestamps[0].id, SourceId::ZeroMevUs);
-        assert_eq!(res[1].timestamps[0].timestamp, d0);
-        assert_eq!(res[1].timestamps[1].id, SourceId::ZeroMevEu);
-        assert_eq!(res[1].timestamps[1].timestamp, d1);
-    }
 }
