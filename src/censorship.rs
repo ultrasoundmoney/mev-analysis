@@ -15,21 +15,20 @@ use sqlx::{Connection, PgConnection};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::process;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
-use self::relay::{RelayApi, RelayId};
+use self::relay::{DeliveredPayload, RelayApi, RelayId};
 use self::{
     chain::ChainStore,
     mempool::{MempoolStore, ZeroMev},
 };
 
-async fn ingest_chain_data() -> Result<()> {
+async fn ingest_chain_data(db: &impl CensorshipDB) -> Result<()> {
     let chain_store =
         Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
     let ts_service = ZeroMev::new().await;
-    let db = PostgresCensorshipDB::new().await?;
     let fetch_interval = APP_CONFIG.chain_data_interval;
 
     loop {
@@ -92,8 +91,7 @@ async fn ingest_chain_data() -> Result<()> {
    will be 100 * 12 seconds = 20 minutes. So theoretically as long as we poll more often than
    every 20 minutes we should be fine.
 */
-async fn ingest_block_production_data() -> Result<()> {
-    let db = PostgresCensorshipDB::new().await?;
+async fn ingest_block_production_data(db: &impl CensorshipDB) -> Result<()> {
     let fetch_interval = Duration::minutes(5).to_std().unwrap();
     let relay_count = all::<RelayId>().count();
 
@@ -102,18 +100,11 @@ async fn ingest_block_production_data() -> Result<()> {
 
         info!("fetching delivered payloads from {} relays", &relay_count);
 
-        let futs = all::<RelayId>()
-            .map(|relay| async move {
-                let payloads = relay.fetch_delivered_payloads(&None).await?;
-
-                info!("received {} payloads from {}", payloads.len(), relay);
-
-                Ok::<_, anyhow::Error>(payloads)
-            })
+        let payloads = fetch_block_production_batch(&None)
+            .await?
+            .into_iter()
+            .flat_map(|(_, ps)| ps)
             .collect_vec();
-
-        let results = future::try_join_all(futs).await?;
-        let payloads = results.into_iter().flatten().collect_vec();
 
         db.upsert_delivered_payloads(payloads).await?;
 
@@ -134,10 +125,45 @@ async fn ingest_block_production_data() -> Result<()> {
   3. Find the highest slot_number out of those
   4. Repeat with cursor `s` set to that number
 */
-// async fn backfill_block_production_data() -> Result<()> {
-//     let db = PostgresCensorshipDB::new().await?;
-//     Ok(())
-// }
+
+async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
+    let goal = APP_CONFIG.backfill_until_slot;
+    loop {
+        let checkpoint = db.get_block_production_checkpoint().await?;
+
+        match checkpoint {
+            Some(slot_number) if slot_number <= goal => {
+                info!("block production backfill reached goal, exiting");
+                break;
+            }
+            slot_option => {
+                if let None = slot_option {
+                    info!("backfilling block production from now until slot {}", goal);
+                }
+                if let Some(slot_number) = slot_option {
+                    info!("backfilling block production from slot {}", slot_number);
+                }
+
+                let result = fetch_block_production_batch(&slot_option).await;
+
+                match result {
+                    Ok(payloads) => {
+                        let interval = get_fully_traversed_interval(payloads);
+                        db.upsert_delivered_payloads(interval).await?;
+                    }
+                    Err(err) => {
+                        warn!("failed fetching block production data, retrying: {}", err);
+                    }
+                }
+            }
+        }
+
+        // avoid rate-limits
+        tokio::time::sleep(Duration::seconds(1).to_std().unwrap()).await;
+    }
+
+    Ok(())
+}
 
 async fn mount_health_route() {
     let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
@@ -158,9 +184,15 @@ pub async fn start_ingestion() -> Result<()> {
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
 
+    let db = PostgresCensorshipDB::new().await?;
+
     tokio::spawn(mount_health_route());
 
-    let result = tokio::try_join!(ingest_chain_data(), ingest_block_production_data());
+    let result = tokio::try_join!(
+        ingest_chain_data(&db),
+        ingest_block_production_data(&db),
+        backfill_block_production_data(&db)
+    );
 
     match result {
         Ok(_) => {
@@ -172,4 +204,37 @@ pub async fn start_ingestion() -> Result<()> {
             process::exit(1);
         }
     }
+}
+
+type BlockProductionBatch = Vec<(RelayId, Vec<DeliveredPayload>)>;
+
+async fn fetch_block_production_batch(end_slot: &Option<i64>) -> Result<BlockProductionBatch> {
+    let futs = all::<RelayId>()
+        .map(|relay| async move {
+            let payloads = relay.fetch_delivered_payloads(end_slot).await?;
+            Ok::<_, anyhow::Error>((relay, payloads))
+        })
+        .collect_vec();
+
+    future::try_join_all(futs).await
+}
+
+/*
+  When asking each relay for a 100 payloads, we're going to cover a different time window
+  for each. This function filters payloads from all relays to match the shortest window covered
+  so we can correctly set the checkpoint.
+*/
+fn get_fully_traversed_interval(batch: BlockProductionBatch) -> Vec<DeliveredPayload> {
+    let highest_end_slot = &batch
+        .iter()
+        .filter_map(|(_, payloads)| payloads.last().map(|p| p.slot_number))
+        .sorted()
+        .last()
+        .expect("at least one payload should be present");
+
+    batch
+        .into_iter()
+        .flat_map(|(_, payloads)| payloads)
+        .filter(|payload| payload.slot_number >= *highest_end_slot)
+        .collect_vec()
 }

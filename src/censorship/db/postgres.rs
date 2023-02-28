@@ -52,7 +52,12 @@ impl CensorshipDB for PostgresCensorshipDB {
 
     async fn get_block_production_checkpoint(&self) -> Result<Option<i64>> {
         sqlx::query_scalar!(
-            "SELECT block_number FROM block_production ORDER BY block_number DESC LIMIT 1"
+            "
+            SELECT slot_number
+            FROM block_production
+            ORDER BY slot_number ASC
+            LIMIT 1
+            "
         )
         .fetch_optional(&self.pool)
         .await

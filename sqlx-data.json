@@ -1,5 +1,23 @@
 {
   "db": "PostgreSQL",
+  "0cfa774a2cce1f084fa5cff3d3ee5631dbec2198bdb23b8eab7ab0d5f68e586f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "slot_number",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
+  },
   "567c4f271b33e91b4fd31cca7057c03aed3fc1c1b91b21090e4d17f1c2cc6b56": {
     "describe": {
       "columns": [
@@ -34,23 +52,5 @@
       }
     },
     "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)\n                VALUES ($1, $2, $3, $4, $5, $6)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE\n                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))\n                "
-  },
-  "dc1b138f4b6c7d4b4f6a3c30153dabe6f45f41e22631c6721e2ec705e9c7b6c2": {
-    "describe": {
-      "columns": [
-        {
-          "name": "block_number",
-          "ordinal": 0,
-          "type_info": "Int8"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT block_number FROM block_production ORDER BY block_number DESC LIMIT 1"
   }
 }
