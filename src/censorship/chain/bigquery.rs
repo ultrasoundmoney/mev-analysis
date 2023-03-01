@@ -94,7 +94,7 @@ impl ChainStore for Client {
                     nonce,
                     from_address
                 FROM bigquery-public-data.crypto_ethereum.transactions
-                WHERE block_timestamp <= "{start}"
+                WHERE block_timestamp <= "{end}"
                   AND block_timestamp >= "{lookback}"
             )
 
