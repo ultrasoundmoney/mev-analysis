@@ -86,7 +86,10 @@ impl ChainStore for Client {
                 WHERE block_timestamp > "{start}"
                 AND block_timestamp <= "{end}"
                 GROUP BY transaction_hash
-            )
+            ),
+            prev AS (SELECT block_number,block_timestamp,nonce,from_address FROM bigquery-public-data.crypto_ethereum.transactions                
+            WHERE block_timestamp <= "{start}"
+                AND block_timestamp >= "{start-2months}")
 
             SELECT
                 ARRAY(
@@ -110,8 +113,10 @@ impl ChainStore for Client {
                 txs.hash,
                 txs.transaction_index,
                 txs.transaction_type,
-                txs.value
+                txs.value,
+                prev.block_timestamp
             FROM txs INNER JOIN traces ON txs.hash = traces.transaction_hash
+            LEFT JOIN prev ON prev.nonce+1=txs.nonce and prev.from_address=txs.from_address
             ORDER BY txs.block_timestamp, txs.transaction_index
         "#,
             start = start,
