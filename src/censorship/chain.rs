@@ -36,6 +36,7 @@ pub struct Tx {
     pub max_fee_per_gas: Option<i64>,
     pub max_priority_fee_per_gas: Option<i64>,
     pub nonce: i64,
+    pub prev_nonce_timestamp: Option<DateTime<Utc>>,
     pub receipt_contract_address: Option<String>,
     pub receipt_cumulative_gas_used: i64,
     pub receipt_effective_gas_price: Option<i64>,

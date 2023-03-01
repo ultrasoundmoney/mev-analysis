@@ -2,7 +2,7 @@ use super::{Block, ChainStore, Tx};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use futures::TryStreamExt;
 use gcp_bigquery_client::{
     model::{job_configuration_query::JobConfigurationQuery, table_row::TableRow},
@@ -86,6 +86,16 @@ impl ChainStore for Client {
                 WHERE block_timestamp > "{start}"
                 AND block_timestamp <= "{end}"
                 GROUP BY transaction_hash
+            ),
+            prev AS (
+                SELECT
+                    block_number,
+                    block_timestamp,
+                    nonce,
+                    from_address
+                FROM bigquery-public-data.crypto_ethereum.transactions
+                WHERE block_timestamp <= "{start}"
+                  AND block_timestamp >= "{lookback}"
             )
 
             SELECT
@@ -110,12 +120,15 @@ impl ChainStore for Client {
                 txs.hash,
                 txs.transaction_index,
                 txs.transaction_type,
-                txs.value
+                txs.value,
+                FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", prev.block_timestamp)
             FROM txs INNER JOIN traces ON txs.hash = traces.transaction_hash
+            LEFT JOIN prev ON prev.nonce + 1 = txs.nonce AND prev.from_address = txs.from_address
             ORDER BY txs.block_timestamp, txs.transaction_index
         "#,
             start = start,
-            end = end
+            end = end,
+            lookback = *start - Duration::days(60)
         );
 
         let txs: Vec<Tx> = self
@@ -414,6 +427,11 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .as_str()
             .unwrap()
             .to_string(),
+        prev_nonce_timestamp: columns[20].clone().value.map(|v| {
+            DateTime::parse_from_rfc3339(v.as_str().unwrap())
+                .unwrap()
+                .with_timezone(&Utc)
+        }),
     }
 }
 

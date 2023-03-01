@@ -38,7 +38,7 @@ impl PostgresCensorshipDB {
 // when batch inserting rows, and have to be kept up to date
 const BIND_LIMIT: usize = 65535;
 const BLOCK_NUM_KEYS: usize = 16;
-const TX_NUM_KEYS: usize = 20;
+const TX_NUM_KEYS: usize = 21;
 const TIMESTAMP_NUM_KEYS: usize = 3;
 
 #[async_trait]
@@ -182,7 +182,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     transaction_hash,
                     transaction_index,
                     transaction_type,
-                    value
+                    value,
+                    prev_nonce_timestamp
                 )
                 ",
             );
@@ -208,7 +209,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(tx.transaction_hash.clone())
                     .push_bind(tx.transaction_index)
                     .push_bind(tx.transaction_type)
-                    .push(format_args!("{}::numeric", tx.value.clone()));
+                    .push(format_args!("{}::numeric", tx.value.clone()))
+                    .push_bind(tx.prev_nonce_timestamp);
             });
 
             query_builder.build().execute(&self.pool).await?;
