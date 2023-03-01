@@ -31,6 +31,7 @@ CREATE TABLE transactions (
   max_fee_per_gas bigint,
   max_priority_fee_per_gas bigint,
   nonce int NOT NULL,
+  prev_nonce_timestamp timestamptz,
   receipt_contract_address varchar(42),
   receipt_cumulative_gas_used int NOT NULL,
   receipt_effective_gas_price bigint NOT NULL,
@@ -50,15 +51,19 @@ CREATE TABLE mempool_timestamps (
   UNIQUE (transaction_hash, source_id)
 );
 
-CREATE TABLE blacklists (
-  id text PRIMARY KEY,
+CREATE TYPE blacklist_id_enum AS ENUM ('ofac', 'uk');
+
+CREATE TABLE blacklist_entries (
+  address varchar(42) PRIMARY KEY,
   display_name text NOT NULL,
-  address_list varchar(42) array NOT NULL
+  blacklist_id blacklist_id_enum NOT NULL,
+  date_added date NOT NULL,
+  UNIQUE (address, blacklist_id)
 );
 
 CREATE TABLE transaction_blacklists (
-  transaction_id bigint REFERENCES transactions (id),
-  blacklist_id text REFERENCES blacklists (id)
+  transaction_hash varchar(66) REFERENCES transactions (transaction_hash),
+  blacklist_id blacklist_id_enum NOT NULL
 );
 
 CREATE TABLE block_production (
@@ -70,6 +75,5 @@ CREATE TABLE block_production (
   builder_pubkey varchar(98),
   proposer_pubkey varchar(98),
   relays text array,
-
   UNIQUE (slot_number, block_number, block_hash)
 );
