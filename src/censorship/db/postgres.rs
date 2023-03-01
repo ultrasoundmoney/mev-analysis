@@ -37,9 +37,9 @@ impl PostgresCensorshipDB {
 // It's not great but these are used to avoid the bind limit
 // when batch inserting rows, and have to be kept up to date
 const BIND_LIMIT: usize = 65535;
-const BLOCK_NUM_KEYS: usize = 16;
-const TX_NUM_KEYS: usize = 21;
-const TIMESTAMP_NUM_KEYS: usize = 3;
+const BLOCK_NUM_KEYS: usize = 17;
+const TX_NUM_KEYS: usize = 23;
+const TIMESTAMP_NUM_KEYS: usize = 4;
 
 #[async_trait]
 impl CensorshipDB for PostgresCensorshipDB {
@@ -123,6 +123,7 @@ impl CensorshipDB for PostgresCensorshipDB {
                     size,
                     state_root,
                     timestamp,
+                    timestamp_unix,
                     transaction_count,
                     transactions_root
                 )
@@ -145,6 +146,7 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(block.size)
                     .push_bind(block.state_root)
                     .push_bind(block.timestamp)
+                    .push_bind(block.timestamp.timestamp())
                     .push_bind(block.transaction_count)
                     .push_bind(block.transactions_root);
             });
@@ -166,6 +168,7 @@ impl CensorshipDB for PostgresCensorshipDB {
                     address_trace,
                     block_number,
                     block_timestamp,
+                    block_timestamp_unix,
                     from_address,
                     gas,
                     gas_price,
@@ -183,7 +186,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     transaction_index,
                     transaction_type,
                     value,
-                    prev_nonce_timestamp
+                    prev_nonce_timestamp,
+                    prev_nonce_timestamp_unix
                 )
                 ",
             );
@@ -193,6 +197,7 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(tx.address_trace.clone())
                     .push_bind(tx.block_number)
                     .push_bind(tx.block_timestamp)
+                    .push_bind(tx.block_timestamp.timestamp())
                     .push_bind(tx.from_address.clone())
                     .push_bind(tx.gas)
                     .push_bind(tx.gas_price)
@@ -210,7 +215,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(tx.transaction_index)
                     .push_bind(tx.transaction_type)
                     .push(format_args!("{}::numeric", tx.value.clone()))
-                    .push_bind(tx.prev_nonce_timestamp);
+                    .push_bind(tx.prev_nonce_timestamp)
+                    .push_bind(tx.prev_nonce_timestamp.map(|t| t.timestamp()));
             });
 
             query_builder.build().execute(&self.pool).await?;
@@ -234,7 +240,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                 INSERT INTO mempool_timestamps (
                     transaction_hash,
                     source_id,
-                    timestamp
+                    timestamp,
+                    timestamp_unix
                 )
                 ",
             );
@@ -243,7 +250,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                 builder
                     .push_bind(tx_hash)
                     .push_bind(ts.id.to_string())
-                    .push_bind(ts.timestamp);
+                    .push_bind(ts.timestamp)
+                    .push_bind(ts.timestamp.timestamp());
             });
 
             query_builder.build().execute(&self.pool).await?;
