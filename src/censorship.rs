@@ -25,10 +25,11 @@ use self::{
     mempool::{MempoolStore, ZeroMev},
 };
 
-async fn ingest_chain_data(db: &impl CensorshipDB) -> Result<()> {
-    let chain_store =
-        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
-    let ts_service = ZeroMev::new().await;
+async fn ingest_chain_data(
+    db: &impl CensorshipDB,
+    chain_store: &mut impl ChainStore,
+    mempool_store: &impl MempoolStore,
+) -> Result<()> {
     let fetch_interval = APP_CONFIG.chain_data_interval;
 
     loop {
@@ -50,19 +51,15 @@ async fn ingest_chain_data(db: &impl CensorshipDB) -> Result<()> {
             fetch_interval.num_minutes()
         );
 
-        let (blocks_result, txs_result) = tokio::join!(
-            chain_store.fetch_blocks(&start_time, &end_time),
-            chain_store.fetch_txs(&start_time, &end_time)
-        );
-        let blocks = blocks_result?;
-        let txs = txs_result?;
+        let blocks = chain_store.fetch_blocks(&start_time, &end_time).await?;
+        let txs = chain_store.fetch_txs(&start_time, &end_time).await?;
 
         let block_count = blocks.len();
         let tx_count = txs.len();
 
         info!("received {} blocks and {} txs", &block_count, &tx_count);
 
-        let timestamped_txs = ts_service.fetch_tx_timestamps(txs).await?;
+        let timestamped_txs = mempool_store.fetch_tx_timestamps(txs).await?;
 
         db.put_chain_data(blocks, timestamped_txs).await?;
 
@@ -185,11 +182,14 @@ pub async fn start_ingestion() -> Result<()> {
     db_conn.close().await?;
 
     let db = PostgresCensorshipDB::new().await?;
+    let mempool_store = ZeroMev::new().await;
+    let mut chain_store =
+        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
 
     tokio::spawn(mount_health_route());
 
     let result = tokio::try_join!(
-        ingest_chain_data(&db),
+        ingest_chain_data(&db, &mut chain_store, &mempool_store),
         ingest_block_production_data(&db),
         backfill_block_production_data(&db)
     );

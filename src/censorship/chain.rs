@@ -1,10 +1,15 @@
 mod bigquery;
+mod file;
+mod util;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use serde::Deserialize;
 
-#[derive(Debug)]
+pub use file::ChainStoreFile;
+
+#[derive(Debug, Deserialize)]
 pub struct Block {
     pub base_fee_per_gas: i64,
     pub block_hash: String,
@@ -52,6 +57,11 @@ pub struct Tx {
 #[async_trait]
 pub trait ChainStore {
     // start is our previous checkpoint, so start = exclusive, end = inclusive
-    async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>>;
-    async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>>;
+    async fn fetch_blocks(
+        &mut self,
+        start: &DateTime<Utc>,
+        end: &DateTime<Utc>,
+    ) -> Result<Vec<Block>>;
+
+    async fn fetch_txs(&mut self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>>;
 }

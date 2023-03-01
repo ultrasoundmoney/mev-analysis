@@ -4,14 +4,16 @@ use tracing::{error, info};
 
 use crate::beacon_api::BeaconAPI;
 
-use super::{env::APP_CONFIG, PhoenixMonitor};
+use super::env::APP_CONFIG;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DeliveredPayload {
     slot: i64,
     block_hash: String,
 }
 
+#[allow(dead_code)]
 pub async fn check_delivered_payloads() {
     let db_pool = PgPoolOptions::new()
         .max_connections(1)

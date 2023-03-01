@@ -1,4 +1,4 @@
-use super::{Block, ChainStore, Tx};
+use super::{util::hex_to_option, Block, ChainStore, Tx};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -12,7 +12,12 @@ use tokio_stream::StreamExt;
 
 #[async_trait]
 impl ChainStore for Client {
-    async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>> {
+    async fn fetch_blocks(
+        &mut self,
+        start: &DateTime<Utc>,
+        end: &DateTime<Utc>,
+    ) -> Result<Vec<Block>> {
+        assert!(start <= end);
         let query = format!(
             r#"
             SELECT
@@ -63,7 +68,8 @@ impl ChainStore for Client {
         Ok(blocks)
     }
 
-    async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
+    async fn fetch_txs(&mut self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
+        assert!(start <= end);
         let query = format!(
             r#"
             WITH
@@ -432,13 +438,5 @@ fn parse_tx_row(row: TableRow) -> Tx {
                 .unwrap()
                 .with_timezone(&Utc)
         }),
-    }
-}
-
-fn hex_to_option(hex: String) -> Option<String> {
-    if hex == "0x" {
-        None
-    } else {
-        Some(hex)
     }
 }
