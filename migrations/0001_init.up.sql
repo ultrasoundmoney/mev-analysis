@@ -17,7 +17,9 @@ CREATE TABLE blocks (
   timestamp timestamptz NOT NULL UNIQUE,
   transaction_count int NOT NULL,
   transactions_root varchar(66) NOT NULL
+  
 );
+CREATE INDEX block_number ON transactions(block_number int8_ops);
 
 CREATE TABLE transactions (
   id bigserial PRIMARY KEY,
@@ -40,8 +42,10 @@ CREATE TABLE transactions (
   transaction_hash varchar(66) UNIQUE NOT NULL,
   transaction_index int NOT NULL,
   transaction_type int NOT NULL,
-  value numeric NOT NULL
+  value numeric NOT NULL,
+  prev_timestamp timestamptz with time zone
 );
+CREATE INDEX block_number ON transactions(block_number int8_ops);
 
 CREATE TABLE mempool_timestamps (
   transaction_hash varchar(66) REFERENCES transactions (transaction_hash),
@@ -51,14 +55,16 @@ CREATE TABLE mempool_timestamps (
 );
 
 CREATE TABLE blacklists (
-  id text PRIMARY KEY,
-  display_name text NOT NULL,
-  address_list varchar(42) array NOT NULL
+    id text PRIMARY KEY,
+    display_name text NOT NULL,
+    address_list text NOT NULL,
+    date_added date
 );
+CREATE UNIQUE INDEX blacklists_pkey ON blacklists(id text_ops);
 
 CREATE TABLE transaction_blacklists (
-  transaction_id bigint REFERENCES transactions (id),
-  blacklist_id text REFERENCES blacklists (id)
+    transaction_hash text,
+    address_list text
 );
 
 CREATE TABLE block_production (
