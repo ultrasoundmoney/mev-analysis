@@ -153,13 +153,10 @@ async fn ingest_block_production_data(db: &impl CensorshipDB) -> Result<()> {
 
         info!("fetching delivered payloads from {} relays", &relay_count);
 
-        let payloads = fetch_block_production_batch(&None)
-            .await?
-            .into_iter()
-            .flat_map(|(_, ps)| ps)
-            .collect_vec();
+        let payloads = fetch_block_production_batch(&None).await?;
+        let interval = get_fully_traversed_interval(payloads);
 
-        db.upsert_delivered_payloads(payloads).await?;
+        db.upsert_delivered_payloads(interval).await?;
 
         info!(
             "persisted delivered payloads in {} seconds",
@@ -226,7 +223,12 @@ type BlockProductionBatch = Vec<(RelayId, Vec<DeliveredPayload>)>;
 async fn fetch_block_production_batch(end_slot: &Option<i64>) -> Result<BlockProductionBatch> {
     let futs = all::<RelayId>()
         .map(|relay| async move {
-            let payloads = relay.fetch_delivered_payloads(end_slot).await?;
+            let mut payloads = relay.fetch_delivered_payloads(end_slot).await?;
+
+            // Payloads should be sorted descending by default, just making sure
+            // since we rely on that assumption
+            payloads.sort_by(|a, b| b.slot_number.cmp(&a.slot_number));
+
             Ok::<_, anyhow::Error>((relay, payloads))
         })
         .collect_vec();
