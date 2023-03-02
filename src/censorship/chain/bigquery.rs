@@ -130,6 +130,9 @@ impl ChainStore for Client {
                 FORMAT_TIMESTAMP("%Y-%m-%dT%X%Ez", prev.block_timestamp)
             FROM txs INNER JOIN traces ON txs.hash = traces.transaction_hash
             LEFT JOIN prev ON prev.nonce + 1 = txs.nonce AND prev.from_address = txs.from_address
+            -- equivalent to postgres DISTINCT ON (txs.hash)
+            QUALIFY
+                ROW_NUMBER() OVER (PARTITION BY txs.hash ORDER BY txs.block_timestamp DESC) = 1
             ORDER BY txs.block_timestamp, txs.transaction_index
         "#,
             start = start,
