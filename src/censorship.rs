@@ -186,7 +186,10 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
 
         match checkpoint {
             Some(slot_number) if slot_number <= goal => {
-                info!("block production backfill reached goal, exiting");
+                info!(
+                    "block production backfill reached slot {}, goal was {}. exiting",
+                    slot_number, goal
+                );
                 break;
             }
             slot_option => {
