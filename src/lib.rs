@@ -4,6 +4,7 @@ mod env;
 mod phoenix;
 mod serve;
 
-pub use censorship::start_ingestion;
+pub use censorship::start_block_production_ingest;
+pub use censorship::start_chain_data_ingest;
 pub use phoenix::monitor_critical_services;
 pub use serve::start_server;

@@ -25,6 +25,62 @@ use self::{
     mempool::{MempoolStore, ZeroMev},
 };
 
+pub async fn start_chain_data_ingest() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
+    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    sqlx::migrate!().run(&mut db_conn).await?;
+    db_conn.close().await?;
+
+    let db = PostgresCensorshipDB::new().await?;
+    let mempool_store = ZeroMev::new().await;
+    let mut chain_store =
+        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
+
+    tokio::spawn(mount_health_route());
+
+    let result = ingest_chain_data(&db, &mut chain_store, &mempool_store).await;
+
+    match result {
+        Ok(_) => {
+            error!("chain data ingestion completed unexpectedly without an error");
+            process::exit(1);
+        }
+        Err(err) => {
+            error!("chain data ingestion failed: {}", err);
+            process::exit(1);
+        }
+    }
+}
+
+pub async fn start_block_production_ingest() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
+    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    sqlx::migrate!().run(&mut db_conn).await?;
+    db_conn.close().await?;
+
+    let db = PostgresCensorshipDB::new().await?;
+
+    tokio::spawn(mount_health_route());
+
+    let result = tokio::try_join!(
+        ingest_block_production_data(&db),
+        backfill_block_production_data(&db)
+    );
+
+    match result {
+        Ok(_) => {
+            error!("block production data ingestion completed unexpectedly without an error");
+            process::exit(1);
+        }
+        Err(err) => {
+            error!("block production data ingestion failed: {}", err);
+            process::exit(1);
+        }
+    }
+}
+
 async fn ingest_chain_data(
     db: &impl CensorshipDB,
     chain_store: &mut impl ChainStore,
@@ -162,50 +218,6 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
     Ok(())
 }
 
-async fn mount_health_route() {
-    let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
-    let app = Router::new().route("/", get(|| async { StatusCode::OK }));
-
-    info!("listening on {}", addr);
-
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
-
-pub async fn start_ingestion() -> Result<()> {
-    tracing_subscriber::fmt::init();
-
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
-    sqlx::migrate!().run(&mut db_conn).await?;
-    db_conn.close().await?;
-
-    let db = PostgresCensorshipDB::new().await?;
-    let mempool_store = ZeroMev::new().await;
-    let mut chain_store =
-        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
-
-    tokio::spawn(mount_health_route());
-
-    let result = tokio::try_join!(
-        ingest_chain_data(&db, &mut chain_store, &mempool_store),
-        ingest_block_production_data(&db),
-        backfill_block_production_data(&db)
-    );
-
-    match result {
-        Ok(_) => {
-            error!("ingestion task(s) completed unexpectedly without an error");
-            process::exit(1);
-        }
-        Err(err) => {
-            error!("ingestion task(s) failed: {}", err);
-            process::exit(1);
-        }
-    }
-}
-
 type BlockProductionBatch = Vec<(RelayId, Vec<DeliveredPayload>)>;
 
 async fn fetch_block_production_batch(end_slot: &Option<i64>) -> Result<BlockProductionBatch> {
@@ -237,4 +249,16 @@ fn get_fully_traversed_interval(batch: BlockProductionBatch) -> Vec<DeliveredPay
         .flat_map(|(_, payloads)| payloads)
         .filter(|payload| payload.slot_number >= *highest_end_slot)
         .collect_vec()
+}
+
+async fn mount_health_route() {
+    let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
+    let app = Router::new().route("/", get(|| async { StatusCode::OK }));
+
+    info!("listening on {}", addr);
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
