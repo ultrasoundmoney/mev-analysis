@@ -6,7 +6,7 @@ use chrono::Duration;
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
-use tracing::debug;
+use tracing::{debug, error};
 
 use self::format::{parse_tx_data, TxTuple};
 use super::{MempoolStore, MempoolTimestamp, SourceId, TaggedTx, Tx};
@@ -70,10 +70,11 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
             assert!(b0 == b1, "mismatched block numbers during zip");
 
             txs.iter().map(|tx| {
+                let expected_tx_count = txs.len();
                 let timestamps: Vec<MempoolTimestamp> = extractors
                     .iter()
                     // filter out extractors that don't have a tx count that matches what's on chain
-                    .filter(|row| row.tx_data.len() == txs.len())
+                    .filter(|row| row.tx_data.len() == expected_tx_count)
                     .map(|ex| MempoolTimestamp {
                         id: ex.extractor.clone(),
                         timestamp: ex
@@ -84,8 +85,23 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
                     })
                     .collect();
 
+                let found_valid_extractors = !timestamps.is_empty();
+
+                if !found_valid_extractors {
+                    let received_tx_counts =
+                        extractors.iter().map(|ex| ex.tx_data.len()).collect_vec();
+
+                    error!(
+                        "no valid extractors found for block {} tx_index {}. Expected {}, got {:?}",
+                        tx.block_number,
+                        tx.transaction_index,
+                        expected_tx_count,
+                        received_tx_counts
+                    );
+                }
+
                 assert!(
-                    timestamps.len() > 0,
+                    found_valid_extractors,
                     "expected at least one extractor with matching tx count"
                 );
 
