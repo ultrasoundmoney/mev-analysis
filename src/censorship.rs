@@ -83,7 +83,7 @@ pub async fn start_block_production_ingest() -> Result<()> {
 
 async fn ingest_chain_data(
     db: &impl CensorshipDB,
-    chain_store: &mut impl ChainStore,
+    chain_store: &impl ChainStore,
     mempool_store: &impl MempoolStore,
 ) -> Result<()> {
     let fetch_interval = APP_CONFIG.chain_data_interval;
@@ -107,8 +107,10 @@ async fn ingest_chain_data(
             fetch_interval.num_minutes()
         );
 
-        let blocks = chain_store.fetch_blocks(&start_time, &end_time).await?;
-        let txs = chain_store.fetch_txs(&start_time, &end_time).await?;
+        let (blocks, txs) = tokio::try_join!(
+            chain_store.fetch_blocks(&start_time, &end_time),
+            chain_store.fetch_txs(&start_time, &end_time)
+        )?;
 
         let block_count = blocks.len();
         let tx_count = txs.len();

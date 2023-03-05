@@ -12,11 +12,7 @@ use tokio_stream::StreamExt;
 
 #[async_trait]
 impl ChainStore for Client {
-    async fn fetch_blocks(
-        &mut self,
-        start: &DateTime<Utc>,
-        end: &DateTime<Utc>,
-    ) -> Result<Vec<Block>> {
+    async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>> {
         assert!(start <= end);
         let query = format!(
             r#"
@@ -68,7 +64,7 @@ impl ChainStore for Client {
         Ok(blocks)
     }
 
-    async fn fetch_txs(&mut self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
+    async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
         assert!(start <= end);
         let query = format!(
             r#"

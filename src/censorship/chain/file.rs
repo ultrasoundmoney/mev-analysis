@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Lines};
+use std::sync::RwLock;
 use tracing::debug;
 
 /*
@@ -18,8 +19,8 @@ use tracing::debug;
 */
 
 pub struct ChainStoreFile {
-    block_streams: Vec<PutBack<Lines<BufReader<File>>>>,
-    tx_streams: Vec<PutBack<Lines<BufReader<File>>>>,
+    block_streams: RwLock<Vec<PutBack<Lines<BufReader<File>>>>>,
+    tx_streams: RwLock<Vec<PutBack<Lines<BufReader<File>>>>>,
 }
 
 impl ChainStoreFile {
@@ -56,26 +57,24 @@ impl ChainStoreFile {
         );
 
         Ok(Self {
-            block_streams,
-            tx_streams,
+            block_streams: RwLock::new(block_streams),
+            tx_streams: RwLock::new(tx_streams),
         })
     }
 }
 
 #[async_trait]
 impl ChainStore for ChainStoreFile {
-    async fn fetch_blocks(
-        &mut self,
-        start: &DateTime<Utc>,
-        end: &DateTime<Utc>,
-    ) -> Result<Vec<Block>> {
+    async fn fetch_blocks(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Block>> {
         assert!(start <= end);
-        deliver_interval_from_streams::<BlockRow, Block>(&mut self.block_streams, start, end)
+        let mut streams = self.block_streams.write().unwrap();
+        deliver_interval_from_streams::<BlockRow, Block>(&mut streams, start, end)
     }
 
-    async fn fetch_txs(&mut self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
+    async fn fetch_txs(&self, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Tx>> {
         assert!(start <= end);
-        deliver_interval_from_streams::<TxRow, Tx>(&mut self.tx_streams, start, end)
+        let mut streams = self.tx_streams.write().unwrap();
+        deliver_interval_from_streams::<TxRow, Tx>(&mut streams, start, end)
     }
 }
 
@@ -250,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_fetches_correct_intervals() {
-        let mut store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
+        let store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
         let start: DateTime<Utc> = "2023-02-01T00:30:00Z".parse().unwrap();
         let end: DateTime<Utc> = "2023-02-01T01:00:00Z".parse().unwrap();
 
@@ -282,7 +281,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_does_not_drop_items() {
-        let mut store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
+        let store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
         // start and end are before the first block
         let start: DateTime<Utc> = "2023-01-01T00:00:00Z".parse().unwrap();
         let end = start + Duration::hours(1);
@@ -305,7 +304,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_correctly_handles_multiple_files() {
-        let mut store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
+        let store = ChainStoreFile::new("fixtures/blocks", "fixtures/transactions").unwrap();
 
         // second file starts here
         let start: DateTime<Utc> = "2023-02-01T12:00:00Z".parse().unwrap();
