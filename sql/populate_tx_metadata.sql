@@ -40,9 +40,15 @@ INSERT INTO
                   (
                      "NEST".bf - blocks.base_fee_per_gas
                   )
-                  >= 1000000000
+                  >= 1000000000 AND "NEST".pf>=1000000000 and tt=2
                THEN
                   0
+            WHEN 
+                    (
+                     "NEST".bf - blocks.base_fee_per_gas
+                  )
+                  >= 1000000000 AND tt=0
+                  THEN 0
                ELSE
                   1
             END
@@ -69,7 +75,10 @@ INSERT INTO
                      ELSE
                         min(transactions.gas_price)
                   END
-                  AS bf, min(transactions.gas) AS gas, min(blocks_1."timestamp") AS blockts, min(mempool_timestamps."timestamp") AS memts,
+                  AS bf,
+                  min(transactions.max_priority_fee_per_gas) as pf,
+                  min (transactions.transaction_type) as tt,
+                   min(transactions.gas) AS gas, min(blocks_1."timestamp") AS blockts, min(mempool_timestamps."timestamp") AS memts,
                   CASE
                      WHEN
                         (
