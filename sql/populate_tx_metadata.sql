@@ -1,3 +1,4 @@
+WITH inserted_rows as (
 INSERT INTO
    transactions_data
    SELECT
@@ -188,3 +189,7 @@ INSERT INTO
       "NEST2"
    GROUP BY
       "NEST2".transaction_hash
+   RETURNING 1
+)
+
+SELECT COUNT(*) FROM inserted_rows;

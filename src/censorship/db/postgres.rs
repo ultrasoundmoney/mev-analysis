@@ -259,4 +259,35 @@ impl CensorshipDB for PostgresCensorshipDB {
 
         Ok(())
     }
+
+    async fn populate_tx_metadata(&self) -> Result<i64> {
+        let insert_count = sqlx::query_file_scalar!("sql/populate_tx_metadata.sql")
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(insert_count.unwrap_or(0))
+    }
+
+    async fn refresh_matviews(&self) -> Result<()> {
+        let matviews = vec![
+            "builders_7d",
+            "builders_30d",
+            "censored_transactions_7d",
+            "censored_transactions_30d",
+            "inclusion_delay_7d",
+            "inclusion_delay_30d",
+            "operators_7d",
+            "operators_30d",
+            "top_7d",
+            "top_30d",
+        ];
+
+        for matview in matviews {
+            sqlx::query(&format!("REFRESH MATERIALIZED VIEW {}", matview))
+                .execute(&self.pool)
+                .await?;
+        }
+
+        Ok(())
+    }
 }
