@@ -34,12 +34,12 @@ pub async fn start_chain_data_ingest() -> Result<()> {
 
     let db = PostgresCensorshipDB::new().await?;
     let mempool_store = ZeroMev::new().await;
-    let mut chain_store =
+    let chain_store =
         Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
 
     tokio::spawn(mount_health_route());
 
-    let result = ingest_chain_data(&db, &mut chain_store, &mempool_store).await;
+    let result = ingest_chain_data(&db, &chain_store, &mempool_store).await;
 
     match result {
         Ok(_) => {
