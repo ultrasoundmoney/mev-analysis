@@ -16,4 +16,6 @@ pub trait CensorshipDB {
     async fn get_block_production_checkpoint(&self) -> Result<Option<i64>>;
     async fn put_chain_data(&self, blocks: Vec<Block>, txs: Vec<TaggedTx>) -> Result<()>;
     async fn upsert_delivered_payloads(&self, payloads: Vec<DeliveredPayload>) -> Result<()>;
+    async fn populate_tx_metadata(&self) -> Result<i64>;
+    async fn refresh_matviews(&self) -> Result<()>;
 }

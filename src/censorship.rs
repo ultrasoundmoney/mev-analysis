@@ -127,6 +127,7 @@ async fn ingest_chain_data(
         );
 
         if !is_backfilling {
+            refresh_derived_data(db).await?;
             info!(
                 "reached current time, sleeping for {} minutes",
                 APP_CONFIG.chain_data_interval.num_minutes()
@@ -216,6 +217,30 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
         // avoid rate-limits
         tokio::time::sleep(Duration::seconds(1).to_std().unwrap()).await;
     }
+
+    Ok(())
+}
+
+async fn refresh_derived_data(db: &impl CensorshipDB) -> Result<()> {
+    let start = Utc::now();
+
+    info!("refreshing derived data...");
+
+    db.populate_tx_metadata().await?;
+
+    info!(
+        "populated transaction metadata in {} seconds",
+        (Utc::now() - start).num_seconds()
+    );
+
+    let start_matviews = Utc::now();
+
+    db.refresh_matviews().await?;
+
+    info!(
+        "refreshed materialized views in {} seconds",
+        (Utc::now() - start_matviews).num_seconds()
+    );
 
     Ok(())
 }
