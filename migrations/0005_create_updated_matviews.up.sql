@@ -45,7 +45,8 @@ LEFT JOIN builder_pubkeys ON builder_pubkeys.pubkey = builder_pubkey
 WHERE transactions_data.mined > (CURRENT_DATE - '7 days'::interval)
 group by builder_pubkeys.builder_id) bc on bc.builder_id=bID
 GROUP BY
-	bID;
+	bID
+WITH NO DATA;
   
 
 CREATE MATERIALIZED VIEW builders_30d AS SELECT
@@ -90,8 +91,9 @@ LEFT JOIN builder_pubkeys ON builder_pubkeys.pubkey = builder_pubkey
 WHERE transactions_data.mined > (CURRENT_DATE - '30 days'::interval)
 group by builder_pubkeys.builder_id) bc on bc.builder_id=bID
 GROUP BY
-	bID;
-  
+	bID
+WITH NO DATA;  
+
   CREATE MATERIALIZED VIEW inclusion_delay_7d AS SELECT
 	avg(transactions_data_2.delay) AS avg_delay,
 	avg(transactions_data_2.blocksdelay) AS avg_block_delay,
@@ -219,7 +221,7 @@ WHERE
 	AND (transactions_data_2.lowbasefee + transactions_data_2.lowtip + transactions_data_2.minertransaction + transactions_data_2.congested) = 0
 	AND transactions_data_2.blocksdelay = 1
 	AND transactions_data_2.mined > (CURRENT_DATE - '7 days'::interval)
-;
+WITH NO DATA;
 
 
 SELECT
@@ -349,3 +351,4 @@ WHERE
 	AND (transactions_data_2.lowbasefee + transactions_data_2.lowtip + transactions_data_2.minertransaction + transactions_data_2.congested) = 0
 	AND transactions_data_2.blocksdelay = 1
 	AND transactions_data_2.mined > (CURRENT_DATE - '30 days'::interval)
+WITH NO DATA;
