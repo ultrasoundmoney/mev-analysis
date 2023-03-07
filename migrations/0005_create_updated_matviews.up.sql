@@ -355,7 +355,7 @@ WITH NO DATA;
 
 CREATE MATERIALIZED VIEW operators_all AS  SELECT nested.operator_id,
     count(DISTINCT nested.pubkey) AS numberofvalidators,
-    array_agg(DISTINCT nested.relays) AS array_agg
+    array_agg(DISTINCT nested.relays) AS relays
    FROM ( SELECT validator_pubkeys.pubkey,
             validator_pubkeys.operator_id,
             unnest(block_production.relays) AS relays
