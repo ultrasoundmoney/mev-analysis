@@ -22,6 +22,7 @@ impl Timeframe {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Timeframed<T> {
     pub seven_days: T,
     pub thirty_days: T,
@@ -30,6 +31,7 @@ pub struct Timeframed<T> {
 // TODO: Add NOT NULL modifiers to all columns in matviews. These will never actually be null
 // but without not null modifiers, sqlx doesn't know this
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LidoOperator {
     pub operator_id: Option<String>,
     pub validator_count: Option<i64>,
@@ -55,6 +57,7 @@ pub async fn operators(State(state): State<AppState>) -> ApiResponse<Vec<LidoOpe
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BuilderCensorship {
     pub builder_id: Option<String>,
     pub censoring_pubkeys: Option<i64>,
@@ -102,6 +105,7 @@ pub async fn builders(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RelayCensorship {
     pub relay_id: Option<String>,
     pub total_blocks: Option<i64>,
@@ -134,6 +138,7 @@ pub async fn relays(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CensorshipDelay {
     pub tx_type: Option<String>,
     pub avg_delay: Option<f64>,
@@ -166,6 +171,7 @@ pub async fn censorship_categories(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InclusionDelay {
     pub delay_type: Option<String>,
     pub avg_delay: Option<f64>,
@@ -211,6 +217,7 @@ pub async fn delay_categories(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DelayedTx {
     pub transaction_hash: String,
     pub mined: DateTime<Utc>,
@@ -234,6 +241,7 @@ pub async fn delayed_txs(State(state): State<AppState>) -> ApiResponse<Vec<Delay
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CensoredTx {
     pub transaction_hash: String,
     pub mined: DateTime<Utc>,
