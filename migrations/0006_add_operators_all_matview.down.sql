@@ -1,0 +1,1 @@
+DROP MATERIALIZED VIEW IF EXISTS operators_all;
