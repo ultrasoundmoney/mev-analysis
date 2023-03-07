@@ -63,7 +63,7 @@ async fn update_cache(
 async fn start_cache_update(state: AppState) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            let res = update_cache(&state.db_pool, &state.redis_client, &state.cache).await;
+            let res = update_cache(&state.relay_db_pool, &state.redis_client, &state.cache).await;
             match res {
                 Ok(_) => {
                     info!("cache updated successfully");
@@ -79,7 +79,8 @@ async fn start_cache_update(state: AppState) -> JoinHandle<()> {
 
 #[derive(Clone)]
 pub struct AppState {
-    db_pool: PgPool,
+    mev_db_pool: PgPool,
+    relay_db_pool: PgPool,
     redis_client: redis::Client,
     beacon_api: BeaconAPI,
     cache: Arc<Cache>,
@@ -92,12 +93,19 @@ pub async fn start_server() {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
 
-    let db_pool = PgPoolOptions::new()
+    let mev_db_pool = PgPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(&APP_CONFIG.db_connection_str)
+        .connect(&APP_CONFIG.mev_db_url)
         .await
-        .expect("can't connect to database");
+        .expect("can't connect to mev database");
+
+    let relay_db_pool = PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(&APP_CONFIG.relay_db_url)
+        .await
+        .expect("can't connect to relay database");
 
     let redis_client = redis::Client::open(APP_CONFIG.redis_url.clone()).unwrap();
 
@@ -115,7 +123,8 @@ pub async fn start_server() {
     let beacon_api = BeaconAPI::new(&APP_CONFIG.consensus_nodes);
 
     let shared_state = AppState {
-        db_pool,
+        mev_db_pool,
+        relay_db_pool,
         redis_client,
         beacon_api,
         cache,
@@ -175,10 +184,11 @@ pub async fn start_server() {
 }
 
 async fn health(State(state): State<AppState>) -> StatusCode {
-    let conn = &state.db_pool.acquire().await;
-    match conn {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    let mev_conn = state.mev_db_pool.acquire().await;
+    let relay_conn = state.relay_db_pool.acquire().await;
+    match (mev_conn, relay_conn) {
+        (Ok(_), Ok(_)) => StatusCode::OK,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

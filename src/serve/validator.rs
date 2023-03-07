@@ -98,7 +98,7 @@ pub async fn check_validator_registration(
 
     sqlx::query(&query)
         .bind(pubkey)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.relay_db_pool)
         .await
         .map(|row| {
             Json(RegistrationStatusBody {
@@ -146,7 +146,7 @@ pub async fn validator_registrations(
     );
 
     let registrations: Vec<ValidatorRegistration> = sqlx::query(&query)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {
             rows.iter()

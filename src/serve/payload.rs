@@ -40,7 +40,7 @@ pub async fn delivered_payloads(
     );
 
     sqlx::query(&query)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {
             let payloads = rows
@@ -72,7 +72,7 @@ pub async fn payload_stats(
     );
 
     sqlx::query(&query)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.relay_db_pool)
         .await
         .map(|row| {
             Json(PayloadStatsBody {
@@ -100,7 +100,7 @@ pub async fn top_payloads(
     );
 
     sqlx::query(&query)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {
             let payloads = rows

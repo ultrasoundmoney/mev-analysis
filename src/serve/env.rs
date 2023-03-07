@@ -7,7 +7,8 @@ pub struct AppConfig {
     pub env: Env,
     pub port: u16,
     pub network: Network,
-    pub db_connection_str: String,
+    pub mev_db_url: String,
+    pub relay_db_url: String,
     pub redis_url: String,
     pub consensus_nodes: Vec<Url>,
 }
@@ -26,18 +27,20 @@ fn get_app_config() -> AppConfig {
         .ok()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(3002);
-    let db_connection_str = std::env::var("DATABASE_URL");
+    let mev_db_url = std::env::var("DATABASE_URL");
+    let relay_db_url = std::env::var("RELAY_DATABASE_URL");
     let redis_uri = std::env::var("REDIS_URI");
     let consensus_nodes = parse_nodes("CONSENSUS_NODES");
 
-    if let (Ok(env), Ok(db_connection_str), Ok(redis_uri), Ok(consensus_nodes)) =
-        (env, db_connection_str, redis_uri, consensus_nodes)
+    if let (Ok(env), Ok(mev_db_url), Ok(relay_db_url), Ok(redis_uri), Ok(consensus_nodes)) =
+        (env, mev_db_url, relay_db_url, redis_uri, consensus_nodes)
     {
         AppConfig {
             network: env.to_network(),
             env,
             port,
-            db_connection_str,
+            mev_db_url,
+            relay_db_url,
             redis_url: format!("redis://{}", redis_uri),
             consensus_nodes,
         }

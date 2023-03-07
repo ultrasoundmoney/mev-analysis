@@ -48,7 +48,7 @@ pub async fn operators(State(state): State<AppState>) -> ApiResponse<Vec<LidoOpe
             operators_all
         "#,
     )
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.mev_db_pool)
     .await
     .map(Json)
     .map_err(internal_error)
@@ -78,7 +78,7 @@ pub async fn builders(
                 builders_7d
             "#,
         )
-        .fetch_all(&state.db_pool),
+        .fetch_all(&state.mev_db_pool),
         sqlx::query_as!(
             BuilderCensorship,
             r#"
@@ -91,7 +91,7 @@ pub async fn builders(
                 builders_30d
             "#,
         )
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.mev_db_pool)
     )
     .map_err(internal_error)?;
 
@@ -117,13 +117,13 @@ pub async fn relays(
             "sql/api/relay_censorship.sql",
             Timeframe::SevenDays.to_interval()
         )
-        .fetch_all(&state.db_pool),
+        .fetch_all(&state.mev_db_pool),
         sqlx::query_file_as!(
             RelayCensorship,
             "sql/api/relay_censorship.sql",
             Timeframe::ThirtyDays.to_interval()
         )
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.mev_db_pool)
     )
     .map_err(internal_error)?;
 
@@ -149,13 +149,13 @@ pub async fn censorship_categories(
             "sql/api/censorship_delay.sql",
             Timeframe::SevenDays.to_interval()
         )
-        .fetch_all(&state.db_pool),
+        .fetch_all(&state.mev_db_pool),
         sqlx::query_file_as!(
             CensorshipDelay,
             "sql/api/censorship_delay.sql",
             Timeframe::ThirtyDays.to_interval()
         )
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.mev_db_pool)
     )
     .map_err(internal_error)?;
 
@@ -188,7 +188,7 @@ pub async fn delay_categories(
             FROM inclusion_delay_7d
             "#,
         )
-        .fetch_all(&state.db_pool),
+        .fetch_all(&state.mev_db_pool),
         sqlx::query_as!(
             InclusionDelay,
             r#"
@@ -200,7 +200,7 @@ pub async fn delay_categories(
             FROM inclusion_delay_30d
             "#,
         )
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.mev_db_pool)
     )
     .map_err(internal_error)?;
 
@@ -227,7 +227,7 @@ pub async fn delayed_txs(State(state): State<AppState>) -> ApiResponse<Vec<Delay
         "sql/api/delayed_txs.sql",
         Timeframe::ThirtyDays.to_interval()
     )
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.mev_db_pool)
     .await
     .map(Json)
     .map_err(internal_error)
@@ -249,7 +249,7 @@ pub async fn censored_txs(State(state): State<AppState>) -> ApiResponse<Vec<Cens
         "sql/api/censored_txs.sql",
         Timeframe::ThirtyDays.to_interval()
     )
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.mev_db_pool)
     .await
     .map(Json)
     .map_err(internal_error)
