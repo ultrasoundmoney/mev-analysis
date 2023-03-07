@@ -19,11 +19,13 @@ use tracing::{error, info, warn};
 
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
-use self::relay::{DeliveredPayload, RelayApi, RelayId};
+use self::relay::{DeliveredPayload, RelayApi};
 use self::{
     chain::ChainStore,
     mempool::{MempoolStore, ZeroMev},
 };
+
+pub use self::relay::RelayId;
 
 pub async fn start_chain_data_ingest() -> Result<()> {
     tracing_subscriber::fmt::init();

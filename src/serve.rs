@@ -22,6 +22,7 @@ use tracing::{error, info};
 extern crate redis;
 
 mod builder;
+mod censorship;
 mod env;
 mod payload;
 mod relay_redis;
@@ -137,6 +138,22 @@ pub async fn start_server() {
         .route("/api/payloads/stats", get(payload::payload_stats))
         .route("/api/payloads/top", get(payload::top_payloads))
         .route("/api/builders/top", get(builder::top_builders))
+        .route("/api/censorship/operators", get(censorship::operators))
+        .route("/api/censorship/builders", get(censorship::builders))
+        .route("/api/censorship/relays", get(censorship::relays))
+        .route(
+            "/api/censorship/censorship-categories",
+            get(censorship::censorship_categories),
+        )
+        .route(
+            "/api/censorship/delay-categories",
+            get(censorship::delay_categories),
+        )
+        .route("/api/censorship/delayed-txs", get(censorship::delayed_txs))
+        .route(
+            "/api/censorship/censored-txs",
+            get(censorship::censored_txs),
+        )
         .with_state(shared_state.clone())
         .layer(cors);
 

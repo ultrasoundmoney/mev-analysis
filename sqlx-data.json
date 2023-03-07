@@ -1,5 +1,37 @@
 {
   "db": "PostgreSQL",
+  "09be21a3c5030efa9df13f9be94cf8390154a4755224c1590b2fef736e330405": {
+    "describe": {
+      "columns": [
+        {
+          "name": "tx_type",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "tx_count",
+          "ordinal": 2,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": " SELECT\n   'censored' AS tx_type,\n   AVG(delay)::float AS avg_delay,\n   COUNT(transactions_data.transaction_hash) AS tx_count\n   FROM\n     transactions_data\n  WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n    AND transactions_data.blocksdelay > 0\n  UNION\n SELECT\n   'uncensored' AS tx_type,\n   AVG(delay)::float AS avg_delay,\n   COUNT(transactions_data.transaction_hash) AS tx_count\n   FROM\n     transactions_data\n  WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n    AND transactions_data.blocksdelay = 0\n"
+  },
   "0cfa774a2cce1f084fa5cff3d3ee5631dbec2198bdb23b8eab7ab0d5f68e586f": {
     "describe": {
       "columns": [
@@ -17,6 +49,148 @@
       }
     },
     "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
+  },
+  "304c0bb436ab6de5b23f203ce05180b738df87952df3e4a100b1542e853b2f9d": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "mined",
+          "ordinal": 2,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 3,
+          "type_info": "Float8"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 4,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 5,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        null,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.block_number,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.blacklist,\n  transactions_data.blocksdelay as block_delay\n  FROM\n    transactions_data\n WHERE\n   (\n     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested\n   )\n   = 0\n   AND transactions_data.blocksdelay > 0\n   AND transactions_data.blacklist != '{NULL}'\n   AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n"
+  },
+  "43afc11f097dcabef89ca75a223b47184f5b28a9f83af72cb1204a11807c8fc1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  transactions_data.blacklist,\n  CASE\n  WHEN transactions_data.congested = 1 THEN 'congested'\n  WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n  WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n  WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n  ELSE 'unknown'\n  END\n   AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 1\n"
+  },
+  "4fe072ed2dc31c6239efa122c1f9087e50d4e76499f52d4f79befe04fd80317e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "builder_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "censoring_pubkeys",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "total_pubkeys",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_count",
+          "ordinal": 3,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        true,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_7d\n            "
   },
   "567c4f271b33e91b4fd31cca7057c03aed3fc1c1b91b21090e4d17f1c2cc6b56": {
     "describe": {
@@ -52,6 +226,176 @@
       }
     },
     "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)\n                VALUES ($1, $2, $3, $4, $5, $6)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE\n                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))\n                "
+  },
+  "8b70af619d8edd7797abcbf57e6105b60cd9f74fb87c4a68ce7e33b7a1eaf01c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "operator_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "validator_count",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "relays",
+          "ordinal": 2,
+          "type_info": "TextArray"
+        }
+      ],
+      "nullable": [
+        true,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        "
+  },
+  "b4b951edd34f5c90e9dfce62e1aa2872dc9effbfbab4c18ced24a2da2c79303f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "delay_type",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "avg_block_delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "tx_count",
+          "ordinal": 3,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        true,
+        null,
+        null,
+        true
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_30d\n            "
+  },
+  "b5cc8291238aa73eeecd4cff45538eac2a6b324ca30a3aa189fa448fe23060de": {
+    "describe": {
+      "columns": [
+        {
+          "name": "delay_type",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "avg_block_delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "tx_count",
+          "ordinal": 3,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        true,
+        null,
+        null,
+        true
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
+  },
+  "bed417a2a8e0abfe258e6edbbab69123d39771984d3d68c9f9fed6561d0ff0e3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "relay_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "total_blocks",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "uncensored_blocks",
+          "ordinal": 2,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "WITH\nrelay_total_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(block_production.block_number)) AS total_blocks\n    FROM\n        block_production\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = block_production.block_number\n    WHERE\n        blocks.timestamp > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n),\nrelay_uncensored_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(transactions_data.block_number)) AS uncensored_blocks\n    FROM\n        transactions_data\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = transactions_data.block_number\n    LEFT JOIN\n        block_production\n        ON block_production.block_number = transactions_data.block_number\n        AND blocks.block_hash = block_production.block_hash\n    WHERE\n        transactions_data.blacklist != '{NULL}'::text[]\n        AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n)\n\nSELECT\n    total.relay_id,\n    total.total_blocks,\n    uncensored.uncensored_blocks\nFROM\n    relay_total_blocks total\n    INNER JOIN relay_uncensored_blocks uncensored\n    ON total.relay_id = uncensored.relay_id;\n"
+  },
+  "e36963367ad97d3cca55b306281fc25569d33b705814c343f5883fbea25c9923": {
+    "describe": {
+      "columns": [
+        {
+          "name": "builder_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "censoring_pubkeys",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "total_pubkeys",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_count",
+          "ordinal": 3,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        true,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_30d\n            "
   },
   "f4cd3ab3f47218bf045071d431a2ccdfe4ab5af9a034150abc3fae484947b704": {
     "describe": {
