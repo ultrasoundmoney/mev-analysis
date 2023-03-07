@@ -352,3 +352,15 @@ WHERE
 	AND transactions_data_2.blocksdelay = 1
 	AND transactions_data_2.mined > (CURRENT_DATE - '30 days'::interval)
 WITH NO DATA;
+
+CREATE MATERIALIZED VIEW operators_all AS  SELECT nested.operator_id,
+    count(DISTINCT nested.pubkey) AS numberofvalidators,
+    array_agg(DISTINCT nested.relays) AS array_agg
+   FROM ( SELECT validator_pubkeys.pubkey,
+            validator_pubkeys.operator_id,
+            unnest(block_production.relays) AS relays
+           FROM validator_pubkeys
+             LEFT JOIN block_production ON block_production.proposer_pubkey::text = validator_pubkeys.pubkey::text) nested
+  GROUP BY nested.operator_id
+  WITH NO DATA;
+
