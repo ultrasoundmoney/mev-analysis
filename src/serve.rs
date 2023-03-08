@@ -94,8 +94,8 @@ pub async fn start_server() {
     let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
 
     let mev_db_pool = PgPoolOptions::new()
-        .max_connections(10)
-        .acquire_timeout(Duration::from_secs(3))
+        .max_connections(30)
+        .acquire_timeout(Duration::from_secs(10))
         .connect(&APP_CONFIG.mev_db_url)
         .await
         .expect("can't connect to mev database");
