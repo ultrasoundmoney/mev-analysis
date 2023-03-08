@@ -58,8 +58,20 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
         .map(|(key, group)| (key, group.into_iter().collect_vec()))
         .collect_vec();
 
+    let block_counts_match = txs_by_block.len() == extractors_by_block.len();
+
+    if !block_counts_match {
+        error!(
+            "mismatched block counts: txs {}, extractors {}. interval: {} to {}",
+            txs_by_block.len(),
+            extractors_by_block.len(),
+            txs_by_block.first().map(|(block, _)| block).unwrap_or(&0),
+            txs_by_block.last().map(|(block, _)| block).unwrap_or(&0),
+        );
+    }
+
     assert!(
-        txs_by_block.len() == extractors_by_block.len(),
+        block_counts_match,
         "expected equal number of blocks when tagging transactions"
     );
 
