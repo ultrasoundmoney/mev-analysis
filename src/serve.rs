@@ -160,6 +160,10 @@ pub async fn start_server() {
         )
         .route("/api/censorship/delayed-txs", get(censorship::delayed_txs))
         .route(
+            "/api/censorship/recent-delayed-txs",
+            get(censorship::recent_delayed_txs),
+        )
+        .route(
             "/api/censorship/censored-txs",
             get(censorship::censored_txs),
         )
