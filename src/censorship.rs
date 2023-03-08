@@ -12,8 +12,8 @@ use futures::future;
 use gcp_bigquery_client::Client;
 use itertools::Itertools;
 use sqlx::{Connection, PgConnection};
+use std::cmp;
 use std::net::SocketAddr;
-use std::ops::Add;
 use std::process;
 use tracing::{error, info, warn};
 
@@ -100,7 +100,11 @@ async fn ingest_chain_data(
         let is_backfilling = begin - checkpoint > fetch_interval;
 
         let start_time = checkpoint;
-        let end_time = start_time.add(Duration::hours(3));
+        // Stay at least 10 minutes behind current time to make sure the data is available in BigQuery
+        let end_time = cmp::min(
+            start_time + Duration::hours(3),
+            begin - Duration::minutes(10),
+        );
 
         info!(
             "starting chain data ingestion from {} until {}, interval: {} minutes",
