@@ -171,6 +171,38 @@
     },
     "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)\n                VALUES ($1, $2, $3, $4, $5, $6)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE\n                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))\n                "
   },
+  "89df84877649f9dc855f166ddf0b31ba3d43fe6403f713838cee41bbba166572": {
+    "describe": {
+      "columns": [
+        {
+          "name": "relay_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "total_blocks",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "uncensored_blocks",
+          "ordinal": 2,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "WITH\nrelay_total_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(block_production.block_number)) AS total_blocks\n    FROM\n        block_production\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = block_production.block_number\n    WHERE\n        blocks.timestamp > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n),\nrelay_uncensored_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(transactions_data.block_number)) AS uncensored_blocks\n    FROM\n        transactions_data\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = transactions_data.block_number\n    LEFT JOIN\n        block_production\n        ON block_production.block_number = transactions_data.block_number\n        AND blocks.block_hash = block_production.block_hash\n    WHERE\n        transactions_data.blacklist != '{NULL}'::text[]\n        AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n)\n\nSELECT\n    total.relay_id,\n    total.total_blocks,\n    COALESCE(uncensored.uncensored_blocks, 0) as uncensored_blocks\nFROM\n    relay_total_blocks total\n    LEFT JOIN relay_uncensored_blocks uncensored\n    ON total.relay_id = uncensored.relay_id;\n"
+  },
   "8b70af619d8edd7797abcbf57e6105b60cd9f74fb87c4a68ce7e33b7a1eaf01c": {
     "describe": {
       "columns": [
@@ -272,38 +304,6 @@
       }
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
-  },
-  "bed417a2a8e0abfe258e6edbbab69123d39771984d3d68c9f9fed6561d0ff0e3": {
-    "describe": {
-      "columns": [
-        {
-          "name": "relay_id",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "total_blocks",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "uncensored_blocks",
-          "ordinal": 2,
-          "type_info": "Int8"
-        }
-      ],
-      "nullable": [
-        null,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": "WITH\nrelay_total_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(block_production.block_number)) AS total_blocks\n    FROM\n        block_production\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = block_production.block_number\n    WHERE\n        blocks.timestamp > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n),\nrelay_uncensored_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(transactions_data.block_number)) AS uncensored_blocks\n    FROM\n        transactions_data\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = transactions_data.block_number\n    LEFT JOIN\n        block_production\n        ON block_production.block_number = transactions_data.block_number\n        AND blocks.block_hash = block_production.block_hash\n    WHERE\n        transactions_data.blacklist != '{NULL}'::text[]\n        AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n)\n\nSELECT\n    total.relay_id,\n    total.total_blocks,\n    uncensored.uncensored_blocks\nFROM\n    relay_total_blocks total\n    INNER JOIN relay_uncensored_blocks uncensored\n    ON total.relay_id = uncensored.relay_id;\n"
   },
   "c5762f16fac70a384b1df1ab8a214118df264aa08f076b59052ec97881d4e1bb": {
     "describe": {

@@ -36,8 +36,8 @@ relay_uncensored_blocks AS (
 SELECT
     total.relay_id,
     total.total_blocks,
-    uncensored.uncensored_blocks
+    COALESCE(uncensored.uncensored_blocks, 0) as uncensored_blocks
 FROM
     relay_total_blocks total
-    INNER JOIN relay_uncensored_blocks uncensored
+    LEFT JOIN relay_uncensored_blocks uncensored
     ON total.relay_id = uncensored.relay_id;
