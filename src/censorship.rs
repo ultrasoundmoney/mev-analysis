@@ -123,7 +123,11 @@ async fn ingest_chain_data(
 
         info!("received {} blocks and {} txs", &block_count, &tx_count);
 
-        let timestamped_txs = mempool_store.fetch_tx_timestamps(txs).await?;
+        let start_block = blocks.first().expect("no blocks received").block_number;
+        let end_block = blocks.last().expect("no blocks received").block_number;
+        let timestamped_txs = mempool_store
+            .fetch_tx_timestamps(txs, start_block, end_block)
+            .await?;
 
         db.put_chain_data(blocks, timestamped_txs).await?;
 

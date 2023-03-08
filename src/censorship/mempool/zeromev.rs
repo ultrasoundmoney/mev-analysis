@@ -38,17 +38,29 @@ struct BlockExtractorRow {
     tx_data: Vec<TxTuple>,
 }
 
-fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<TaggedTx> {
+fn tag_transactions(
+    mut txs: Vec<Tx>,
+    mut rows: Vec<BlockExtractorRow>,
+    start_block: i64,
+    end_block: i64,
+) -> Vec<TaggedTx> {
     // we rely on transaction index to associate timestamps from zeromev to transactions
     // on our side, so we need to make sure everything is sorted
     txs.sort_by_key(|tx| (tx.block_number, tx.transaction_index));
     rows.sort_by_key(|row| row.block_number);
 
-    let txs_by_block = txs
-        .into_iter()
-        .group_by(|tx| tx.block_number)
-        .into_iter()
-        .map(|(key, group)| (key, group.into_iter().collect_vec()))
+    let block_numbers = start_block..=end_block;
+
+    let txs_by_block = block_numbers
+        .map(|block_number| {
+            let block_txs = txs
+                .iter()
+                .filter(|tx| tx.block_number == block_number)
+                .map(|tx| tx.to_owned())
+                .collect_vec();
+
+            (block_number, block_txs)
+        })
         .collect_vec();
 
     let extractors_by_block = rows
@@ -65,8 +77,8 @@ fn tag_transactions(mut txs: Vec<Tx>, mut rows: Vec<BlockExtractorRow>) -> Vec<T
             "mismatched block counts: txs {}, extractors {}. interval: {} to {}",
             txs_by_block.len(),
             extractors_by_block.len(),
-            txs_by_block.first().map(|(block, _)| block).unwrap_or(&0),
-            txs_by_block.last().map(|(block, _)| block).unwrap_or(&0),
+            start_block,
+            end_block
         );
     }
 
@@ -132,17 +144,12 @@ const GZIP_HEADER_HEX: &str = "\\x1f8b080000000000000303000000000000000000";
 
 #[async_trait]
 impl MempoolStore for ZeroMev {
-    async fn fetch_tx_timestamps(&self, txs: Vec<Tx>) -> Result<Vec<TaggedTx>> {
-        let start_block = txs
-            .first()
-            .expect("fetch_tx_timestamps received empty vector")
-            .block_number;
-
-        let end_block = txs
-            .last()
-            .expect("fetch_tx_timestamps received empty vector")
-            .block_number;
-
+    async fn fetch_tx_timestamps(
+        &self,
+        txs: Vec<Tx>,
+        start_block: i64,
+        end_block: i64,
+    ) -> Result<Vec<TaggedTx>> {
         // In cases where there are duplicate extractors for a block, use the most recent
         // https://stackoverflow.com/a/45018194
         let query = format!(
@@ -190,7 +197,7 @@ impl MempoolStore for ZeroMev {
                     .collect()
             })?;
 
-        Ok(tag_transactions(txs, results))
+        Ok(tag_transactions(txs, results, start_block, end_block))
     }
 }
 

@@ -11,7 +11,12 @@ pub use zeromev::ZeroMev;
 // service for timestamping transactions based on their appearance in the mempool(s)
 #[async_trait]
 pub trait MempoolStore {
-    async fn fetch_tx_timestamps(&self, mut txs: Vec<Tx>) -> Result<Vec<TaggedTx>>;
+    async fn fetch_tx_timestamps(
+        &self,
+        mut txs: Vec<Tx>,
+        start_block: i64,
+        end_block: i64,
+    ) -> Result<Vec<TaggedTx>>;
 }
 
 #[derive(Clone)]
