@@ -278,6 +278,7 @@ impl CensorshipDB for PostgresCensorshipDB {
             "inclusion_delay_30d",
             "operators_7d",
             "operators_30d",
+            "operators_all",
             "top_7d",
             "top_30d",
         ];
