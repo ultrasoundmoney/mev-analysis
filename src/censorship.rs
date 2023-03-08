@@ -6,7 +6,7 @@ mod relay;
 
 use anyhow::Result;
 use axum::{http::StatusCode, routing::get, Router};
-use chrono::{Duration, Utc};
+use chrono::{Duration, SubsecRound, Utc};
 use enum_iterator::all;
 use futures::future;
 use gcp_bigquery_client::Client;
@@ -103,7 +103,7 @@ async fn ingest_chain_data(
         // Stay at least 10 minutes behind current time to make sure the data is available in BigQuery
         let end_time = cmp::min(
             start_time + Duration::hours(3),
-            begin - Duration::minutes(10),
+            (begin - Duration::minutes(10)).round_subsecs(0),
         );
 
         info!(
