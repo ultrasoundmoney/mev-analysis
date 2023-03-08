@@ -240,6 +240,19 @@ pub async fn delayed_txs(State(state): State<AppState>) -> ApiResponse<Vec<Delay
     .map_err(internal_error)
 }
 
+pub async fn recent_delayed_txs(State(state): State<AppState>) -> ApiResponse<Vec<DelayedTx>> {
+    sqlx::query_file_as!(
+        DelayedTx,
+        "sql/api/recent_delayed_txs.sql",
+        Timeframe::ThirtyDays.to_interval(),
+        100
+    )
+    .fetch_all(&state.mev_db_pool)
+    .await
+    .map(Json)
+    .map_err(internal_error)
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CensoredTx {
