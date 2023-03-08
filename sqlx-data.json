@@ -305,6 +305,63 @@
     },
     "query": "WITH\nrelay_total_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(block_production.block_number)) AS total_blocks\n    FROM\n        block_production\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = block_production.block_number\n    WHERE\n        blocks.timestamp > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n),\nrelay_uncensored_blocks AS (\n    SELECT\n        UNNEST(block_production.relays) AS relay_id,\n        COUNT(DISTINCT(transactions_data.block_number)) AS uncensored_blocks\n    FROM\n        transactions_data\n    LEFT JOIN\n        blocks\n        ON blocks.block_number = transactions_data.block_number\n    LEFT JOIN\n        block_production\n        ON block_production.block_number = transactions_data.block_number\n        AND blocks.block_hash = block_production.block_hash\n    WHERE\n        transactions_data.blacklist != '{NULL}'::text[]\n        AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n    GROUP BY\n        relay_id\n)\n\nSELECT\n    total.relay_id,\n    total.total_blocks,\n    uncensored.uncensored_blocks\nFROM\n    relay_total_blocks total\n    INNER JOIN relay_uncensored_blocks uncensored\n    ON total.relay_id = uncensored.relay_id;\n"
   },
+  "c5762f16fac70a384b1df1ab8a214118df264aa08f076b59052ec97881d4e1bb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval",
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  CASE\n    WHEN blacklist = '{NULL}' THEN '{}'::text[]\n    ELSE blacklist\n  END AS blacklist,\n  CASE\n    WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n    WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n    WHEN transactions_data.congested = 1 THEN 'congested'\n    WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n    ELSE 'unknown'\n  END AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 1\n ORDER BY\n   transactions_data.mined DESC\n LIMIT $2\n"
+  },
   "ca1c4908e3b5ffed482d8ebc45fc716cc2c01b3ada0ba349892e144de25d9c66": {
     "describe": {
       "columns": [
