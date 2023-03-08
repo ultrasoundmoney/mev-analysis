@@ -1,3 +1,4 @@
+SELECT * FROM (
 SELECT
   transactions_data.transaction_hash,
   transactions_data.mined,
@@ -19,4 +20,5 @@ SELECT
     transactions_data
  WHERE
    transactions_data.mined > (CURRENT_DATE - $1::interval)
-   AND transactions_data.blocksdelay > 1
+   AND transactions_data.blocksdelay > 1) NESTED
+   WHERE reason='ofac' or reason='unknown'
