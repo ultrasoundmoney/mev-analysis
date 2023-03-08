@@ -224,7 +224,7 @@ pub struct DelayedTx {
     pub delay: Option<f64>,
     pub block_number: i64,
     pub block_delay: i32,
-    pub blacklist: Vec<String>,
+    pub blacklist: Option<Vec<String>>,
     pub reason: Option<String>,
 }
 
