@@ -51,48 +51,40 @@ fn tag_transactions(
 
     let block_numbers = start_block..=end_block;
 
-    let txs_by_block = block_numbers
+    let data_by_block = block_numbers
         .map(|block_number| {
             let block_txs = txs
                 .iter()
-                .filter(|tx| tx.block_number == block_number)
+                .skip_while(|tx| tx.block_number < block_number)
+                .take_while(|tx| tx.block_number == block_number)
                 .map(|tx| tx.to_owned())
                 .collect_vec();
 
-            (block_number, block_txs)
+            let block_extractors = rows
+                .iter()
+                .skip_while(|row| row.block_number < block_number)
+                .take_while(|row| row.block_number == block_number)
+                .map(|row| row.to_owned())
+                .collect_vec();
+
+            let missing_extractors = block_txs.len() > 0 && block_extractors.len() == 0;
+
+            if missing_extractors {
+                error!(
+                    "no extractors for block {} ({} txs)",
+                    block_number,
+                    block_txs.len()
+                );
+                panic!("no extractors for block");
+            }
+
+            (block_number, block_txs, block_extractors)
         })
         .collect_vec();
 
-    let extractors_by_block = rows
-        .into_iter()
-        .group_by(|row| row.block_number)
-        .into_iter()
-        .map(|(key, group)| (key, group.into_iter().collect_vec()))
-        .collect_vec();
-
-    let block_counts_match = txs_by_block.len() == extractors_by_block.len();
-
-    if !block_counts_match {
-        error!(
-            "mismatched block counts: txs {}, extractors {}. interval: {} to {}",
-            txs_by_block.len(),
-            extractors_by_block.len(),
-            start_block,
-            end_block
-        );
-    }
-
-    assert!(
-        block_counts_match,
-        "expected equal number of blocks when tagging transactions"
-    );
-
-    txs_by_block
+    data_by_block
         .iter()
-        .zip(extractors_by_block.iter())
-        .map(|((b0, txs), (b1, extractors))| {
-            assert!(b0 == b1, "mismatched block numbers during zip");
-
+        .map(|(_, txs, extractors)| {
             txs.iter().map(|tx| {
                 let expected_tx_count = txs.len();
                 let timestamps: Vec<MempoolTimestamp> = extractors
@@ -122,12 +114,8 @@ fn tag_transactions(
                         expected_tx_count,
                         received_tx_counts
                     );
+                    panic!("expected at least one extractor with matching tx count");
                 }
-
-                assert!(
-                    found_valid_extractors,
-                    "expected at least one extractor with matching tx count"
-                );
 
                 TaggedTx {
                     timestamps,
