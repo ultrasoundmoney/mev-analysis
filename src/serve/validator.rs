@@ -6,11 +6,10 @@ use axum::{
 use chrono::{DateTime, TimeZone, Utc};
 use futures::future::join_all;
 use serde::Serialize;
-use sqlx::{postgres::PgRow, Pool, Postgres, Row};
-use tracing::warn;
+use sqlx::{postgres::PgRow, Row};
 
-use super::relay_redis::get_known_validator_count;
 use super::{env::APP_CONFIG, internal_error, AppState};
+use super::{relay_redis::get_known_validator_count, types::ApiResponse};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -20,10 +19,7 @@ pub struct ValidatorStatsBody {
     recipient_count: i64,
 }
 
-pub async fn get_validator_stats(
-    db_pool: &Pool<Postgres>,
-    redis_client: &redis::Client,
-) -> Result<ValidatorStatsBody, String> {
+pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<ValidatorStatsBody> {
     let query = format!(
         "
         select
@@ -47,35 +43,18 @@ pub async fn get_validator_stats(
     let (db_counts, known_validator_count) = tokio::join!(
         sqlx::query(&query)
             .map(|row: PgRow| (row.get("count"), row.get("recipient_count")))
-            .fetch_one(db_pool),
-        get_known_validator_count(redis_client)
+            .fetch_one(&state.relay_db_pool),
+        get_known_validator_count(&state.redis_client)
     );
 
-    let (count, recipient_count) = db_counts.map_err(|e| e.to_string())?;
-    let known_count = known_validator_count.map_err(|e| e.to_string())?;
+    let (count, recipient_count) = db_counts.map_err(|e| e.to_string()).unwrap();
+    let known_count = known_validator_count.map_err(|e| e.to_string()).unwrap();
 
-    Ok(ValidatorStatsBody {
+    Ok(Json(ValidatorStatsBody {
         validator_count: count,
         known_validator_count: known_count,
         recipient_count,
-    })
-}
-
-pub async fn validator_stats(
-    State(state): State<AppState>,
-) -> Result<Json<ValidatorStatsBody>, (StatusCode, String)> {
-    let cached_result = state.cache.validator_stats.read().unwrap();
-
-    match &*cached_result {
-        Some(stats) => Ok(Json(stats.clone())),
-        None => {
-            warn!("validator_stats cache miss");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "something went wrong".to_string(),
-            ))
-        }
-    }
+    }))
 }
 
 #[derive(Serialize)]

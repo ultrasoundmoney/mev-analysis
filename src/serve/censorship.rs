@@ -1,11 +1,9 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, Json};
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 use sqlx::postgres::types::PgInterval;
 
-use super::{internal_error, AppState};
-
-type ApiResponse<T> = Result<Json<T>, (StatusCode, String)>;
+use super::{internal_error, types::ApiResponse, AppState};
 
 pub enum Timeframe {
     SevenDays,

@@ -1,5 +1,31 @@
 {
   "db": "PostgreSQL",
+  "027525493b9064c531d9f169991062b39551c8abab9a01caab52f4192e057ee9": {
+    "describe": {
+      "columns": [
+        {
+          "name": "pubkey",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "builder_id",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "TextArray"
+        ]
+      }
+    },
+    "query": "\n        SELECT\n            pubkey,\n            builder_id\n        FROM\n            builder_pubkeys\n        WHERE\n            pubkey = ANY($1)\n        "
+  },
   "09be21a3c5030efa9df13f9be94cf8390154a4755224c1590b2fef736e330405": {
     "describe": {
       "columns": [

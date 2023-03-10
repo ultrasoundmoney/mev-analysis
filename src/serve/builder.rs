@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use axum::{extract::State, http::StatusCode, Json};
 use serde::Serialize;
-use sqlx::{Pool, Postgres, Row};
-use tracing::warn;
+use sqlx::{PgPool, Row};
 
-use super::{env::APP_CONFIG, AppState};
+use super::{env::APP_CONFIG, types::ApiResponse, AppState};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Builder {
     extra_data: Option<String>,
+    builder_id: String,
     block_count: i64,
 }
 
@@ -17,100 +19,103 @@ pub struct BuildersBody {
     builders: Vec<Builder>,
 }
 
-#[derive(PartialEq, Debug)]
-enum DecodeErr {
-    HexError(String),
-    Utf8Error(String),
+pub struct PubkeyBlockCount {
+    pub pubkey: String,
+    pub block_count: i64,
 }
 
-fn decode_extra_data(s: &String) -> Result<String, DecodeErr> {
-    let trimmed: String = s.chars().skip(2).collect();
-    // hack because some funny guy is putting non-utf8 chars into extra_data
-    // TODO: filter out non-utf8 bytes for a general solution
-    if trimmed == "d883010a17846765746888676f312e31392e33856c696e7578" {
-        return Ok("geth go1.19.3 linux".to_string());
-    }
-
-    hex::decode(trimmed)
-        .map_err(|err| DecodeErr::HexError(err.to_string()))
-        .and_then(|bytes| {
-            String::from_utf8(bytes).map_err(|err| DecodeErr::Utf8Error(err.to_string()))
-        })
-}
-
-pub async fn get_top_builders(pool: &Pool<Postgres>) -> Result<Vec<Builder>, String> {
+async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> anyhow::Result<Vec<PubkeyBlockCount>> {
     let query = format!(
         "
-        select
-           signed_blinded_beacon_block->'message'->'body'->'execution_payload_header'->>'extra_data' as extra_data_hex,
-           count(*) as block_count
-           from {}_payload_delivered
-           group by extra_data_hex
+        SELECT
+            builder_pubkey AS pubkey,
+            COUNT(*) AS block_count
+        FROM
+            {}_payload_delivered
+        GROUP BY
+            builder_pubkey
         ",
         &APP_CONFIG.network.to_string()
     );
 
     sqlx::query(&query)
-        .fetch_all(pool)
+        .fetch_all(relay_pool)
         .await
         .map(|rows| {
-            rows.iter()
-                .map(|row| {
-                    let hex_str: String = row.get("extra_data_hex");
-                    let decoded = decode_extra_data(&hex_str);
-                    let extra_data = match decoded {
-                        Ok(data) => Some(data),
-                        Err(DecodeErr::HexError(err)) => {
-                            warn!("failed to decode hex for {}: {}", &hex_str, err);
-                            None
-                        }
-                        Err(DecodeErr::Utf8Error(err)) => {
-                            warn!("failed to decode utf8 for {}: {}", &hex_str, err);
-                            Some(hex_str)
-                        }
-                    };
-
-                    Builder {
-                        block_count: row.get("block_count"),
-                        extra_data,
-                    }
+            rows.into_iter()
+                .map(|row| PubkeyBlockCount {
+                    pubkey: row.get("pubkey"),
+                    block_count: row.get("block_count"),
                 })
                 .collect()
         })
-        .map_err(|e| e.to_string())
+        .map_err(Into::into)
 }
 
-pub async fn top_builders(
-    State(state): State<AppState>,
-) -> Result<Json<BuildersBody>, (StatusCode, String)> {
-    let cached_result = state.cache.top_builders.read().unwrap();
-
-    match &*cached_result {
-        Some(res) => Ok(Json(BuildersBody {
-            builders: res.to_vec(),
-        })),
-        None => {
-            warn!("top_builders cache miss");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "something went wrong".to_string(),
-            ))
-        }
-    }
+struct BuilderIdMapping {
+    builder_id: String,
+    pubkey: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BuilderBlockCount {
+    builder_id: String,
+    block_count: i64,
+}
 
-    #[test]
-    fn decodes_valid_hex_string() {
-        let hex_string =
-            "0x496c6c756d696e61746520446d6f63726174697a6520447374726962757465".to_string();
+async fn get_top_builders_new(
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+) -> anyhow::Result<Vec<Builder>> {
+    let counts = fetch_pubkey_block_counts(relay_pool).await?;
+    let ids = sqlx::query_as!(
+        BuilderIdMapping,
+        r#"
+        SELECT
+            pubkey,
+            builder_id
+        FROM
+            builder_pubkeys
+        WHERE
+            pubkey = ANY($1)
+        "#,
+        &counts
+            .iter()
+            .map(|count| count.pubkey.clone())
+            .collect::<Vec<String>>()
+    )
+    .fetch_all(mev_pool)
+    .await?;
 
-        assert_eq!(
-            decode_extra_data(&hex_string),
-            Ok("Illuminate Dmocratize Dstribute".to_string())
-        );
+    let aggregated = ids
+        .iter()
+        .fold(HashMap::new(), |mut acc, id| {
+            let count = counts
+                .iter()
+                .find(|count| count.pubkey == id.pubkey)
+                .map(|count| count.block_count)
+                .unwrap_or(0);
+
+            let entry = acc.entry(id.builder_id.clone()).or_insert(0);
+            *entry += count;
+            acc
+        })
+        .into_iter()
+        .map(|(builder_id, block_count)| Builder {
+            builder_id,
+            block_count,
+            extra_data: Some("".to_string()),
+        })
+        .collect();
+
+    Ok(aggregated)
+}
+
+pub async fn top_builders(State(state): State<AppState>) -> ApiResponse<BuildersBody> {
+    let result = get_top_builders_new(&state.relay_db_pool, &state.mev_db_pool).await;
+    match result {
+        Ok(builders) => Ok(Json(BuildersBody { builders })),
+        Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
     }
 }
