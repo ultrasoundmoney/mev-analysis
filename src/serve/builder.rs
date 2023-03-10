@@ -4,6 +4,8 @@ use serde::Serialize;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 
+use crate::env::ToNetwork;
+
 use super::{env::APP_CONFIG, internal_error, ApiResponse, AppState};
 
 #[derive(Serialize, Clone)]
@@ -35,7 +37,7 @@ async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> Result<Vec<PubkeyBloc
         GROUP BY
             builder_pubkey
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)

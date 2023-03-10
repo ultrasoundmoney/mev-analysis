@@ -3,10 +3,16 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
 
+use crate::env::Env;
+
 use super::{env::APP_CONFIG, PhoenixMonitor};
 
 async fn get_status() -> Result<StatusCode> {
-    let url = format!("{}/eth/v1/builder/status", APP_CONFIG.relay_api_root);
+    let api_root = match APP_CONFIG.env {
+        Env::Stag => "https://relay-stag.ultrasound.money",
+        Env::Prod => "https://relay.ultrasound.money",
+    };
+    let url = format!("{}/eth/v1/builder/status", &api_root);
     reqwest::get(url)
         .await
         .map(|res| res.status())

@@ -40,7 +40,7 @@ pub struct AppState {
 pub async fn start_server() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.mev_db_url).await?;
+    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
 
@@ -49,18 +49,18 @@ pub async fn start_server() -> Result<()> {
     let mev_db_pool = PgPoolOptions::new()
         .max_connections(30)
         .acquire_timeout(Duration::from_secs(10))
-        .connect(&APP_CONFIG.mev_db_url)
+        .connect(&APP_CONFIG.database_url)
         .await
         .expect("can't connect to mev database");
 
     let relay_db_pool = PgPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(&APP_CONFIG.relay_db_url)
+        .connect(&APP_CONFIG.relay_database_url)
         .await
         .expect("can't connect to relay database");
 
-    let redis_client = redis::Client::open(APP_CONFIG.redis_url.clone()).unwrap();
+    let redis_client = redis::Client::open(format!("redis://{}", APP_CONFIG.redis_uri))?;
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET])

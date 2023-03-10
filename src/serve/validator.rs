@@ -8,6 +8,8 @@ use futures::future::join_all;
 use serde::Serialize;
 use sqlx::{postgres::PgRow, Row};
 
+use crate::env::ToNetwork;
+
 use super::{env::APP_CONFIG, internal_error, AppState};
 use super::{relay_redis::get_known_validator_count, ApiResponse};
 
@@ -25,19 +27,18 @@ pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<Valid
         select
           (
              select count(distinct pubkey)
-             from {}_validator_registration
+             from {network}_validator_registration
           ) as count,
           (
              select count(distinct sq.fee_recipient) as recipient_count
              from (
                select max(inserted_at), pubkey, fee_recipient
-               from {}_validator_registration
+               from {network}_validator_registration
                group by pubkey, fee_recipient
              ) sq
           ) as recipient_count
         ",
-        &APP_CONFIG.network.to_string(),
-        &APP_CONFIG.network.to_string(),
+        network = &APP_CONFIG.env.to_network().to_string(),
     );
 
     let (db_counts, known_validator_count) = tokio::join!(
@@ -72,7 +73,7 @@ pub async fn check_validator_registration(
             select pubkey from {}_validator_registration where pubkey = $1
          )
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)
@@ -121,7 +122,7 @@ pub async fn validator_registrations(
             limit 30
 
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     let registrations: Vec<ValidatorRegistration> = sqlx::query(&query)

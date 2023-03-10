@@ -3,6 +3,8 @@ use chrono::{DateTime, TimeZone, Utc};
 use serde::Serialize;
 use sqlx::Row;
 
+use crate::env::ToNetwork;
+
 use super::{internal_error, AppState, APP_CONFIG};
 
 #[derive(Serialize)]
@@ -36,7 +38,7 @@ pub async fn delivered_payloads(
         order by inserted_at desc
         limit 30
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)
@@ -64,11 +66,10 @@ pub async fn payload_stats(
         "
          select count(*) as count,
                 sum(value) / 10^18 as value,
-                (select min(inserted_at) from {}_payload_delivered) as first_payload_at
-         from {}_payload_delivered
+                (select min(inserted_at) from {network}_payload_delivered) as first_payload_at
+         from {network}_payload_delivered
         ",
-        &APP_CONFIG.network.to_string(),
-        &APP_CONFIG.network.to_string()
+        network = &APP_CONFIG.env.to_network().to_string(),
     );
 
     sqlx::query(&query)
@@ -96,7 +97,7 @@ pub async fn top_payloads(
         order by value desc
         limit 10
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)

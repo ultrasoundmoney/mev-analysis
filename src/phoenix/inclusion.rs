@@ -2,7 +2,7 @@ use chrono::Duration;
 use sqlx::{postgres::PgPoolOptions, Row};
 use tracing::{error, info};
 
-use crate::beacon_api::BeaconAPI;
+use crate::{beacon_api::BeaconAPI, env::ToNetwork};
 
 use super::env::APP_CONFIG;
 
@@ -18,7 +18,7 @@ pub async fn check_delivered_payloads() {
     let db_pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::seconds(3).to_std().unwrap())
-        .connect(&APP_CONFIG.db_connection_str)
+        .connect(&APP_CONFIG.relay_database_url)
         .await
         .expect("can't connect to database");
 
@@ -33,7 +33,7 @@ pub async fn check_delivered_payloads() {
             ORDER BY slot DESC
             LIMIT 5
         ",
-        &APP_CONFIG.network.to_string()
+        &APP_CONFIG.env.to_network().to_string()
     );
 
     let payloads: Vec<DeliveredPayload> = sqlx::query(&query)
