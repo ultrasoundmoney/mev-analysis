@@ -9,7 +9,7 @@ use serde::Serialize;
 use sqlx::{postgres::PgRow, Row};
 
 use super::{env::APP_CONFIG, internal_error, AppState};
-use super::{relay_redis::get_known_validator_count, types::ApiResponse};
+use super::{relay_redis::get_known_validator_count, ApiResponse};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-
-use axum::{extract::State, http::StatusCode, Json};
+use anyhow::Result;
+use axum::{extract::State, Json};
 use serde::Serialize;
 use sqlx::{PgPool, Row};
+use std::collections::HashMap;
 
-use super::{env::APP_CONFIG, types::ApiResponse, AppState};
+use super::{env::APP_CONFIG, internal_error, ApiResponse, AppState};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +24,7 @@ pub struct PubkeyBlockCount {
     pub block_count: i64,
 }
 
-async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> anyhow::Result<Vec<PubkeyBlockCount>> {
+async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> Result<Vec<PubkeyBlockCount>> {
     let query = format!(
         "
         SELECT
@@ -64,10 +64,7 @@ struct BuilderBlockCount {
     block_count: i64,
 }
 
-async fn get_top_builders_new(
-    relay_pool: &PgPool,
-    mev_pool: &PgPool,
-) -> anyhow::Result<Vec<Builder>> {
+async fn get_top_builders_new(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<Vec<Builder>> {
     let counts = fetch_pubkey_block_counts(relay_pool).await?;
     let ids = sqlx::query_as!(
         BuilderIdMapping,
@@ -113,9 +110,8 @@ async fn get_top_builders_new(
 }
 
 pub async fn top_builders(State(state): State<AppState>) -> ApiResponse<BuildersBody> {
-    let result = get_top_builders_new(&state.relay_db_pool, &state.mev_db_pool).await;
-    match result {
-        Ok(builders) => Ok(Json(BuildersBody { builders })),
-        Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
-    }
+    get_top_builders_new(&state.relay_db_pool, &state.mev_db_pool)
+        .await
+        .map(|builders| Json(BuildersBody { builders }))
+        .map_err(internal_error)
 }

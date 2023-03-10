@@ -3,7 +3,6 @@ mod censorship;
 mod env;
 mod payload;
 mod relay_redis;
-mod types;
 mod validator;
 
 use anyhow::Result;
@@ -11,7 +10,7 @@ use axum::{
     extract::State,
     http::{Method, StatusCode},
     routing::get,
-    Router,
+    Json, Router,
 };
 use sqlx::{
     postgres::{PgPool, PgPoolOptions},
@@ -133,9 +132,11 @@ async fn health(State(state): State<AppState>) -> StatusCode {
     }
 }
 
+pub type ApiResponse<T> = Result<Json<T>, (StatusCode, String)>;
+
 pub fn internal_error<E>(err: E) -> (StatusCode, String)
 where
-    E: std::error::Error,
+    E: std::fmt::Display,
 {
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }

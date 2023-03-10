@@ -3,7 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 use sqlx::postgres::types::PgInterval;
 
-use super::{internal_error, types::ApiResponse, AppState};
+use super::{internal_error, ApiResponse, AppState};
 
 pub enum Timeframe {
     SevenDays,
