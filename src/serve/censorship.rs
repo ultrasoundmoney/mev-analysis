@@ -143,28 +143,50 @@ pub struct CensorshipDelay {
     pub tx_count: Option<i64>,
 }
 
+struct CensorshipDelayRow {
+    censored_tx_count: Option<i64>,
+    censored_avg_delay: Option<f64>,
+    uncensored_tx_count: Option<i64>,
+    uncensored_avg_delay: Option<f64>,
+}
+
+fn expand_row(row: CensorshipDelayRow) -> Vec<CensorshipDelay> {
+    vec![
+        CensorshipDelay {
+            tx_type: Some("censored".to_string()),
+            avg_delay: row.censored_avg_delay,
+            tx_count: row.censored_tx_count,
+        },
+        CensorshipDelay {
+            tx_type: Some("uncensored".to_string()),
+            avg_delay: row.uncensored_avg_delay,
+            tx_count: row.uncensored_tx_count,
+        },
+    ]
+}
+
 pub async fn censorship_categories(
     State(state): State<AppState>,
 ) -> ApiResponse<Timeframed<Vec<CensorshipDelay>>> {
     let (seven_days, thirty_days) = tokio::try_join!(
         sqlx::query_file_as!(
-            CensorshipDelay,
+            CensorshipDelayRow,
             "sql/api/censorship_delay.sql",
             Timeframe::SevenDays.to_interval()
         )
-        .fetch_all(&state.mev_db_pool),
+        .fetch_one(&state.mev_db_pool),
         sqlx::query_file_as!(
-            CensorshipDelay,
+            CensorshipDelayRow,
             "sql/api/censorship_delay.sql",
             Timeframe::ThirtyDays.to_interval()
         )
-        .fetch_all(&state.mev_db_pool)
+        .fetch_one(&state.mev_db_pool)
     )
     .map_err(internal_error)?;
 
     Ok(Json(Timeframed {
-        seven_days,
-        thirty_days,
+        seven_days: expand_row(seven_days),
+        thirty_days: expand_row(thirty_days),
     }))
 }
 

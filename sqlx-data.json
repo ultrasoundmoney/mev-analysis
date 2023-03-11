@@ -26,38 +26,6 @@
     },
     "query": "\n        SELECT\n            pubkey,\n            builder_id\n        FROM\n            builder_pubkeys\n        WHERE\n            pubkey = ANY($1)\n        "
   },
-  "09be21a3c5030efa9df13f9be94cf8390154a4755224c1590b2fef736e330405": {
-    "describe": {
-      "columns": [
-        {
-          "name": "tx_type",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "avg_delay",
-          "ordinal": 1,
-          "type_info": "Float8"
-        },
-        {
-          "name": "tx_count",
-          "ordinal": 2,
-          "type_info": "Int8"
-        }
-      ],
-      "nullable": [
-        null,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": " SELECT\n   'censored' AS tx_type,\n   AVG(delay)::float AS avg_delay,\n   COUNT(transactions_data.transaction_hash) AS tx_count\n   FROM\n     transactions_data\n  WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n    AND transactions_data.blocksdelay > 0\n  UNION\n SELECT\n   'uncensored' AS tx_type,\n   AVG(delay)::float AS avg_delay,\n   COUNT(transactions_data.transaction_hash) AS tx_count\n   FROM\n     transactions_data\n  WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n    AND transactions_data.blocksdelay = 0\n"
-  },
   "0cfa774a2cce1f084fa5cff3d3ee5631dbec2198bdb23b8eab7ab0d5f68e586f": {
     "describe": {
       "columns": [
@@ -75,6 +43,44 @@
       }
     },
     "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
+  },
+  "270ca102879ba9385a2b15f9af867870afec407699c02877e2dc0a28200ffc94": {
+    "describe": {
+      "columns": [
+        {
+          "name": "censored_tx_count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "censored_avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "uncensored_tx_count",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "uncensored_avg_delay",
+          "ordinal": 3,
+          "type_info": "Float8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n  COUNT(*) FILTER (WHERE blocksdelay > 0 ) AS censored_tx_count,\n  AVG(delay) FILTER (WHERE blocksdelay > 0)::float AS censored_avg_delay,\n  COUNT(*) FILTER (WHERE blocksdelay = 0) AS uncensored_tx_count,\n  AVG(delay) FILTER (WHERE blocksdelay = 0)::float AS uncensored_avg_delay\nFROM\n  transactions_data\nWHERE\n    transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n"
   },
   "304c0bb436ab6de5b23f203ce05180b738df87952df3e4a100b1542e853b2f9d": {
     "describe": {
