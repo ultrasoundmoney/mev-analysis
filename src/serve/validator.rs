@@ -1,6 +1,5 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
     Json,
 };
 use chrono::{DateTime, TimeZone, Utc};
@@ -66,7 +65,7 @@ pub struct RegistrationStatusBody {
 pub async fn check_validator_registration(
     State(state): State<AppState>,
     Path(pubkey): Path<String>,
-) -> Result<Json<RegistrationStatusBody>, (StatusCode, String)> {
+) -> ApiResponse<RegistrationStatusBody> {
     let query = format!(
         "
          select exists (

@@ -16,7 +16,7 @@ async fn get_status() -> Result<StatusCode> {
     reqwest::get(url)
         .await
         .map(|res| res.status())
-        .map_err(|e| e.into())
+        .map_err(Into::into)
 }
 
 pub struct BuilderStatusMonitor {}

@@ -1,11 +1,11 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, Json};
 use chrono::{DateTime, TimeZone, Utc};
 use serde::Serialize;
 use sqlx::Row;
 
 use crate::env::ToNetwork;
 
-use super::{internal_error, AppState, APP_CONFIG};
+use super::{internal_error, ApiResponse, AppState, APP_CONFIG};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,9 +28,7 @@ pub struct PayloadStatsBody {
     first_payload_at: DateTime<Utc>,
 }
 
-pub async fn delivered_payloads(
-    State(state): State<AppState>,
-) -> Result<Json<PayloadsBody>, (StatusCode, String)> {
+pub async fn delivered_payloads(State(state): State<AppState>) -> ApiResponse<PayloadsBody> {
     let query = format!(
         "
         select inserted_at, block_number, (value / 10^18) as value
@@ -59,9 +57,7 @@ pub async fn delivered_payloads(
         .map_err(internal_error)
 }
 
-pub async fn payload_stats(
-    State(state): State<AppState>,
-) -> Result<Json<PayloadStatsBody>, (StatusCode, String)> {
+pub async fn payload_stats(State(state): State<AppState>) -> ApiResponse<PayloadStatsBody> {
     let query = format!(
         "
          select count(*) as count,
@@ -85,9 +81,7 @@ pub async fn payload_stats(
         .map_err(internal_error)
 }
 
-pub async fn top_payloads(
-    State(state): State<AppState>,
-) -> Result<Json<PayloadsBody>, (StatusCode, String)> {
+pub async fn top_payloads(State(state): State<AppState>) -> ApiResponse<PayloadsBody> {
     let query = format!(
         "
         select inserted_at,
