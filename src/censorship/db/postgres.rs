@@ -284,9 +284,12 @@ impl CensorshipDB for PostgresCensorshipDB {
         ];
 
         for matview in matviews {
-            sqlx::query(&format!("REFRESH MATERIALIZED VIEW {}", matview))
-                .execute(&self.pool)
-                .await?;
+            sqlx::query(&format!(
+                "REFRESH MATERIALIZED VIEW CONCURRENTLY {}",
+                matview
+            ))
+            .execute(&self.pool)
+            .await?;
         }
 
         Ok(())
