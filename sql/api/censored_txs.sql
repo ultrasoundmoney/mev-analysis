@@ -13,5 +13,5 @@ SELECT
    )
    = 0
    AND transactions_data.blacklist != '{NULL}'
-   AND transactions_data.blocksdelay > 1
+   AND transactions_data.blocksdelay > 0
    AND transactions_data.mined > (CURRENT_DATE - $1::interval)
