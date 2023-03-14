@@ -92,6 +92,7 @@ pub async fn start_server() -> Result<()> {
         .route("/api/builders/top", get(builder::top_builders))
         .route("/api/censorship/operators", get(censorship::operators))
         .route("/api/censorship/builders", get(censorship::builders))
+        .route("/api/censorship/builders-v2", get(censorship::builders_v2))
         .route("/api/censorship/relays", get(censorship::relays))
         .route(
             "/api/censorship/censorship-categories",

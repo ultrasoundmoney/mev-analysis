@@ -104,6 +104,54 @@ pub async fn builders(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BuilderPubkey {
+    pub builder_pubkey: Option<String>,
+    pub builder_name: Option<String>,
+    pub uncensored_blocks: Option<i64>,
+    pub total_blocks: Option<i64>,
+}
+
+pub async fn builders_v2(
+    State(state): State<AppState>,
+) -> ApiResponse<Timeframed<Vec<BuilderPubkey>>> {
+    let (seven_days, thirty_days) = tokio::try_join!(
+        sqlx::query_as!(
+            BuilderPubkey,
+            r#"
+            SELECT
+                builder_pubkey,
+                builder_name,
+                uncensored_blocks,
+                total_blocks
+            FROM
+                builder_blocks_7d
+            "#,
+        )
+        .fetch_all(&state.mev_db_pool),
+        sqlx::query_as!(
+            BuilderPubkey,
+            r#"
+            SELECT
+                builder_pubkey,
+                builder_name,
+                uncensored_blocks,
+                total_blocks
+            FROM
+                builder_blocks_30d
+            "#,
+        )
+        .fetch_all(&state.mev_db_pool)
+    )
+    .map_err(internal_error)?;
+
+    Ok(Json(Timeframed {
+        seven_days,
+        thirty_days,
+    }))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RelayCensorship {
     pub relay_id: Option<String>,
     pub total_blocks: Option<i64>,
