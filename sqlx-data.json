@@ -80,63 +80,6 @@
     },
     "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
   },
-  "2caf915d9142b218774bd3126cf581ee00dac18d9ed4eb5630aa2ebcce406cd5": {
-    "describe": {
-      "columns": [
-        {
-          "name": "transaction_hash",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "mined",
-          "ordinal": 1,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "delay",
-          "ordinal": 2,
-          "type_info": "Float8"
-        },
-        {
-          "name": "block_number",
-          "ordinal": 3,
-          "type_info": "Int8"
-        },
-        {
-          "name": "block_delay",
-          "ordinal": 4,
-          "type_info": "Int4"
-        },
-        {
-          "name": "blacklist",
-          "ordinal": 5,
-          "type_info": "TextArray"
-        },
-        {
-          "name": "reason",
-          "ordinal": 6,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        null,
-        false,
-        false,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval",
-          "Int8"
-        ]
-      }
-    },
-    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  CASE\n    WHEN blacklist = '{NULL}' THEN '{}'::text[]\n    ELSE blacklist\n  END AS blacklist,\n  CASE\n    WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n    WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n    WHEN transactions_data.congested = 1 THEN 'congested'\n    WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n    ELSE 'unknown'\n  END AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 0\n ORDER BY\n   transactions_data.mined DESC\n LIMIT $2\n"
-  },
   "304c0bb436ab6de5b23f203ce05180b738df87952df3e4a100b1542e853b2f9d": {
     "describe": {
       "columns": [
@@ -320,62 +263,6 @@
     },
     "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        "
   },
-  "976933920ab1c344aa37588d4fc057d5215f958c03a66e99552dd830633126a7": {
-    "describe": {
-      "columns": [
-        {
-          "name": "transaction_hash",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "mined",
-          "ordinal": 1,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "delay",
-          "ordinal": 2,
-          "type_info": "Float8"
-        },
-        {
-          "name": "block_number",
-          "ordinal": 3,
-          "type_info": "Int8"
-        },
-        {
-          "name": "block_delay",
-          "ordinal": 4,
-          "type_info": "Int4"
-        },
-        {
-          "name": "blacklist",
-          "ordinal": 5,
-          "type_info": "TextArray"
-        },
-        {
-          "name": "reason",
-          "ordinal": 6,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        null,
-        false,
-        false,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": "SELECT\n   *\nFROM\n   (\n      SELECT\n         transactions_data.transaction_hash,\n         transactions_data.mined,\n         transactions_data.delay::float,\n         transactions_data.block_number,\n         transactions_data.blocksdelay as block_delay,\n         CASE\n            WHEN blacklist = '{NULL}' THEN '{}'::text[]\n            ELSE blacklist\n         END AS blacklist,\n         CASE\n            WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n            WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n            WHEN transactions_data.congested = 1 THEN 'congested'\n            WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n            ELSE 'unknown'\n         END AS reason\n      FROM\n         transactions_data\n      WHERE\n         transactions_data.mined > (CURRENT_DATE - $1::interval)\n         AND transactions_data.blocksdelay > 0\n   ) sq\nWHERE\n   reason = 'ofac'\n   OR reason = 'unknown'\n"
-  },
   "b4b951edd34f5c90e9dfce62e1aa2872dc9effbfbab4c18ced24a2da2c79303f": {
     "describe": {
       "columns": [
@@ -485,6 +372,119 @@
       }
     },
     "query": "SELECT\n  COUNT(*) FILTER (WHERE blocksdelay > 0\n                   AND transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested = 0)\n    AS censored_tx_count,\n\n  AVG(delay) FILTER (WHERE blocksdelay > 0\n                     AND transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested = 0)::float\n    AS censored_avg_delay,\n\n  COUNT(*) FILTER (WHERE blocksdelay = 0) AS uncensored_tx_count,\n  AVG(delay) FILTER (WHERE blocksdelay = 0)::float AS uncensored_avg_delay\nFROM\n  transactions_data\nWHERE\n    transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n"
+  },
+  "c5762f16fac70a384b1df1ab8a214118df264aa08f076b59052ec97881d4e1bb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval",
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  CASE\n    WHEN blacklist = '{NULL}' THEN '{}'::text[]\n    ELSE blacklist\n  END AS blacklist,\n  CASE\n    WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n    WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n    WHEN transactions_data.congested = 1 THEN 'congested'\n    WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n    ELSE 'unknown'\n  END AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 1\n ORDER BY\n   transactions_data.mined DESC\n LIMIT $2\n"
+  },
+  "ca1c4908e3b5ffed482d8ebc45fc716cc2c01b3ada0ba349892e144de25d9c66": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n   *\nFROM\n   (\n      SELECT\n         transactions_data.transaction_hash,\n         transactions_data.mined,\n         transactions_data.delay::float,\n         transactions_data.block_number,\n         transactions_data.blocksdelay as block_delay,\n         CASE\n            WHEN blacklist = '{NULL}' THEN '{}'::text[]\n            ELSE blacklist\n         END AS blacklist,\n         CASE\n            WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n            WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n            WHEN transactions_data.congested = 1 THEN 'congested'\n            WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n            ELSE 'unknown'\n         END AS reason\n      FROM\n         transactions_data\n      WHERE\n         transactions_data.mined > (CURRENT_DATE - $1::interval)\n         AND transactions_data.blocksdelay > 1\n   ) sq\nWHERE\n   reason = 'ofac'\n   OR reason = 'unknown'\n"
   },
   "e36963367ad97d3cca55b306281fc25569d33b705814c343f5883fbea25c9923": {
     "describe": {

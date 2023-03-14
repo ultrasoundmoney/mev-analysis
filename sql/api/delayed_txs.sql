@@ -25,7 +25,7 @@ FROM
          transactions_data
       WHERE
          transactions_data.mined > (CURRENT_DATE - $1::interval)
-         AND transactions_data.blocksdelay > 0
+         AND transactions_data.blocksdelay > 1
    ) sq
 WHERE
    reason = 'ofac'
