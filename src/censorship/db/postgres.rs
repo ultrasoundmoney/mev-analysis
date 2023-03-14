@@ -272,6 +272,8 @@ impl CensorshipDB for PostgresCensorshipDB {
         let matviews = vec![
             "builders_7d",
             "builders_30d",
+            "builder_blocks_7d",
+            "builder_blocks_30d",
             "censored_transactions_7d",
             "censored_transactions_30d",
             "inclusion_delay_7d",
