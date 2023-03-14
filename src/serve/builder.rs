@@ -12,7 +12,7 @@ use super::{env::APP_CONFIG, internal_error, ApiResponse, AppState};
 #[serde(rename_all = "camelCase")]
 pub struct Builder {
     extra_data: Option<String>,
-    builder_id: String,
+    builder_name: String,
     block_count: i64,
 }
 
@@ -55,25 +55,25 @@ async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> Result<Vec<PubkeyBloc
 }
 
 struct BuilderIdMapping {
-    builder_id: String,
     pubkey: String,
+    builder_name: Option<String>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BuilderBlockCount {
-    builder_id: String,
+    builder_name: String,
     block_count: i64,
 }
 
-async fn get_top_builders_new(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<Vec<Builder>> {
+async fn get_top_builders(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<Vec<Builder>> {
     let counts = fetch_pubkey_block_counts(relay_pool).await?;
-    let ids = sqlx::query_as!(
+    let names = sqlx::query_as!(
         BuilderIdMapping,
         r#"
         SELECT
             pubkey,
-            builder_id
+            builder_name
         FROM
             builder_pubkeys
         WHERE
@@ -87,7 +87,7 @@ async fn get_top_builders_new(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<
     .fetch_all(mev_pool)
     .await?;
 
-    let aggregated = ids
+    let aggregated = names
         .iter()
         .fold(HashMap::new(), |mut acc, id| {
             let count = counts
@@ -96,15 +96,18 @@ async fn get_top_builders_new(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<
                 .map(|count| count.block_count)
                 .unwrap_or(0);
 
-            let entry = acc.entry(id.builder_id.clone()).or_insert(0);
+            let entry = acc.entry(id.builder_name.clone()).or_insert(0);
             *entry += count;
             acc
         })
         .into_iter()
-        .map(|(builder_id, block_count)| Builder {
-            builder_id,
-            block_count,
-            extra_data: Some("".to_string()),
+        .filter_map(|(name, block_count)| {
+            name.map(|builder_name| Builder {
+                builder_name,
+                block_count,
+                // backwards compatibility
+                extra_data: Some("".to_string()),
+            })
         })
         .collect();
 
@@ -112,7 +115,7 @@ async fn get_top_builders_new(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<
 }
 
 pub async fn top_builders(State(state): State<AppState>) -> ApiResponse<BuildersBody> {
-    get_top_builders_new(&state.relay_db_pool, &state.mev_db_pool)
+    get_top_builders(&state.relay_db_pool, &state.mev_db_pool)
         .await
         .map(|builders| Json(BuildersBody { builders }))
         .map_err(internal_error)

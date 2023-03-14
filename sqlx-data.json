@@ -1,31 +1,5 @@
 {
   "db": "PostgreSQL",
-  "027525493b9064c531d9f169991062b39551c8abab9a01caab52f4192e057ee9": {
-    "describe": {
-      "columns": [
-        {
-          "name": "pubkey",
-          "ordinal": 0,
-          "type_info": "Varchar"
-        },
-        {
-          "name": "builder_id",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "TextArray"
-        ]
-      }
-    },
-    "query": "\n        SELECT\n            pubkey,\n            builder_id\n        FROM\n            builder_pubkeys\n        WHERE\n            pubkey = ANY($1)\n        "
-  },
   "02a6ff6e2f997a5a57b5b35c416a45ce7917d4110a4a17bf24c637c7338ed9dd": {
     "describe": {
       "columns": [
@@ -61,6 +35,32 @@
       }
     },
     "query": "\n            SELECT\n                builder_pubkey,\n                builder_name,\n                uncensored_blocks,\n                total_blocks\n            FROM\n                builder_blocks_30d\n            "
+  },
+  "02dc1734de68f766241196b5a33bc99cefb4379e1a9b4a099ea705b30e7bfbe0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "pubkey",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "builder_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "TextArray"
+        ]
+      }
+    },
+    "query": "\n        SELECT\n            pubkey,\n            builder_name\n        FROM\n            builder_pubkeys\n        WHERE\n            pubkey = ANY($1)\n        "
   },
   "0cfa774a2cce1f084fa5cff3d3ee5631dbec2198bdb23b8eab7ab0d5f68e586f": {
     "describe": {
