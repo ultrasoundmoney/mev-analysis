@@ -96,7 +96,7 @@ pub async fn start_server() -> Result<()> {
         .route("/api/censorship/relays", get(censorship::relays))
         .route(
             "/api/censorship/censorship-categories",
-            get(censorship::censorship_categories),
+            get(censorship::censorship_delay),
         )
         .route(
             "/api/censorship/delay-categories",

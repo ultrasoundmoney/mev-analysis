@@ -80,6 +80,42 @@
     },
     "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
   },
+  "18ea2228ecb0e48afe3ba2abdaa352bb8af24d3ebda29ffbae56fa5f97426479": {
+    "describe": {
+      "columns": [
+        {
+          "name": "censored_tx_count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "censored_avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "uncensored_tx_count",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "uncensored_avg_delay",
+          "ordinal": 3,
+          "type_info": "Float8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_7d\n            "
+  },
   "304c0bb436ab6de5b23f203ce05180b738df87952df3e4a100b1542e853b2f9d": {
     "describe": {
       "columns": [
@@ -244,6 +280,42 @@
     },
     "query": "\n            SELECT\n                relay_id,\n                total_blocks,\n                uncensored_blocks\n            FROM\n                relay_censorship_30d\n\n            "
   },
+  "83992c141a7a1b6de48753c971d88915a117b585bcfed0425e7ae1fdcb456a28": {
+    "describe": {
+      "columns": [
+        {
+          "name": "censored_tx_count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "censored_avg_delay",
+          "ordinal": 1,
+          "type_info": "Float8"
+        },
+        {
+          "name": "uncensored_tx_count",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "uncensored_avg_delay",
+          "ordinal": 3,
+          "type_info": "Float8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_30d\n            "
+  },
   "84a32e140e6b60371040d71497cc0ff346dae0f3cf0aa5addeca42b4c057d28f": {
     "describe": {
       "columns": [],
@@ -362,44 +434,6 @@
       }
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
-  },
-  "c044013db597717d48f67bdb9279f8e5a9cd722f2aefa208c2d0170294b38768": {
-    "describe": {
-      "columns": [
-        {
-          "name": "censored_tx_count",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "censored_avg_delay",
-          "ordinal": 1,
-          "type_info": "Float8"
-        },
-        {
-          "name": "uncensored_tx_count",
-          "ordinal": 2,
-          "type_info": "Int8"
-        },
-        {
-          "name": "uncensored_avg_delay",
-          "ordinal": 3,
-          "type_info": "Float8"
-        }
-      ],
-      "nullable": [
-        null,
-        null,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": "SELECT\n  COUNT(*) FILTER (WHERE blocksdelay > 0\n                   AND transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested = 0)\n    AS censored_tx_count,\n\n  AVG(delay) FILTER (WHERE blocksdelay > 0\n                     AND transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested = 0)::float\n    AS censored_avg_delay,\n\n  COUNT(*) FILTER (WHERE blocksdelay = 0) AS uncensored_tx_count,\n  AVG(delay) FILTER (WHERE blocksdelay = 0)::float AS uncensored_avg_delay\nFROM\n  transactions_data\nWHERE\n    transactions_data.mined > (CURRENT_DATE - $1::interval)\n    AND transactions_data.blacklist != '{NULL}'\n"
   },
   "c5762f16fac70a384b1df1ab8a214118df264aa08f076b59052ec97881d4e1bb": {
     "describe": {

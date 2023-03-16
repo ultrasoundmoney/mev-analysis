@@ -1,0 +1,2 @@
+DROP MATERIALIZED VIEW IF EXISTS censorship_delay_7d;
+DROP MATERIALIZED VIEW IF EXISTS censorship_delay_30d;

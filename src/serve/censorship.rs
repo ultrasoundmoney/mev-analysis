@@ -226,20 +226,34 @@ fn expand_row(row: CensorshipDelayRow) -> Vec<CensorshipDelay> {
     ]
 }
 
-pub async fn censorship_categories(
+pub async fn censorship_delay(
     State(state): State<AppState>,
 ) -> ApiResponse<Timeframed<Vec<CensorshipDelay>>> {
     let (seven_days, thirty_days) = tokio::try_join!(
-        sqlx::query_file_as!(
+        sqlx::query_as!(
             CensorshipDelayRow,
-            "sql/api/censorship_delay.sql",
-            Timeframe::SevenDays.to_interval()
+            r#"
+            SELECT
+                COALESCE(censored_tx_count, 0) AS censored_tx_count,
+                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,
+                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,
+                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay
+            FROM
+                censorship_delay_7d
+            "#,
         )
         .fetch_one(&state.mev_db_pool),
-        sqlx::query_file_as!(
+        sqlx::query_as!(
             CensorshipDelayRow,
-            "sql/api/censorship_delay.sql",
-            Timeframe::ThirtyDays.to_interval()
+            r#"
+            SELECT
+                COALESCE(censored_tx_count, 0) AS censored_tx_count,
+                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,
+                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,
+                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay
+            FROM
+                censorship_delay_30d
+            "#,
         )
         .fetch_one(&state.mev_db_pool)
     )
