@@ -162,16 +162,29 @@ pub async fn relays(
     State(state): State<AppState>,
 ) -> ApiResponse<Timeframed<Vec<RelayCensorship>>> {
     let (seven_days, thirty_days) = tokio::try_join!(
-        sqlx::query_file_as!(
+        sqlx::query_as!(
             RelayCensorship,
-            "sql/api/relay_censorship.sql",
-            Timeframe::SevenDays.to_interval()
+            r#"
+            SELECT
+                relay_id,
+                total_blocks,
+                uncensored_blocks
+            FROM
+                relay_censorship_7d
+            "#,
         )
         .fetch_all(&state.mev_db_pool),
-        sqlx::query_file_as!(
+        sqlx::query_as!(
             RelayCensorship,
-            "sql/api/relay_censorship.sql",
-            Timeframe::ThirtyDays.to_interval()
+            r#"
+            SELECT
+                relay_id,
+                total_blocks,
+                uncensored_blocks
+            FROM
+                relay_censorship_30d
+
+            "#,
         )
         .fetch_all(&state.mev_db_pool)
     )

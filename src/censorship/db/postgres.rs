@@ -281,6 +281,8 @@ impl CensorshipDB for PostgresCensorshipDB {
             "operators_all",
             "top_7d",
             "top_30d",
+            "relay_censorship_7d",
+            "relay_censorship_30d",
         ];
 
         for matview in matviews {

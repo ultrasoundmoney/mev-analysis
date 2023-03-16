@@ -1,0 +1,2 @@
+DROP MATERIALIZED VIEW IF EXISTS relay_censorship_7d;
+DROP MATERIALIZED VIEW IF EXISTS relay_censorship_30d;
