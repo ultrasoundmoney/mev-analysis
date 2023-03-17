@@ -1,7 +1,7 @@
 mod builder;
 mod consensus_node;
 mod env;
-mod inclusion;
+mod inclusion_monitor;
 mod validation_node;
 
 use std::{
@@ -21,12 +21,13 @@ use env::APP_CONFIG;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::json;
+use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use crate::phoenix::{
     builder::BuilderStatusMonitor, consensus_node::ConsensusNodeMonitor,
-    validation_node::ValidationNodeMonitor,
+    inclusion_monitor::start_inclusion_monitor, validation_node::ValidationNodeMonitor,
 };
 
 lazy_static! {
@@ -209,11 +210,30 @@ async fn mount_health_route() {
         .unwrap();
 }
 
-pub async fn monitor_critical_services() {
+pub async fn monitor_critical_services() -> Result<()> {
     tracing_subscriber::fmt::init();
 
+    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    sqlx::migrate!().run(&mut db_conn).await?;
+    db_conn.close().await?;
+
+    let relay_pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::seconds(3).to_std()?)
+        .connect(&APP_CONFIG.relay_database_url)
+        .await?;
+
+    let mev_pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::seconds(3).to_std()?)
+        .connect(&APP_CONFIG.database_url)
+        .await?;
+
     tokio::spawn(mount_health_route());
+    tokio::spawn(async move { start_inclusion_monitor(&relay_pool, &mev_pool).await });
 
     let last_checked = Arc::new(Mutex::new(Utc::now()));
     run_alarm_loop(last_checked).await;
+
+    Ok(())
 }

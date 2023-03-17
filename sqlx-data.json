@@ -166,6 +166,20 @@
     },
     "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.block_number,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.blacklist,\n  transactions_data.blocksdelay as block_delay\n  FROM\n    transactions_data\n WHERE\n   (\n     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested\n   )\n   = 0\n   AND transactions_data.blocksdelay > 0\n   AND transactions_data.blacklist != '{NULL}'\n   AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n"
   },
+  "407fe49c65f76d2e6c21c14e6de789cde4de78077d2ff12a8b3372ae6c04965c": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "\n            INSERT INTO inclusion_monitor (\n                slot_number,\n                relayed_block_hash,\n                canonical_block_hash\n            ) VALUES (\n                $1,\n                $2,\n                $3\n            )\n            "
+  },
   "42a5b7e42b58c30dd938249b7deed8ce306ab50c376ddc94a50c221249785709": {
     "describe": {
       "columns": [
@@ -231,6 +245,24 @@
       }
     },
     "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_7d\n            "
+  },
+  "54daf72fc3611c6583e6b3397bbda76bf63ced8c136aceeb8801f28536f015d6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "slot_number",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "\n        SELECT slot_number\n        FROM inclusion_monitor\n        ORDER BY slot_number DESC\n        LIMIT 1\n        "
   },
   "567c4f271b33e91b4fd31cca7057c03aed3fc1c1b91b21090e4d17f1c2cc6b56": {
     "describe": {

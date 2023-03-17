@@ -1,4 +1,6 @@
+use anyhow::Result;
+
 #[tokio::main]
-pub async fn main() {
-    relay_backend::monitor_critical_services().await;
+pub async fn main() -> Result<()> {
+    relay_backend::monitor_critical_services().await
 }

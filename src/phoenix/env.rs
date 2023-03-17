@@ -8,6 +8,7 @@ use crate::env::{deserialize_urls, get_app_config, Env};
 pub struct AppConfig {
     pub env: Env,
     pub port: u16,
+    pub database_url: String,
     pub relay_database_url: String,
     #[serde(deserialize_with = "deserialize_urls")]
     pub consensus_nodes: Vec<Url>,
