@@ -218,13 +218,13 @@ pub async fn monitor_critical_services() -> Result<()> {
     db_conn.close().await?;
 
     let relay_pool = PgPoolOptions::new()
-        .max_connections(1)
+        .max_connections(5)
         .acquire_timeout(Duration::seconds(3).to_std()?)
         .connect(&APP_CONFIG.relay_database_url)
         .await?;
 
     let mev_pool = PgPoolOptions::new()
-        .max_connections(1)
+        .max_connections(5)
         .acquire_timeout(Duration::seconds(3).to_std()?)
         .connect(&APP_CONFIG.database_url)
         .await?;
