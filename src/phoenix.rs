@@ -6,6 +6,7 @@ mod validation_node;
 
 use std::{
     net::SocketAddr,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
@@ -21,7 +22,10 @@ use env::APP_CONFIG;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions},
+    ConnectOptions, Connection, PgConnection,
+};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
@@ -223,10 +227,12 @@ pub async fn monitor_critical_services() -> Result<()> {
         .connect(&APP_CONFIG.relay_database_url)
         .await?;
 
+    let mev_opts = PgConnectOptions::from_str(&APP_CONFIG.database_url)?
+        .disable_statement_logging()
+        .to_owned();
     let mev_pool = PgPoolOptions::new()
         .max_connections(5)
-        .acquire_timeout(Duration::seconds(3).to_std()?)
-        .connect(&APP_CONFIG.database_url)
+        .connect_with(mev_opts)
         .await?;
 
     tokio::spawn(mount_health_route());

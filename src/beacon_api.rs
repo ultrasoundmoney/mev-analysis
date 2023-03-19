@@ -73,7 +73,6 @@ impl BeaconAPI {
             .map(|body| body.data.index)
     }
 
-    #[allow(dead_code)]
     pub async fn get_block_hash(&self, slot: &i64) -> reqwest::Result<String> {
         let url = format!("{}eth/v2/beacon/blocks/{}", self.get_node(), slot);
         reqwest::get(url)
