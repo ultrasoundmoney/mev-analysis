@@ -2,7 +2,7 @@ mod format;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::Duration;
+use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
@@ -34,6 +34,7 @@ pub type BlockNumber = i64;
 #[derive(Clone)]
 struct BlockExtractorRow {
     block_number: BlockNumber,
+    block_time: DateTime<Utc>,
     extractor: SourceId,
     tx_data: Vec<TxTuple>,
 }
@@ -67,7 +68,9 @@ fn tag_transactions(
                 .map(|row| row.to_owned())
                 .collect_vec();
 
-            let missing_extractors = block_txs.len() > 0 && block_extractors.len() == 0;
+            let valid_extractors = filter_extractor_rows(block_txs.len(), block_extractors);
+
+            let missing_extractors = block_txs.len() > 0 && valid_extractors.len() == 0;
 
             if missing_extractors {
                 error!(
@@ -78,7 +81,7 @@ fn tag_transactions(
                 panic!("no extractors for block");
             }
 
-            (block_number, block_txs, block_extractors)
+            (block_number, block_txs, valid_extractors)
         })
         .collect_vec();
 
@@ -127,6 +130,20 @@ fn tag_transactions(
         .collect()
 }
 
+// First filter out extractors that don't have a tx count that matches what's on chain,
+// then pick the most recent extractor if there are multiple
+fn filter_extractor_rows(
+    expected_tx_count: usize,
+    rows: Vec<BlockExtractorRow>,
+) -> Vec<BlockExtractorRow> {
+    rows.into_iter()
+        .filter(|row| row.tx_data.len() == expected_tx_count)
+        .group_by(|row| row.extractor)
+        .into_iter()
+        .map(|(_, group)| group.max_by_key(|row| row.block_time).unwrap())
+        .collect()
+}
+
 // when there's an empty block, this is what tx_data will be set to
 const GZIP_HEADER_HEX: &str = "\\x1f8b080000000000000303000000000000000000";
 
@@ -138,13 +155,9 @@ impl MempoolStore for ZeroMev {
         start_block: i64,
         end_block: i64,
     ) -> Result<Vec<TaggedTx>> {
-        // In cases where there are duplicate extractors for a block, use the most recent
-        // https://stackoverflow.com/a/45018194
         let query = format!(
             "
-            WITH
-            latest_extractor_by_block AS (
-                SELECT DISTINCT ON (block_number, extractor)
+                SELECT
                     block_number,
                     block_time,
                     extractor.code AS extractor,
@@ -156,36 +169,30 @@ impl MempoolStore for ZeroMev {
                 WHERE
                     block_number >= {}
                     AND block_number <= {}
+                    AND tx_data != '{}'
                 ORDER BY
-                    block_number, extractor, block_time DESC
-            )
-            SELECT
-                block_number, block_time, extractor, tx_data
-            FROM
-                latest_extractor_by_block
-            WHERE
-                tx_data != '{}'
-            ORDER BY
-                block_number, extractor, block_time DESC
+                    block_number, extractor
             ",
             start_block, end_block, &GZIP_HEADER_HEX
         );
 
-        let results: Vec<BlockExtractorRow> = sqlx::query(&query)
-            .fetch_all(&self.db_pool)
-            .await
-            .map(|rows| {
-                rows.iter()
-                    .map(|row| BlockExtractorRow {
-                        block_number: row.get("block_number"),
-                        extractor: SourceId::from_str(&row.get::<String, _>("extractor"))
-                            .expect("failed to parse extractor id"),
-                        tx_data: parse_tx_data(row.get("tx_data")),
-                    })
-                    .collect()
-            })?;
+        let rows: Vec<BlockExtractorRow> =
+            sqlx::query(&query)
+                .fetch_all(&self.db_pool)
+                .await
+                .map(|rows| {
+                    rows.iter()
+                        .map(|row| BlockExtractorRow {
+                            block_number: row.get("block_number"),
+                            block_time: row.get("block_time"),
+                            extractor: SourceId::from_str(&row.get::<String, _>("extractor"))
+                                .expect("failed to parse extractor id"),
+                            tx_data: parse_tx_data(row.get("tx_data")),
+                        })
+                        .collect()
+                })?;
 
-        Ok(tag_transactions(txs, results, start_block, end_block))
+        Ok(tag_transactions(txs, rows, start_block, end_block))
     }
 }
 

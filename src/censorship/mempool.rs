@@ -31,7 +31,7 @@ pub struct TaggedTx {
     pub tx: Tx,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SourceId {
     ZeroMevInf,
     ZeroMevQn,

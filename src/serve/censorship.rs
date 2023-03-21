@@ -5,6 +5,7 @@ use sqlx::postgres::types::PgInterval;
 
 use super::{internal_error, ApiResponse, AppState};
 
+#[allow(dead_code)]
 pub enum Timeframe {
     SevenDays,
     ThirtyDays,
