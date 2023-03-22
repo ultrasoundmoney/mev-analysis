@@ -236,7 +236,7 @@ pub async fn monitor_critical_services() -> Result<()> {
         .await?;
 
     tokio::spawn(mount_health_route());
-    tokio::spawn(async move { start_inclusion_monitor(&relay_pool, &mev_pool).await });
+    tokio::spawn(async move { start_inclusion_monitor(&relay_pool, &mev_pool).await? });
 
     let last_checked = Arc::new(Mutex::new(Utc::now()));
     run_alarm_loop(last_checked).await;

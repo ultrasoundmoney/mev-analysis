@@ -1,7 +1,8 @@
 use anyhow::Result;
 use chrono::Duration;
+use reqwest::StatusCode;
 use sqlx::{PgPool, Row};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{beacon_api::BeaconApi, env::ToNetwork};
 
@@ -115,23 +116,38 @@ pub async fn start_inclusion_monitor(relay_pool: &PgPool, mev_poool: &PgPool) ->
         );
 
         for payload in payloads {
-            let block_hash = beacon_api.get_block_hash(&payload.slot).await?;
+            let block_hash = beacon_api.get_block_hash(&payload.slot).await;
 
-            if payload.block_hash == block_hash {
-                info!("found matching block hash for slot {}", payload.slot);
-            } else {
-                error!("block hash mismatch for slot {}", payload.slot);
+            match block_hash {
+                Ok(block_hash) => {
+                    if payload.block_hash == block_hash {
+                        info!("found matching block hash for slot {}", payload.slot);
+                    } else {
+                        error!("block hash mismatch for slot {}", payload.slot);
+                    }
+
+                    put_checked_payload(
+                        mev_poool,
+                        CheckedPayload {
+                            slot_number: payload.slot,
+                            relayed_block_hash: payload.block_hash,
+                            canonical_block_hash: block_hash,
+                        },
+                    )
+                    .await?;
+                }
+                Err(err) => {
+                    if err.status() == Some(StatusCode::NOT_FOUND) {
+                        warn!("block not found for slot {}", payload.slot);
+                    } else {
+                        error!(
+                            "error getting block hash for slot {}: {}",
+                            payload.slot, err
+                        );
+                        break;
+                    }
+                }
             }
-
-            put_checked_payload(
-                mev_poool,
-                CheckedPayload {
-                    slot_number: payload.slot,
-                    relayed_block_hash: payload.block_hash,
-                    canonical_block_hash: block_hash,
-                },
-            )
-            .await?;
         }
 
         tokio::time::sleep(Duration::minutes(1).to_std()?).await;
