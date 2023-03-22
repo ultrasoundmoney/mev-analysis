@@ -15,6 +15,8 @@ pub struct AppConfig {
     #[serde(deserialize_with = "deserialize_urls")]
     pub validation_nodes: Vec<Url>,
     pub opsgenie_api_key: String,
+    pub telegram_api_key: String,
+    pub telegram_channel_id: String,
 }
 
 lazy_static! {

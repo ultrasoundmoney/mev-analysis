@@ -9,7 +9,7 @@ use sqlx::{
 };
 use tracing::{error, info, warn};
 
-use crate::{beacon_api::BeaconApi, env::ToNetwork};
+use crate::{beacon_api::BeaconApi, env::ToNetwork, phoenix::alert};
 
 use super::env::APP_CONFIG;
 
@@ -144,6 +144,11 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                         info!("found matching block hash for slot {}", payload.slot);
                     } else {
                         error!("block hash mismatch for slot {}", payload.slot);
+                        alert::send_telegram_alert(&format!(
+                            "block hash mismatch for slot {}: relayed {} but found {}",
+                            payload.slot, payload.block_hash, block_hash
+                        ))
+                        .await?;
                     }
 
                     put_checked_payload(

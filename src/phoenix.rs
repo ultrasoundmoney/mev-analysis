@@ -1,3 +1,4 @@
+mod alert;
 mod builder;
 mod consensus_node;
 mod env;
@@ -11,16 +12,10 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use axum::{
-    http::{HeaderMap, HeaderValue, StatusCode},
-    routing::get,
-    Router,
-};
+use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
 use lazy_static::lazy_static;
-use serde::Deserialize;
-use serde_json::json;
 use sqlx::{Connection, PgConnection};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
@@ -35,22 +30,13 @@ lazy_static! {
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
 }
 
-#[derive(Deserialize)]
-struct OpsGenieError {
-    message: String,
-}
-
 struct Alarm {
-    client: reqwest::Client,
     last_fired: Option<DateTime<Utc>>,
 }
 
 impl Alarm {
     fn new() -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            last_fired: None,
-        }
+        Self { last_fired: None }
     }
 
     fn is_throttled(&self) -> bool {
@@ -67,46 +53,16 @@ impl Alarm {
 
         error!(message, "firing alarm");
 
-        let mut headers = HeaderMap::new();
-        let auth_header = format!("GenieKey {}", &APP_CONFIG.opsgenie_api_key);
-
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&auth_header).unwrap(),
-        );
-
-        let res = self
-            .client
-            .post("https://api.opsgenie.com/v2/alerts")
-            .headers(headers)
-            .json(&json!({ "message": message }))
-            .send()
-            .await
-            .unwrap();
-
-        if res.status() != 202 {
-            match res.json::<OpsGenieError>().await {
-                Err(_) => {
-                    panic!("failed to create alarm with OpsGenie")
-                }
-                Ok(body) => {
-                    panic!(
-                        "failed to create alarm with OpsGenie, message: {}",
-                        body.message
-                    )
-                }
-            }
-        }
+        alert::send_alert(message).await.unwrap();
 
         self.last_fired = Some(Utc::now());
     }
 
     async fn fire_with_name(&mut self, name: &str) {
         let message = format!(
-            "{} hasn't updated for more than {} seconds on {}!",
+            "{} hasn't updated for more than {} seconds!",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
-            &APP_CONFIG.env
         );
 
         self.fire(&message).await
