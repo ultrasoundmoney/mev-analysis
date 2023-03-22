@@ -1,7 +1,12 @@
+use std::str::FromStr;
+
 use anyhow::Result;
 use chrono::Duration;
 use reqwest::StatusCode;
-use sqlx::{PgPool, Row};
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions},
+    ConnectOptions, PgPool, Row,
+};
 use tracing::{error, info, warn};
 
 use crate::{beacon_api::BeaconApi, env::ToNetwork};
@@ -104,11 +109,26 @@ async fn get_delivered_payloads(
         .map_err(Into::into)
 }
 
-pub async fn start_inclusion_monitor(relay_pool: &PgPool, mev_poool: &PgPool) -> Result<()> {
+pub async fn start_inclusion_monitor() -> Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
+
+    let relay_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .acquire_timeout(Duration::seconds(3).to_std()?)
+        .connect(&APP_CONFIG.relay_database_url)
+        .await?;
+
+    let mev_opts = PgConnectOptions::from_str(&APP_CONFIG.database_url)?
+        .disable_statement_logging()
+        .to_owned();
+    let mev_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect_with(mev_opts)
+        .await?;
+
     loop {
-        let checkpoint = get_last_checked_slot(mev_poool).await?;
-        let payloads = get_delivered_payloads(relay_pool, &checkpoint).await?;
+        let checkpoint = get_last_checked_slot(&mev_pool).await?;
+        let payloads = get_delivered_payloads(&relay_pool, &checkpoint).await?;
 
         info!(
             "validating block hash for {} delivered payloads",
@@ -127,7 +147,7 @@ pub async fn start_inclusion_monitor(relay_pool: &PgPool, mev_poool: &PgPool) ->
                     }
 
                     put_checked_payload(
-                        mev_poool,
+                        &mev_pool,
                         CheckedPayload {
                             slot_number: payload.slot,
                             relayed_block_hash: payload.block_hash,
