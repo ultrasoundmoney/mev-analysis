@@ -39,15 +39,17 @@ pub struct BlockResponse {
 }
 
 #[derive(Clone)]
-pub struct BeaconAPI {
+pub struct BeaconApi {
     nodes: Vec<Url>,
+    client: reqwest::Client,
 }
 
-impl BeaconAPI {
+impl BeaconApi {
     pub fn new(nodes: &Vec<Url>) -> Self {
         if nodes.len() > 0 {
             Self {
                 nodes: nodes.clone(),
+                client: reqwest::Client::new(),
             }
         } else {
             panic!("tried to instantiate BeaconAPI without at least one url");
@@ -65,9 +67,10 @@ impl BeaconAPI {
             self.get_node(),
             pubkey
         );
-        reqwest::get(url)
+        self.client
+            .get(url)
+            .send()
             .await?
-            .error_for_status()?
             .json::<BeaconResponse<Validator>>()
             .await
             .map(|body| body.data.index)
@@ -75,21 +78,25 @@ impl BeaconAPI {
 
     pub async fn get_block_hash(&self, slot: &i64) -> reqwest::Result<String> {
         let url = format!("{}eth/v2/beacon/blocks/{}", self.get_node(), slot);
-        reqwest::get(url)
+        self.client
+            .get(url)
+            .send()
             .await?
             .error_for_status()?
             .json::<BeaconResponse<BlockResponse>>()
             .await
             .map(|body| body.data.message.body.execution_payload.block_hash)
     }
-}
 
-pub async fn get_sync_status(node_url: &Url) -> reqwest::Result<SyncStatus> {
-    let url = format!("{}eth/v1/node/syncing", node_url);
-    reqwest::get(url)
-        .await?
-        .error_for_status()?
-        .json::<BeaconResponse<SyncStatus>>()
-        .await
-        .map(|body| body.data)
+    pub async fn get_sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {
+        let url = format!("{}eth/v1/node/syncing", node_url);
+        self.client
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<BeaconResponse<SyncStatus>>()
+            .await
+            .map(|body| body.data)
+    }
 }

@@ -3,7 +3,7 @@ use chrono::Duration;
 use sqlx::{PgPool, Row};
 use tracing::{error, info};
 
-use crate::{beacon_api::BeaconAPI, env::ToNetwork};
+use crate::{beacon_api::BeaconApi, env::ToNetwork};
 
 use super::env::APP_CONFIG;
 
@@ -104,8 +104,7 @@ async fn get_delivered_payloads(
 }
 
 pub async fn start_inclusion_monitor(relay_pool: &PgPool, mev_poool: &PgPool) -> Result<()> {
-    let beacon_api = BeaconAPI::new(&APP_CONFIG.consensus_nodes);
-
+    let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
     loop {
         let checkpoint = get_last_checked_slot(mev_poool).await?;
         let payloads = get_delivered_payloads(relay_pool, &checkpoint).await?;

@@ -12,8 +12,8 @@ struct SyncResponse {
     result: bool,
 }
 
-async fn get_sync_status(url: String) -> reqwest::Result<SyncResponse> {
-    reqwest::Client::new()
+async fn get_sync_status(client: &reqwest::Client, url: String) -> reqwest::Result<SyncResponse> {
+    client
         .post(url)
         .json(&json!({"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}))
         .send()
@@ -23,18 +23,22 @@ async fn get_sync_status(url: String) -> reqwest::Result<SyncResponse> {
         .await
 }
 
-pub struct ValidationNodeMonitor {}
+pub struct ValidationNodeMonitor {
+    client: reqwest::Client,
+}
 
 impl ValidationNodeMonitor {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            client: reqwest::Client::new(),
+        }
     }
 
-    pub async fn get_current_timestamp() -> Result<DateTime<Utc>> {
+    pub async fn get_current_timestamp(&self) -> Result<DateTime<Utc>> {
         let mut results = Vec::new();
 
         for url in &APP_CONFIG.validation_nodes {
-            let status = get_sync_status(url.to_string()).await;
+            let status = get_sync_status(&self.client, url.to_string()).await;
 
             match status {
                 Ok(s) => results.push(!s.result),
@@ -60,6 +64,6 @@ impl ValidationNodeMonitor {
 #[async_trait]
 impl PhoenixMonitor for ValidationNodeMonitor {
     async fn refresh(&self) -> Result<DateTime<Utc>> {
-        ValidationNodeMonitor::get_current_timestamp().await
+        ValidationNodeMonitor::get_current_timestamp(self).await
     }
 }

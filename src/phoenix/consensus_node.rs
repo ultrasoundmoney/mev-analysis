@@ -4,20 +4,24 @@ use chrono::{DateTime, Utc};
 use tracing::{error, info};
 
 use super::{env::APP_CONFIG, PhoenixMonitor};
-use crate::beacon_api;
+use crate::beacon_api::BeaconApi;
 
-pub struct ConsensusNodeMonitor {}
+pub struct ConsensusNodeMonitor {
+    beacon_api: BeaconApi,
+}
 
 impl ConsensusNodeMonitor {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            beacon_api: BeaconApi::new(&APP_CONFIG.consensus_nodes),
+        }
     }
 
-    pub async fn get_current_timestamp() -> Result<DateTime<Utc>> {
+    pub async fn get_current_timestamp(&self) -> Result<DateTime<Utc>> {
         let mut results = Vec::new();
 
         for url in &APP_CONFIG.consensus_nodes {
-            let status = beacon_api::get_sync_status(&url).await;
+            let status = self.beacon_api.get_sync_status(&url).await;
 
             match status {
                 Ok(s) => results.push(!s.is_syncing),
@@ -43,6 +47,6 @@ impl ConsensusNodeMonitor {
 #[async_trait]
 impl PhoenixMonitor for ConsensusNodeMonitor {
     async fn refresh(&self) -> Result<DateTime<Utc>> {
-        ConsensusNodeMonitor::get_current_timestamp().await
+        ConsensusNodeMonitor::get_current_timestamp(self).await
     }
 }

@@ -25,7 +25,7 @@ use std::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::beacon_api::BeaconAPI;
+use crate::beacon_api::BeaconApi;
 use env::APP_CONFIG;
 
 #[derive(Clone)]
@@ -33,7 +33,7 @@ pub struct AppState {
     mev_db_pool: PgPool,
     relay_db_pool: PgPool,
     redis_client: redis::Client,
-    beacon_api: BeaconAPI,
+    beacon_api: BeaconApi,
     validator_index_cache: Arc<Mutex<HashMap<String, String>>>,
 }
 
@@ -68,7 +68,7 @@ pub async fn start_server() -> Result<()> {
 
     let validator_index_cache = Arc::new(Mutex::new(HashMap::new()));
 
-    let beacon_api = BeaconAPI::new(&APP_CONFIG.consensus_nodes);
+    let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
 
     let shared_state = AppState {
         mev_db_pool,
