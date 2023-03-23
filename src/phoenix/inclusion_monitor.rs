@@ -154,7 +154,12 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                 }
                 Err(err) => {
                     if err.status() == Some(StatusCode::NOT_FOUND) {
-                        warn!("block not found for slot {}", payload.slot);
+                        warn!("delivered block not found for slot {}", payload.slot);
+                        alert::send_telegram_alert(&format!(
+                            "delivered block not found for slot {}",
+                            payload.slot
+                        ))
+                        .await?;
                     } else {
                         error!(
                             "error getting block hash for slot {}: {}",
