@@ -5,7 +5,12 @@ use serde_json::json;
 
 use crate::{env::Env, phoenix::env::APP_CONFIG};
 
+fn format_message(message: &str) -> String {
+    format!("🚨🚨🚨 {}: {} 🚨🚨🚨", APP_CONFIG.env, message)
+}
+
 pub async fn send_telegram_alert(message: &str) -> Result<()> {
+    let formatted = format_message(message);
     let url = format!(
         "https://api.telegram.org/bot{}/sendMessage",
         &APP_CONFIG.telegram_api_key
@@ -14,7 +19,7 @@ pub async fn send_telegram_alert(message: &str) -> Result<()> {
         .get(&url)
         .query(&[
             ("chat_id", &APP_CONFIG.telegram_channel_id),
-            ("text", &message.to_string()),
+            ("text", &formatted.to_string()),
         ])
         .send()
         .await?;
@@ -36,10 +41,12 @@ async fn send_opsgenie_alert(message: &str) -> Result<()> {
         HeaderValue::from_str(&auth_header).unwrap(),
     );
 
+    let formatted = format_message(message);
+
     let res = reqwest::Client::new()
         .post("https://api.opsgenie.com/v2/alerts")
         .headers(headers)
-        .json(&json!({ "message": message }))
+        .json(&json!({ "message": formatted }))
         .send()
         .await?;
 
@@ -61,11 +68,10 @@ async fn send_opsgenie_alert(message: &str) -> Result<()> {
 }
 
 pub async fn send_alert(message: &str) -> Result<()> {
-    let formatted = format!("🚨🚨🚨 {}: {} 🚨🚨🚨", APP_CONFIG.env, message);
     if APP_CONFIG.env == Env::Prod {
-        send_opsgenie_alert(&formatted).await?;
+        send_opsgenie_alert(message).await?;
     }
-    send_telegram_alert(&formatted).await?;
+    send_telegram_alert(message).await?;
 
     Ok(())
 }

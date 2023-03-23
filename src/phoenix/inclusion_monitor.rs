@@ -1,12 +1,7 @@
-use std::str::FromStr;
-
 use anyhow::Result;
 use chrono::Duration;
 use reqwest::StatusCode;
-use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    ConnectOptions, PgPool, Row,
-};
+use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::{error, info, warn};
 
 use crate::{beacon_api::BeaconApi, env::ToNetwork, phoenix::alert};
@@ -111,19 +106,15 @@ async fn get_delivered_payloads(
 
 pub async fn start_inclusion_monitor() -> Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
-
     let relay_pool = PgPoolOptions::new()
-        .max_connections(2)
+        .max_connections(1)
         .acquire_timeout(Duration::seconds(3).to_std()?)
         .connect(&APP_CONFIG.relay_database_url)
         .await?;
-
-    let mev_opts = PgConnectOptions::from_str(&APP_CONFIG.database_url)?
-        .disable_statement_logging()
-        .to_owned();
     let mev_pool = PgPoolOptions::new()
-        .max_connections(2)
-        .connect_with(mev_opts)
+        .max_connections(1)
+        .acquire_timeout(Duration::seconds(3).to_std()?)
+        .connect(&APP_CONFIG.database_url)
         .await?;
 
     loop {

@@ -1,6 +1,7 @@
 mod alert;
 mod builder;
 mod consensus_node;
+mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
 mod validation_node;
@@ -24,6 +25,8 @@ use crate::phoenix::{
     builder::BuilderStatusMonitor, consensus_node::ConsensusNodeMonitor,
     inclusion_monitor::start_inclusion_monitor, validation_node::ValidationNodeMonitor,
 };
+
+use self::demotion_monitor::start_demotion_monitor;
 
 lazy_static! {
     static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(6);
@@ -174,7 +177,9 @@ pub async fn monitor_critical_services() -> Result<()> {
     db_conn.close().await?;
 
     tokio::spawn(mount_health_route());
+    // TODO: next time there's a new monitor, consolidate the logic
     tokio::spawn(start_inclusion_monitor());
+    tokio::spawn(start_demotion_monitor());
 
     let last_checked = Arc::new(Mutex::new(Utc::now()));
     run_alarm_loop(last_checked).await;
