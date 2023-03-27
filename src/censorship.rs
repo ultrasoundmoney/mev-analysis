@@ -1,3 +1,4 @@
+mod archive_node;
 mod chain;
 mod db;
 mod env;
@@ -17,10 +18,12 @@ use std::net::SocketAddr;
 use std::process;
 use tracing::{error, info, warn};
 
+use self::archive_node::ArchiveNode;
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
 use self::relay::{DeliveredPayload, RelayApi};
 use self::{
+    archive_node::InfuraClient,
     chain::ChainStore,
     mempool::{MempoolStore, ZeroMev},
 };
@@ -38,10 +41,11 @@ pub async fn start_chain_data_ingest() -> Result<()> {
     let mempool_store = ZeroMev::new().await;
     let chain_store =
         Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
+    let archive_node = InfuraClient::new();
 
     tokio::spawn(mount_health_route());
 
-    let result = ingest_chain_data(&db, &chain_store, &mempool_store).await;
+    let result = ingest_chain_data(&db, &chain_store, &mempool_store, &archive_node).await;
 
     match result {
         Ok(_) => {
@@ -87,6 +91,7 @@ async fn ingest_chain_data(
     db: &impl CensorshipDB,
     chain_store: &impl ChainStore,
     mempool_store: &impl MempoolStore,
+    archive_node: &impl ArchiveNode,
 ) -> Result<()> {
     let fetch_interval = APP_CONFIG.chain_data_interval;
 
@@ -138,6 +143,7 @@ async fn ingest_chain_data(
 
         if !is_backfilling {
             refresh_derived_data(db).await?;
+            run_low_balance_check(db, archive_node).await?;
             info!(
                 "reached current time, sleeping for {} minutes",
                 APP_CONFIG.chain_data_interval.num_minutes()
@@ -145,6 +151,34 @@ async fn ingest_chain_data(
             tokio::time::sleep(fetch_interval.to_std().unwrap()).await;
         }
     }
+}
+/*
+  Check historical balance of addresses that experienced delayed transactions,
+  and tag them as "low balance" if they didn't have enough balance to cover the transaction.
+*/
+async fn run_low_balance_check(
+    db: &impl CensorshipDB,
+    archive_node: &impl ArchiveNode,
+) -> Result<()> {
+    let checks = db.get_tx_low_balance_checks().await?;
+
+    info!(
+        "running low balance check for {} transactions",
+        &checks.len()
+    );
+
+    for check in &checks {
+        let low_balance = archive_node.check_low_balance(check).await?;
+        db.update_tx_low_balance_status(&check.transaction_hash, &low_balance)
+            .await?;
+    }
+
+    info!(
+        "completed low balance check for {} transactions",
+        &checks.len()
+    );
+
+    Ok(())
 }
 
 /*

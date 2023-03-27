@@ -9,7 +9,7 @@ SELECT
     transactions_data
  WHERE
    (
-     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested
+     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested + transactions_data.low_balance
    )
    = 0
    AND transactions_data.blocksdelay > 0

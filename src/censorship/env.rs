@@ -10,6 +10,7 @@ pub struct AppConfig {
     pub database_url: String,
     pub zeromev_database_url: String,
     pub bigquery_service_account: String,
+    pub infura_api_key: String,
     pub backfill_until: DateTime<Utc>,
     pub backfill_until_slot: i64,
     #[serde(deserialize_with = "deserialize_duration_minutes")]

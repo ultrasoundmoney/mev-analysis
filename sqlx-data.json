@@ -80,6 +80,62 @@
     },
     "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            "
   },
+  "1621984623036a1f8fc5be4f23153f975a134660297e4ec48c3f828d85ea4cfa": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n   *\nFROM\n   (\n      SELECT\n         transactions_data.transaction_hash,\n         transactions_data.mined,\n         transactions_data.delay::float,\n         transactions_data.block_number,\n         transactions_data.blocksdelay as block_delay,\n         CASE\n            WHEN blacklist = '{NULL}' THEN '{}'::text[]\n            ELSE blacklist\n         END AS blacklist,\n         CASE\n            WHEN transactions_data.low_balance = 1 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n            WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n            WHEN transactions_data.congested = 1 THEN 'congested'\n            WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n            ELSE 'unknown'\n         END AS reason\n      FROM\n         transactions_data\n      WHERE\n         transactions_data.mined > (CURRENT_DATE - $1::interval)\n         AND transactions_data.blocksdelay > 1\n   ) sq\nWHERE\n   reason = 'ofac'\n   OR reason = 'unknown'\n"
+  },
   "18ea2228ecb0e48afe3ba2abdaa352bb8af24d3ebda29ffbae56fa5f97426479": {
     "describe": {
       "columns": [
@@ -115,56 +171,6 @@
       }
     },
     "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_7d\n            "
-  },
-  "304c0bb436ab6de5b23f203ce05180b738df87952df3e4a100b1542e853b2f9d": {
-    "describe": {
-      "columns": [
-        {
-          "name": "transaction_hash",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "block_number",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "mined",
-          "ordinal": 2,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "delay",
-          "ordinal": 3,
-          "type_info": "Float8"
-        },
-        {
-          "name": "blacklist",
-          "ordinal": 4,
-          "type_info": "TextArray"
-        },
-        {
-          "name": "block_delay",
-          "ordinal": 5,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        null,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.block_number,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.blacklist,\n  transactions_data.blocksdelay as block_delay\n  FROM\n    transactions_data\n WHERE\n   (\n     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested\n   )\n   = 0\n   AND transactions_data.blocksdelay > 0\n   AND transactions_data.blacklist != '{NULL}'\n   AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n"
   },
   "407fe49c65f76d2e6c21c14e6de789cde4de78077d2ff12a8b3372ae6c04965c": {
     "describe": {
@@ -209,6 +215,63 @@
       }
     },
     "query": "\n            SELECT\n                relay_id,\n                total_blocks,\n                uncensored_blocks\n            FROM\n                relay_censorship_7d\n            "
+  },
+  "4edb1b52690629a38cb7d5030f4fd98267a2af5496e2a03ac63535a715f8e7b0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "mined",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 3,
+          "type_info": "Int8"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 4,
+          "type_info": "Int4"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 5,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "reason",
+          "ordinal": 6,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null,
+        false,
+        false,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval",
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  CASE\n    WHEN blacklist = '{NULL}' THEN '{}'::text[]\n    ELSE blacklist\n  END AS blacklist,\n  CASE\n    WHEN transactions_data.low_balance = 1 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n    WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n    WHEN transactions_data.congested = 1 THEN 'congested'\n    WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n    ELSE 'unknown'\n  END AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 1\n ORDER BY\n   transactions_data.mined DESC\n LIMIT $2\n"
   },
   "4fe072ed2dc31c6239efa122c1f9087e50d4e76499f52d4f79befe04fd80317e": {
     "describe": {
@@ -395,6 +458,24 @@
     },
     "query": "\n        SELECT timestamp\n        FROM monitor_checkpoints\n        WHERE monitor_id = 'demotion_monitor'\n        LIMIT 1\n        "
   },
+  "895bcdde525ad5345c96d704d3150ad4195ccc7593ae8f9402aef5accead88f3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "WITH inserted_rows as (\nINSERT INTO\n   transactions_data\n   SELECT\n      \"NEST2\".transaction_hash,\n      min(\"NEST2\".tbn) AS blocknumber,\n      min(\"NEST2\".minertx) AS minertransaction,\n      max(\"NEST2\".lowbasefee) AS lowbasefee,\n      max(\"NEST2\".congestion) AS congested,\n      CASE\n         WHEN\n            count(DISTINCT \"NEST2\".block_number) > 0\n            AND max(\"NEST2\".lowbasefee) < 1\n         THEN\n            max(\"NEST2\".lowfeetip)\n         ELSE\n            0\n      END\n      AS lowtip, min(\"NEST2\".blockts) AS mined, max(\"NEST2\".delay) AS delay, array_agg(DISTINCT \"NEST2\".blacklist) AS blacklist, count(DISTINCT \"NEST2\".block_number) AS blocksdelay\n   FROM\n      (\n         SELECT\n            \"NEST\".minertx,\n            \"NEST\".tbn,\n            \"NEST\".blockts,\n            \"NEST\".prevts,\n            \"NEST\".transaction_hash,\n            blocks.block_number,\n            CASE\n               WHEN\n                  \"NEST\".bf < blocks.base_fee_per_gas\n               THEN\n                  1\n               ELSE\n                  0\n            END\n            AS lowbasefee,\n            CASE\n               WHEN\n                  (\n                     \"NEST\".bf - blocks.base_fee_per_gas\n                  )\n                  >= 1000000000 AND \"NEST\".pf>=1000000000 and tt=2\n               THEN\n                  0\n            WHEN\n                    (\n                     \"NEST\".bf - blocks.base_fee_per_gas\n                  )\n                  >= 1000000000 AND tt=0\n                  THEN 0\n               ELSE\n                  1\n            END\n            AS lowfeetip, blocks.gas_limit AS gaslimit, blocks.gas_used AS gasused, \"NEST\".gas,\n            CASE\n               WHEN\n                  \"NEST\".gas > (blocks.gas_limit - blocks.gas_used)\n               THEN\n                  1\n               ELSE\n                  0\n            END\n            AS congestion, \"NEST\".delay, \"NEST\".blacklist,\n            9 as low_balance\n         FROM\n            (\n               SELECT\n                  transactions.transaction_hash,\n                  min(transactions.block_number) AS tbn,\n                  CASE\n                     WHEN\n                        min(transactions.max_fee_per_gas) IS NOT NULL\n                     THEN\n                        min(transactions.max_fee_per_gas)\n                     ELSE\n                        min(transactions.gas_price)\n                  END\n                  AS bf,\n                  min(transactions.max_priority_fee_per_gas) as pf,\n                  min (transactions.transaction_type) as tt,\n                   min(transactions.gas) AS gas, min(blocks_1.\"timestamp\") AS blockts, min(mempool_timestamps.\"timestamp\") AS memts,\n                  CASE\n                     WHEN\n                        (\n                           min(extract(epoch\n                        FROM\n                           blocks_1.\"timestamp\")) - ((\n                           SELECT\n                              percentile_cont(0.5) WITHIN GROUP (\n                           ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont))\n                        )\n                        <= 0\n                     THEN\n                        0\n                     ELSE\n                        min(extract(epoch\n               FROM\n                  blocks_1.\"timestamp\")) - greatest(extract(epoch\n               FROM\n                  min(transactions.prev_nonce_timestamp)),\n                  (\n(\n                     SELECT\n                        percentile_cont(0.5) WITHIN GROUP (\n                     ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont)\n                  )\n)\n                  END\n                  AS delay,\n                  CASE\n                     WHEN\n                        (\n                           min(extract(epoch\n                        FROM\n                           blocks_1.\"timestamp\")) - ((\n                           SELECT\n                              percentile_cont(0.5) WITHIN GROUP (\n                           ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont))\n                        )\n                        <= 0\n                     THEN\n                        1\n                     ELSE\n                        0\n                  END\n                  AS minertx, min(blocks_1.block_number) AS bn, max(transaction_blacklists.blacklist_id) AS blacklist, min(transactions.prev_nonce_timestamp) AS prevts\n               FROM\n                  transactions\n                  LEFT JOIN\n                     blocks blocks_1\n                     ON blocks_1.block_number = transactions.block_number\n                  LEFT JOIN\n                     (\n                        SELECT\n                           \"NEST2_1\".transaction_hash,\n                           min(\"NEST2_1\".blacklist_id) AS blacklist_id\n                        FROM\n                           (\n                              SELECT\n                                 \"NEST_1\".transaction_hash,\n                                 \"NEST_1\".trace,\n                                 blacklist_entries.display_name,\n                                 blacklist_entries.blacklist_id\n                              FROM\n                                 (\n                                    SELECT\n                                       transactions_1.transaction_hash,\n                                       unnest(transactions_1.address_trace) AS trace,\n                                       transactions_1.block_timestamp\n                                    FROM\n                                       transactions transactions_1\n                                 )\n                                 \"NEST_1\"\n                                 LEFT JOIN\n                                    blacklist_entries\n                                    ON blacklist_entries.address = \"NEST_1\".trace\n                              WHERE\n                                 (\n                                    \"NEST_1\".trace IN\n                                    (\n                                       SELECT\n                                          blacklist_entries_1.address\n                                       FROM\n                                          blacklist_entries blacklist_entries_1\n                                    )\n                                 )\n                                 AND \"NEST_1\".block_timestamp > blacklist_entries.date_added\n                           )\n                           \"NEST2_1\"\n                        GROUP BY\n                           \"NEST2_1\".transaction_hash\n                     )\n                     transaction_blacklists\n                     ON transaction_blacklists.transaction_hash = transactions.transaction_hash\n                  LEFT JOIN\n                     mempool_timestamps\n                     ON mempool_timestamps.transaction_hash = transactions.transaction_hash\n               WHERE\n                  transactions.block_timestamp > (\n                  SELECT\n                     GREATEST('2020-01-01', MAX(transactions_data.mined))\n                  from\n                     transactions_data)\n                  GROUP BY\n                     transactions.transaction_hash,\n                     blocks_1.gas_limit,\n                     blocks_1.gas_used\n            )\n            \"NEST\"\n            LEFT JOIN\n               blocks\n               ON blocks.\"timestamp\" > GREATEST (\"NEST\".memts, \"NEST\".prevts)\n               AND blocks.\"timestamp\" < \"NEST\".blockts\n      )\n      \"NEST2\"\n   GROUP BY\n      \"NEST2\".transaction_hash\n   RETURNING 1\n)\n\nSELECT COUNT(*) FROM inserted_rows;\n"
+  },
   "8b70af619d8edd7797abcbf57e6105b60cd9f74fb87c4a68ce7e33b7a1eaf01c": {
     "describe": {
       "columns": [
@@ -424,6 +505,69 @@
       }
     },
     "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        "
+  },
+  "a81f8d6a22e778ca9006989860792c87ed3851d22dfb2438e4a7169331d6fab8": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n                UPDATE transactions_data\n                SET low_balance = $1\n                WHERE transaction_hash = $2\n                "
+  },
+  "a875ca754e6eb830a0e407caf166dc9d5917fe2ea3600ede1781d891a2fef169": {
+    "describe": {
+      "columns": [
+        {
+          "name": "transaction_hash",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "block_number",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "mined",
+          "ordinal": 2,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "delay",
+          "ordinal": 3,
+          "type_info": "Float8"
+        },
+        {
+          "name": "blacklist",
+          "ordinal": 4,
+          "type_info": "TextArray"
+        },
+        {
+          "name": "block_delay",
+          "ordinal": 5,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        null,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.block_number,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.blacklist,\n  transactions_data.blocksdelay as block_delay\n  FROM\n    transactions_data\n WHERE\n   (\n     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested + transactions_data.low_balance\n   )\n   = 0\n   AND transactions_data.blocksdelay > 0\n   AND transactions_data.blacklist != '{NULL}'\n   AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n"
   },
   "b4b951edd34f5c90e9dfce62e1aa2872dc9effbfbab4c18ced24a2da2c79303f": {
     "describe": {
@@ -497,118 +641,41 @@
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
   },
-  "c5762f16fac70a384b1df1ab8a214118df264aa08f076b59052ec97881d4e1bb": {
+  "df8ad42619e4bd31754b0f76e37a0bb2a01e3b0002549c3cd6c19bd5086e2e33": {
     "describe": {
       "columns": [
         {
           "name": "transaction_hash",
           "ordinal": 0,
-          "type_info": "Text"
+          "type_info": "Varchar"
         },
         {
-          "name": "mined",
+          "name": "from_address",
           "ordinal": 1,
-          "type_info": "Timestamptz"
+          "type_info": "Varchar"
         },
         {
-          "name": "delay",
+          "name": "total_value",
           "ordinal": 2,
-          "type_info": "Float8"
+          "type_info": "Text"
         },
         {
           "name": "block_number",
           "ordinal": 3,
           "type_info": "Int8"
-        },
-        {
-          "name": "block_delay",
-          "ordinal": 4,
-          "type_info": "Int4"
-        },
-        {
-          "name": "blacklist",
-          "ordinal": 5,
-          "type_info": "TextArray"
-        },
-        {
-          "name": "reason",
-          "ordinal": 6,
-          "type_info": "Text"
         }
       ],
       "nullable": [
         false,
         false,
         null,
-        false,
-        false,
-        null,
         null
       ],
       "parameters": {
-        "Left": [
-          "Interval",
-          "Int8"
-        ]
+        "Left": []
       }
     },
-    "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.block_number,\n  transactions_data.blocksdelay as block_delay,\n  CASE\n    WHEN blacklist = '{NULL}' THEN '{}'::text[]\n    ELSE blacklist\n  END AS blacklist,\n  CASE\n    WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n    WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n    WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n    WHEN transactions_data.congested = 1 THEN 'congested'\n    WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n    ELSE 'unknown'\n  END AS reason\n  FROM\n    transactions_data\n WHERE\n   transactions_data.mined > (CURRENT_DATE - $1::interval)\n   AND transactions_data.blocksdelay > 1\n ORDER BY\n   transactions_data.mined DESC\n LIMIT $2\n"
-  },
-  "ca1c4908e3b5ffed482d8ebc45fc716cc2c01b3ada0ba349892e144de25d9c66": {
-    "describe": {
-      "columns": [
-        {
-          "name": "transaction_hash",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "mined",
-          "ordinal": 1,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "delay",
-          "ordinal": 2,
-          "type_info": "Float8"
-        },
-        {
-          "name": "block_number",
-          "ordinal": 3,
-          "type_info": "Int8"
-        },
-        {
-          "name": "block_delay",
-          "ordinal": 4,
-          "type_info": "Int4"
-        },
-        {
-          "name": "blacklist",
-          "ordinal": 5,
-          "type_info": "TextArray"
-        },
-        {
-          "name": "reason",
-          "ordinal": 6,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        null,
-        false,
-        false,
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Interval"
-        ]
-      }
-    },
-    "query": "SELECT\n   *\nFROM\n   (\n      SELECT\n         transactions_data.transaction_hash,\n         transactions_data.mined,\n         transactions_data.delay::float,\n         transactions_data.block_number,\n         transactions_data.blocksdelay as block_delay,\n         CASE\n            WHEN blacklist = '{NULL}' THEN '{}'::text[]\n            ELSE blacklist\n         END AS blacklist,\n         CASE\n            WHEN transactions_data.blocksdelay >= 10000 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n            WHEN transactions_data.blocksdelay >= 100 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n            WHEN transactions_data.congested = 1 THEN 'congested'\n            WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n            ELSE 'unknown'\n         END AS reason\n      FROM\n         transactions_data\n      WHERE\n         transactions_data.mined > (CURRENT_DATE - $1::interval)\n         AND transactions_data.blocksdelay > 1\n   ) sq\nWHERE\n   reason = 'ofac'\n   OR reason = 'unknown'\n"
+    "query": "\n            SELECT\n                tx.transaction_hash,\n                tx.from_address,\n                (tx.value + tx.receipt_effective_gas_price * tx.receipt_gas_used)::text AS total_value,\n                tx.block_number - txd.blocksdelay AS block_number\n            FROM\n                transactions_data txd\n            INNER JOIN\n                transactions tx\n                ON tx.transaction_hash = txd.transaction_hash\n            WHERE\n                txd.blocksdelay > 2\n                AND minertransaction + lowbasefee + congested + lowtip = 0\n                AND low_balance = 9\n            "
   },
   "e36963367ad97d3cca55b306281fc25569d33b705814c343f5883fbea25c9923": {
     "describe": {
@@ -645,24 +712,6 @@
       }
     },
     "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_30d\n            "
-  },
-  "f4cd3ab3f47218bf045071d431a2ccdfe4ab5af9a034150abc3fae484947b704": {
-    "describe": {
-      "columns": [
-        {
-          "name": "count",
-          "ordinal": 0,
-          "type_info": "Int8"
-        }
-      ],
-      "nullable": [
-        null
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "WITH inserted_rows as (\nINSERT INTO\n   transactions_data\n   SELECT\n      \"NEST2\".transaction_hash,\n      min(\"NEST2\".tbn) AS blocknumber,\n      min(\"NEST2\".minertx) AS minertransaction,\n      max(\"NEST2\".lowbasefee) AS lowbasefee,\n      max(\"NEST2\".congestion) AS congested,\n      CASE\n         WHEN\n            count(DISTINCT \"NEST2\".block_number) > 0\n            AND max(\"NEST2\".lowbasefee) < 1\n         THEN\n            max(\"NEST2\".lowfeetip)\n         ELSE\n            0\n      END\n      AS lowtip, min(\"NEST2\".blockts) AS mined, max(\"NEST2\".delay) AS delay, array_agg(DISTINCT \"NEST2\".blacklist) AS blacklist, count(DISTINCT \"NEST2\".block_number) AS blocksdelay\n   FROM\n      (\n         SELECT\n            \"NEST\".minertx,\n            \"NEST\".tbn,\n            \"NEST\".blockts,\n            \"NEST\".prevts,\n            \"NEST\".transaction_hash,\n            blocks.block_number,\n            CASE\n               WHEN\n                  \"NEST\".bf < blocks.base_fee_per_gas\n               THEN\n                  1\n               ELSE\n                  0\n            END\n            AS lowbasefee,\n            CASE\n               WHEN\n                  (\n                     \"NEST\".bf - blocks.base_fee_per_gas\n                  )\n                  >= 1000000000 AND \"NEST\".pf>=1000000000 and tt=2\n               THEN\n                  0\n            WHEN\n                    (\n                     \"NEST\".bf - blocks.base_fee_per_gas\n                  )\n                  >= 1000000000 AND tt=0\n                  THEN 0\n               ELSE\n                  1\n            END\n            AS lowfeetip, blocks.gas_limit AS gaslimit, blocks.gas_used AS gasused, \"NEST\".gas,\n            CASE\n               WHEN\n                  \"NEST\".gas > (blocks.gas_limit - blocks.gas_used)\n               THEN\n                  1\n               ELSE\n                  0\n            END\n            AS congestion, \"NEST\".delay, \"NEST\".blacklist\n         FROM\n            (\n               SELECT\n                  transactions.transaction_hash,\n                  min(transactions.block_number) AS tbn,\n                  CASE\n                     WHEN\n                        min(transactions.max_fee_per_gas) IS NOT NULL\n                     THEN\n                        min(transactions.max_fee_per_gas)\n                     ELSE\n                        min(transactions.gas_price)\n                  END\n                  AS bf,\n                  min(transactions.max_priority_fee_per_gas) as pf,\n                  min (transactions.transaction_type) as tt,\n                   min(transactions.gas) AS gas, min(blocks_1.\"timestamp\") AS blockts, min(mempool_timestamps.\"timestamp\") AS memts,\n                  CASE\n                     WHEN\n                        (\n                           min(extract(epoch\n                        FROM\n                           blocks_1.\"timestamp\")) - ((\n                           SELECT\n                              percentile_cont(0.5) WITHIN GROUP (\n                           ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont))\n                        )\n                        <= 0\n                     THEN\n                        0\n                     ELSE\n                        min(extract(epoch\n               FROM\n                  blocks_1.\"timestamp\")) - greatest(extract(epoch\n               FROM\n                  min(transactions.prev_nonce_timestamp)),\n                  (\n(\n                     SELECT\n                        percentile_cont(0.5) WITHIN GROUP (\n                     ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont)\n                  )\n)\n                  END\n                  AS delay,\n                  CASE\n                     WHEN\n                        (\n                           min(extract(epoch\n                        FROM\n                           blocks_1.\"timestamp\")) - ((\n                           SELECT\n                              percentile_cont(0.5) WITHIN GROUP (\n                           ORDER BY\n(mempool_timestamps.timestamp_unix)) AS percentile_cont))\n                        )\n                        <= 0\n                     THEN\n                        1\n                     ELSE\n                        0\n                  END\n                  AS minertx, min(blocks_1.block_number) AS bn, max(transaction_blacklists.blacklist_id) AS blacklist, min(transactions.prev_nonce_timestamp) AS prevts\n               FROM\n                  transactions\n                  LEFT JOIN\n                     blocks blocks_1\n                     ON blocks_1.block_number = transactions.block_number\n                  LEFT JOIN\n                     (\n                        SELECT\n                           \"NEST2_1\".transaction_hash,\n                           min(\"NEST2_1\".blacklist_id) AS blacklist_id\n                        FROM\n                           (\n                              SELECT\n                                 \"NEST_1\".transaction_hash,\n                                 \"NEST_1\".trace,\n                                 blacklist_entries.display_name,\n                                 blacklist_entries.blacklist_id\n                              FROM\n                                 (\n                                    SELECT\n                                       transactions_1.transaction_hash,\n                                       unnest(transactions_1.address_trace) AS trace,\n                                       transactions_1.block_timestamp\n                                    FROM\n                                       transactions transactions_1\n                                 )\n                                 \"NEST_1\"\n                                 LEFT JOIN\n                                    blacklist_entries\n                                    ON blacklist_entries.address = \"NEST_1\".trace\n                              WHERE\n                                 (\n                                    \"NEST_1\".trace IN\n                                    (\n                                       SELECT\n                                          blacklist_entries_1.address\n                                       FROM\n                                          blacklist_entries blacklist_entries_1\n                                    )\n                                 )\n                                 AND \"NEST_1\".block_timestamp > blacklist_entries.date_added\n                           )\n                           \"NEST2_1\"\n                        GROUP BY\n                           \"NEST2_1\".transaction_hash\n                     )\n                     transaction_blacklists\n                     ON transaction_blacklists.transaction_hash = transactions.transaction_hash\n                  LEFT JOIN\n                     mempool_timestamps\n                     ON mempool_timestamps.transaction_hash = transactions.transaction_hash\n               WHERE\n                  transactions.block_timestamp > (\n                  SELECT\n                     GREATEST('2020-01-01', MAX(transactions_data.mined))\n                  from\n                     transactions_data)\n                  GROUP BY\n                     transactions.transaction_hash,\n                     blocks_1.gas_limit,\n                     blocks_1.gas_used\n            )\n            \"NEST\"\n            LEFT JOIN\n               blocks\n               ON blocks.\"timestamp\" > GREATEST (\"NEST\".memts, \"NEST\".prevts)\n               AND blocks.\"timestamp\" < \"NEST\".blockts\n      )\n      \"NEST2\"\n   GROUP BY\n      \"NEST2\".transaction_hash\n   RETURNING 1\n)\n\nSELECT COUNT(*) FROM inserted_rows;\n"
   },
   "fe8f4a6223cc2347eb5a1275ad0d4bf5dc79c18b9551371627879f034169a4a8": {
     "describe": {
