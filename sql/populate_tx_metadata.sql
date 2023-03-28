@@ -199,6 +199,7 @@ INSERT INTO
       "NEST2"
    GROUP BY
       "NEST2".transaction_hash
+   ON CONFLICT (transaction_hash) DO NOTHING
    RETURNING 1
 )
 
