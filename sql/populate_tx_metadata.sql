@@ -61,7 +61,8 @@ INSERT INTO
                ELSE
                   0
             END
-            AS congestion, "NEST".delay, "NEST".blacklist
+            AS congestion, "NEST".delay, "NEST".blacklist,
+            9 as low_balance
          FROM
             (
                SELECT

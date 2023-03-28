@@ -8,10 +8,12 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
     ConnectOptions, Pool, Postgres, QueryBuilder,
 };
+use tracing::warn;
 
 use super::CensorshipDB;
 use crate::censorship::{
-    chain::Block, env::APP_CONFIG, mempool::TaggedTx, relay::DeliveredPayload,
+    archive_node::TxLowBalanceCheck, chain::Block, env::APP_CONFIG, mempool::TaggedTx,
+    relay::DeliveredPayload,
 };
 
 pub struct PostgresCensorshipDB {
@@ -62,6 +64,56 @@ impl CensorshipDB for PostgresCensorshipDB {
         .fetch_optional(&self.pool)
         .await
         .map_err(Into::into)
+    }
+
+    async fn get_tx_low_balance_checks(&self) -> Result<Vec<TxLowBalanceCheck>> {
+        sqlx::query!(
+            r#"
+            SELECT
+                tx.transaction_hash,
+                tx.from_address,
+                (tx.value + tx.receipt_effective_gas_price * tx.receipt_gas_used)::text AS total_value,
+                tx.block_number - txd.blocksdelay AS block_number
+            FROM
+                transactions_data txd
+            INNER JOIN
+                transactions tx
+                ON tx.transaction_hash = txd.transaction_hash
+            WHERE
+                txd.blocksdelay > 2
+                AND minertransaction + lowbasefee + congested + lowtip = 0
+                AND low_balance = 9
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(|row| TxLowBalanceCheck {
+            transaction_hash: row.transaction_hash,
+            from_address: row.from_address,
+            total_value: row.total_value.unwrap().parse().unwrap(),
+            block_number: row.block_number.unwrap()
+        }).collect())
+        .map_err(Into::into)
+    }
+
+    async fn update_tx_low_balance_status(
+        &self,
+        tx_hash: &String,
+        low_balance: &bool,
+    ) -> Result<()> {
+        let status = if *low_balance { 1 } else { 0 };
+        sqlx::query!(
+            "
+                UPDATE transactions_data
+                SET low_balance = $1
+                WHERE transaction_hash = $2
+                ",
+            status,
+            tx_hash
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     async fn upsert_delivered_payloads(&self, payloads: Vec<DeliveredPayload>) -> Result<()> {
@@ -288,12 +340,22 @@ impl CensorshipDB for PostgresCensorshipDB {
         ];
 
         for matview in matviews {
-            sqlx::query(&format!(
+            let result = sqlx::query(&format!(
                 "REFRESH MATERIALIZED VIEW CONCURRENTLY {}",
                 matview
             ))
             .execute(&self.pool)
-            .await?;
+            .await;
+
+            if let Err(err) = result {
+                warn!(
+                    "error refreshing matview {} concurrently: {}. retrying without concurrent",
+                    matview, err
+                );
+                sqlx::query(&format!("REFRESH MATERIALIZED VIEW {}", matview))
+                    .execute(&self.pool)
+                    .await?;
+            }
         }
 
         Ok(())
