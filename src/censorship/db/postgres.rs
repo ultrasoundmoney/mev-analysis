@@ -8,6 +8,7 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
     ConnectOptions, Pool, Postgres, QueryBuilder,
 };
+use tracing::warn;
 
 use super::CensorshipDB;
 use crate::censorship::{
@@ -339,12 +340,22 @@ impl CensorshipDB for PostgresCensorshipDB {
         ];
 
         for matview in matviews {
-            sqlx::query(&format!(
+            let result = sqlx::query(&format!(
                 "REFRESH MATERIALIZED VIEW CONCURRENTLY {}",
                 matview
             ))
             .execute(&self.pool)
-            .await?;
+            .await;
+
+            if let Err(err) = result {
+                warn!(
+                    "error refreshing matview {} concurrently: {}. retrying without concurrent",
+                    matview, err
+                );
+                sqlx::query(&format!("REFRESH MATERIALIZED VIEW {}", matview))
+                    .execute(&self.pool)
+                    .await?;
+            }
         }
 
         Ok(())
