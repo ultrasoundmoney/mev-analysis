@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
@@ -102,7 +102,7 @@ trait PhoenixMonitor {
     async fn refresh(&self) -> Result<DateTime<Utc>>;
 }
 
-async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) {
+async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     info!(
         "releasing phoenix, dies after {} seconds",
         PHOENIX_MAX_LIFESPAN.num_seconds()
@@ -157,7 +157,7 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) {
     }
 }
 
-async fn mount_health_route() {
+async fn mount_health_route() -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
     let app = Router::new().route("/", get(|| async { StatusCode::OK }));
 
@@ -166,7 +166,7 @@ async fn mount_health_route() {
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
-        .unwrap();
+        .map_err(Into::into)
 }
 
 pub async fn monitor_critical_services() -> Result<()> {
@@ -176,13 +176,23 @@ pub async fn monitor_critical_services() -> Result<()> {
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
 
-    tokio::spawn(mount_health_route());
-    // TODO: next time there's a new monitor, consolidate the logic
-    tokio::spawn(start_inclusion_monitor());
-    tokio::spawn(start_demotion_monitor());
-
     let last_checked = Arc::new(Mutex::new(Utc::now()));
-    run_alarm_loop(last_checked).await;
 
-    Ok(())
+    let result = tokio::try_join!(
+        mount_health_route(),
+        start_inclusion_monitor(),
+        start_demotion_monitor(),
+        run_alarm_loop(last_checked),
+    );
+
+    match result {
+        Ok(_) => {
+            error!("phoenix processes exited unexpectedly");
+            Err(anyhow!("phoenix processes exited unexpectedly"))
+        }
+        Err(err) => {
+            error!("phoenix process exited with error: {}", err);
+            Err(err)
+        }
+    }
 }
