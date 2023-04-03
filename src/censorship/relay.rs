@@ -34,7 +34,6 @@ pub enum RelayId {
     BlxrEthical,
     Blocknative,
     Eden,
-    Relayoor,
     Aestus,
     Manifold,
 }
@@ -50,7 +49,6 @@ impl fmt::Display for RelayId {
             RelayId::BlxrEthical => write!(f, "blxr-ethical"),
             RelayId::Blocknative => write!(f, "blocknative"),
             RelayId::Eden => write!(f, "eden"),
-            RelayId::Relayoor => write!(f, "relayoor"),
             RelayId::Aestus => write!(f, "aestus"),
             RelayId::Manifold => write!(f, "manifold"),
         }
@@ -74,7 +72,6 @@ impl Into<Url> for RelayId {
                 Url::parse("https://builder-relay-mainnet.blocknative.com").unwrap()
             }
             RelayId::Eden => Url::parse("https://relay.edennetwork.io").unwrap(),
-            RelayId::Relayoor => Url::parse("https://relayooor.wtf").unwrap(),
             RelayId::Aestus => Url::parse("https://mainnet.aestus.live").unwrap(),
             RelayId::Manifold => Url::parse("https://mainnet-relay.securerpc.com").unwrap(),
         }
