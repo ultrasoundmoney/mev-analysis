@@ -6,7 +6,7 @@ use serde_json::json;
 use crate::{env::Env, phoenix::env::APP_CONFIG};
 
 fn format_message(message: &str) -> String {
-    format!("🚨🚨🚨 {}: {} 🚨🚨🚨", APP_CONFIG.env, message)
+    format!("🚨🚨🚨 {} 🚨🚨🚨", message)
 }
 
 pub async fn send_telegram_alert(message: &str) -> Result<()> {
