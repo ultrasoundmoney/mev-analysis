@@ -265,6 +265,42 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
     Ok(())
 }
 
+pub async fn patch_block_production_interval(start_slot: i64, end_slot: i64) -> Result<()> {
+    tracing_subscriber::fmt::init();
+
+    let mut checkpoint = end_slot;
+    let goal = start_slot;
+    let db = PostgresCensorshipDB::new().await?;
+
+    info!(
+        "patching block production data from slot {} to {}",
+        start_slot, end_slot
+    );
+
+    loop {
+        if checkpoint <= goal {
+            info!(
+                "block production patch reached slot {}, goal was {}. exiting",
+                checkpoint, goal
+            );
+            break;
+        }
+        info!("patching block production from slot {}", checkpoint);
+        let batch = fetch_block_production_batch(&Some(checkpoint)).await?;
+        let interval = get_fully_traversed_interval(batch);
+        checkpoint = interval
+            .last()
+            .expect("failed to get last payload out of interval")
+            .slot_number;
+        db.upsert_delivered_payloads(interval).await?;
+
+        // avoid rate-limits
+        tokio::time::sleep(Duration::seconds(1).to_std().unwrap()).await;
+    }
+
+    Ok(())
+}
+
 async fn refresh_derived_data(db: &impl CensorshipDB) -> Result<()> {
     let start = Utc::now();
 
