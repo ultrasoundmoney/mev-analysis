@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
+    types::BigDecimal,
     ConnectOptions, Pool, Postgres, QueryBuilder,
 };
 use tracing::warn;
@@ -124,14 +125,15 @@ impl CensorshipDB for PostgresCensorshipDB {
             builder_pubkey,
             proposer_pubkey,
             relay_id,
+            value,
             ..
         } in payloads
         {
             // it's possible multiple relays will deliver the same block. in this case, append to array
             sqlx::query!(
                 "
-                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays, value)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (slot_number, block_number, block_hash)
                 DO UPDATE
                     SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))
@@ -141,7 +143,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                 block_hash,
                 builder_pubkey,
                 proposer_pubkey,
-                &vec![relay_id.to_string()]
+                &vec![relay_id.to_string()],
+                value.parse::<BigDecimal>().expect("failed to parse delivered payload value to BigDecimal"),
             )
             .execute(&self.pool)
             .await?;

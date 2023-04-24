@@ -1,3 +1,4 @@
+mod block_production;
 mod builder;
 mod censorship;
 mod env;
@@ -110,6 +111,10 @@ pub async fn start_server() -> Result<()> {
         .route(
             "/api/censorship/censored-txs",
             get(censorship::censored_txs),
+        )
+        .route(
+            "/api/block-production",
+            get(block_production::block_production),
         )
         .with_state(shared_state)
         .layer(cors);

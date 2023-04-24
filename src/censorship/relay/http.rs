@@ -13,6 +13,7 @@ struct DeliveredPayloadResponse {
     builder_pubkey: String,
     proposer_pubkey: String,
     proposer_fee_recipient: String,
+    value: String,
 }
 
 // Set to the lowest max which is bloxroute
@@ -49,6 +50,7 @@ impl RelayApi for RelayId {
                              builder_pubkey,
                              proposer_pubkey,
                              proposer_fee_recipient,
+                             value,
                          }| DeliveredPayload {
                             relay_id: self.clone(),
                             slot_number: slot.parse().unwrap(),
@@ -57,6 +59,7 @@ impl RelayApi for RelayId {
                             builder_pubkey,
                             proposer_pubkey,
                             proposer_fee_recipient,
+                            value,
                         },
                     )
                     .collect()

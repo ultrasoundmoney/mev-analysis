@@ -22,6 +22,7 @@ pub struct DeliveredPayload {
     pub builder_pubkey: String,
     pub proposer_pubkey: String,
     pub proposer_fee_recipient: String,
+    pub value: String,
 }
 
 #[derive(PartialEq, Sequence, Clone)]
