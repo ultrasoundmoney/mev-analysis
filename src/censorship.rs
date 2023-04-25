@@ -14,6 +14,7 @@ use gcp_bigquery_client::Client;
 use itertools::Itertools;
 use sqlx::{Connection, PgConnection};
 use std::cmp;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process;
 use tracing::{error, info, warn};
@@ -268,9 +269,10 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
 pub async fn patch_block_production_interval(start_slot: i64, end_slot: i64) -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let mut checkpoint = end_slot;
-    let goal = start_slot;
     let db = PostgresCensorshipDB::new().await?;
+    let mut checkpoints: HashMap<RelayId, i64> = all::<RelayId>()
+        .map(|relay| (relay, end_slot + 1))
+        .collect();
 
     info!(
         "patching block production data from slot {} to {}",
@@ -278,24 +280,53 @@ pub async fn patch_block_production_interval(start_slot: i64, end_slot: i64) -> 
     );
 
     loop {
-        if checkpoint <= goal {
-            info!(
-                "block production patch reached slot {}, goal was {}. exiting",
-                checkpoint, goal
-            );
+        if checkpoints.is_empty() {
+            info!("block production patch completed");
             break;
         }
-        info!("patching block production from slot {}", checkpoint);
-        let batch = fetch_block_production_batch(&Some(checkpoint)).await?;
-        let interval = get_fully_traversed_interval(batch);
-        checkpoint = interval
-            .last()
-            .expect("failed to get last payload out of interval")
-            .slot_number;
-        db.upsert_delivered_payloads(interval).await?;
 
-        // avoid rate-limits
-        tokio::time::sleep(Duration::seconds(1).to_std().unwrap()).await;
+        info!("{:?}", &checkpoints);
+
+        let futs = checkpoints.iter().map(|(relay, checkpoint)| async move {
+            let mut relay_payloads = relay
+                .fetch_delivered_payloads(&Some(*checkpoint - 1))
+                .await?;
+            relay_payloads.sort_by(|a, b| b.slot_number.cmp(&a.slot_number));
+
+            info!("fetched {} payloads from {}", relay_payloads.len(), &relay);
+
+            Ok::<_, anyhow::Error>((relay.clone(), relay_payloads))
+        });
+
+        let all_payloads = future::try_join_all(futs).await?;
+
+        for (relay, payloads) in &all_payloads {
+            match payloads.last() {
+                Some(payload) if payload.slot_number <= start_slot => {
+                    info!(
+                        "reached start slot {} for {}, removing from checkpoints",
+                        start_slot, &relay
+                    );
+                    checkpoints.remove(relay);
+                }
+                Some(payload) => {
+                    checkpoints.insert(relay.clone(), payload.slot_number);
+                }
+                None => {
+                    let lowest_slot = checkpoints.get(relay).unwrap();
+                    info!("reached lowest slot {} for {}", lowest_slot, &relay);
+                    checkpoints.remove(relay);
+                }
+            }
+        }
+
+        db.upsert_delivered_payloads(
+            all_payloads
+                .into_iter()
+                .flat_map(|(_, payloads)| payloads)
+                .collect_vec(),
+        )
+        .await?;
     }
 
     Ok(())

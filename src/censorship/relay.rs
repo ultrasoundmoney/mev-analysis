@@ -25,7 +25,7 @@ pub struct DeliveredPayload {
     pub value: String,
 }
 
-#[derive(PartialEq, Sequence, Clone)]
+#[derive(PartialEq, Eq, Hash, Sequence, Clone, Debug)]
 pub enum RelayId {
     UltraSound,
     Agnostic,
