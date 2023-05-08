@@ -172,6 +172,24 @@
     },
     "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_7d\n            "
   },
+  "2f1fb67525b8bf6dc46897f153f4784a247d5575336d37dab6c9ece41b6effc7": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "TextArray",
+          "Numeric"
+        ]
+      }
+    },
+    "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays, value)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE SET\n                  relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6)),\n                  value = $7\n                "
+  },
   "3e6a900962e2134be0ef7980d4d887010e60ccb1efe6b48b9d953c0f4ffe2c27": {
     "describe": {
       "columns": [
@@ -488,24 +506,6 @@
       }
     },
     "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        "
-  },
-  "9e99d9e85f12fe4549f56218e4f2804a6000501bad3a4501978ad754aa1a2fec": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Int8",
-          "Int8",
-          "Varchar",
-          "Varchar",
-          "Varchar",
-          "TextArray",
-          "Numeric"
-        ]
-      }
-    },
-    "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays, value)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE\n                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))\n                "
   },
   "a81f8d6a22e778ca9006989860792c87ed3851d22dfb2438e4a7169331d6fab8": {
     "describe": {

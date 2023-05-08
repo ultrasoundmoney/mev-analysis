@@ -135,8 +135,9 @@ impl CensorshipDB for PostgresCensorshipDB {
                 INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays, value)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (slot_number, block_number, block_hash)
-                DO UPDATE
-                    SET relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6))
+                DO UPDATE SET
+                  relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6)),
+                  value = $7
                 ",
                 slot_number,
                 block_number,
