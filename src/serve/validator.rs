@@ -5,7 +5,7 @@ use axum::{
 use chrono::{DateTime, TimeZone, Utc};
 use futures::future::join_all;
 use serde::Serialize;
-use sqlx::{postgres::PgRow, Row};
+use sqlx::Row;
 
 use crate::env::ToNetwork;
 
@@ -17,38 +17,18 @@ use super::{relay_redis, ApiResponse};
 pub struct ValidatorStatsBody {
     validator_count: i64,
     known_validator_count: i64,
-    recipient_count: i64,
 }
 
 pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<ValidatorStatsBody> {
-    let query = format!(
-        "
-        select count(distinct sq.fee_recipient) as recipient_count
-            from (
-                select max(inserted_at), pubkey, fee_recipient
-                from {network}_validator_registration
-                group by pubkey, fee_recipient
-            ) sq
-        ",
-        network = &APP_CONFIG.env.to_network().to_string(),
-    );
-
-    let recipient_count = sqlx::query(&query)
-        .map(|row: PgRow| row.get("recipient_count"))
-        .fetch_one(&state.relay_db_pool)
-        .await
-        .map_err(internal_error)?;
-
-    let (known_validator_count, active_validator_count) = tokio::try_join!(
+    let (known_validator_count, validator_count) = tokio::try_join!(
         relay_redis::get_known_validator_count(&state.redis_client),
         relay_redis::get_active_validator_count(&state.redis_client),
     )
     .map_err(internal_error)?;
 
     Ok(Json(ValidatorStatsBody {
-        validator_count: active_validator_count,
+        validator_count,
         known_validator_count,
-        recipient_count,
     }))
 }
 
