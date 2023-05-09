@@ -10,7 +10,7 @@ use sqlx::{postgres::PgRow, Row};
 use crate::env::ToNetwork;
 
 use super::{env::APP_CONFIG, internal_error, AppState};
-use super::{relay_redis::get_known_validator_count, ApiResponse};
+use super::{relay_redis, ApiResponse};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -23,36 +23,31 @@ pub struct ValidatorStatsBody {
 pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<ValidatorStatsBody> {
     let query = format!(
         "
-        select
-          (
-             select count(distinct pubkey)
-             from {network}_validator_registration
-          ) as count,
-          (
-             select count(distinct sq.fee_recipient) as recipient_count
-             from (
-               select max(inserted_at), pubkey, fee_recipient
-               from {network}_validator_registration
-               group by pubkey, fee_recipient
-             ) sq
-          ) as recipient_count
+        select count(distinct sq.fee_recipient) as recipient_count
+            from (
+                select max(inserted_at), pubkey, fee_recipient
+                from {network}_validator_registration
+                group by pubkey, fee_recipient
+            ) sq
         ",
         network = &APP_CONFIG.env.to_network().to_string(),
     );
 
-    let (db_counts, known_validator_count) = tokio::join!(
-        sqlx::query(&query)
-            .map(|row: PgRow| (row.get("count"), row.get("recipient_count")))
-            .fetch_one(&state.relay_db_pool),
-        get_known_validator_count(&state.redis_client)
-    );
+    let recipient_count = sqlx::query(&query)
+        .map(|row: PgRow| row.get("recipient_count"))
+        .fetch_one(&state.relay_db_pool)
+        .await
+        .map_err(internal_error)?;
 
-    let (count, recipient_count) = db_counts.map_err(|e| e.to_string()).unwrap();
-    let known_count = known_validator_count.map_err(|e| e.to_string()).unwrap();
+    let (known_validator_count, active_validator_count) = tokio::try_join!(
+        relay_redis::get_known_validator_count(&state.redis_client),
+        relay_redis::get_active_validator_count(&state.redis_client),
+    )
+    .map_err(internal_error)?;
 
     Ok(Json(ValidatorStatsBody {
-        validator_count: count,
-        known_validator_count: known_count,
+        validator_count: active_validator_count,
+        known_validator_count,
         recipient_count,
     }))
 }
