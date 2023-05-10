@@ -6,7 +6,7 @@ use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use std::str::FromStr;
-use tracing::{debug, error};
+use tracing::{debug, warn};
 
 use self::format::{parse_tx_data, TxTuple};
 use super::{MempoolStore, MempoolTimestamp, SourceId, TaggedTx, Tx};
@@ -73,12 +73,11 @@ fn tag_transactions(
             let missing_extractors = block_txs.len() > 0 && valid_extractors.len() == 0;
 
             if missing_extractors {
-                error!(
+                warn!(
                     "no extractors for block {} ({} txs)",
                     block_number,
                     block_txs.len()
                 );
-                panic!("no extractors for block");
             }
 
             (block_number, block_txs, valid_extractors)
@@ -89,11 +88,8 @@ fn tag_transactions(
         .iter()
         .map(|(_, txs, extractors)| {
             txs.iter().map(|tx| {
-                let expected_tx_count = txs.len();
                 let timestamps: Vec<MempoolTimestamp> = extractors
                     .iter()
-                    // filter out extractors that don't have a tx count that matches what's on chain
-                    .filter(|row| row.tx_data.len() == expected_tx_count)
                     .map(|ex| MempoolTimestamp {
                         id: ex.extractor.clone(),
                         timestamp: ex
@@ -104,20 +100,8 @@ fn tag_transactions(
                     })
                     .collect();
 
-                let found_valid_extractors = !timestamps.is_empty();
-
-                if !found_valid_extractors {
-                    let received_tx_counts =
-                        extractors.iter().map(|ex| ex.tx_data.len()).collect_vec();
-
-                    error!(
-                        "no valid extractors found for block {} tx_index {}. Expected {}, got {:?}",
-                        tx.block_number,
-                        tx.transaction_index,
-                        expected_tx_count,
-                        received_tx_counts
-                    );
-                    panic!("expected at least one extractor with matching tx count");
+                if timestamps.is_empty() {
+                    warn!("no mempool timestamps for tx {}", &tx.transaction_hash);
                 }
 
                 TaggedTx {

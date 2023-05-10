@@ -176,7 +176,7 @@ INSERT INTO
                      )
                      transaction_blacklists
                      ON transaction_blacklists.transaction_hash = transactions.transaction_hash
-                  LEFT JOIN
+                  INNER JOIN
                      mempool_timestamps
                      ON mempool_timestamps.transaction_hash = transactions.transaction_hash
                WHERE
