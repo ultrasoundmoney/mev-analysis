@@ -21,6 +21,7 @@ use sqlx::{Connection, PgConnection};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
+use crate::log;
 use crate::phoenix::{
     builder::BuilderStatusMonitor, consensus_node::ConsensusNodeMonitor,
     inclusion_monitor::start_inclusion_monitor, validation_node::ValidationNodeMonitor,
@@ -170,7 +171,7 @@ async fn mount_health_route() -> Result<()> {
 }
 
 pub async fn monitor_critical_services() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    log::init();
 
     let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;

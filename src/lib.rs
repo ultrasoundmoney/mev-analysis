@@ -1,6 +1,7 @@
 mod beacon_api;
 mod censorship;
 mod env;
+mod log;
 mod phoenix;
 mod serve;
 

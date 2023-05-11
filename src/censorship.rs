@@ -19,6 +19,8 @@ use std::net::SocketAddr;
 use std::process;
 use tracing::{error, info, warn};
 
+use crate::log;
+
 use self::archive_node::ArchiveNode;
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
@@ -32,7 +34,7 @@ use self::{
 pub use self::relay::RelayId;
 
 pub async fn start_chain_data_ingest() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    log::init();
 
     let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;
@@ -61,7 +63,7 @@ pub async fn start_chain_data_ingest() -> Result<()> {
 }
 
 pub async fn start_block_production_ingest() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    log::init();
 
     let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;
@@ -267,7 +269,7 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
 }
 
 pub async fn patch_block_production_interval(start_slot: i64, end_slot: i64) -> Result<()> {
-    tracing_subscriber::fmt::init();
+    log::init();
 
     let db = PostgresCensorshipDB::new().await?;
     let mut checkpoints: HashMap<RelayId, i64> = all::<RelayId>()

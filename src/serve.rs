@@ -26,7 +26,7 @@ use std::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::beacon_api::BeaconApi;
+use crate::{beacon_api::BeaconApi, log};
 use env::APP_CONFIG;
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ pub struct AppState {
 }
 
 pub async fn start_server() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    log::init();
 
     let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
     sqlx::migrate!().run(&mut db_conn).await?;
