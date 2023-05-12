@@ -4,7 +4,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{internal_error, ApiResponse, AppState};
+use super::{
+    internal_error,
+    timeframe::{Timeframe, Timeframed},
+    ApiResponse, AppState,
+};
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
@@ -54,4 +58,62 @@ pub async fn block_production(
     .await
     .map(Json)
     .map_err(internal_error)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayDominance {
+    pub relay_id: Option<String>,
+    pub block_count: Option<i64>,
+    pub total_value: Option<f64>,
+    pub avg_value: Option<f64>,
+}
+
+pub async fn relay_dominance(
+    State(state): State<AppState>,
+) -> ApiResponse<Timeframed<Vec<RelayDominance>>> {
+    let (seven_days, thirty_days) = tokio::try_join!(
+        sqlx::query_as!(
+            RelayDominance,
+            r#"
+            SELECT
+                UNNEST(relays) AS relay_id,
+                COUNT(*) AS block_count,
+                SUM(value / array_length(relays, 1)) / 10^18 AS total_value,
+                AVG(value / array_length(relays, 1)) / 10^18 AS avg_value
+            FROM
+                block_production
+            WHERE
+                inserted_at >= NOW() - $1::interval
+            GROUP BY
+                relay_id
+            "#,
+            Timeframe::SevenDays.to_interval()
+        )
+        .fetch_all(&state.mev_db_pool),
+        sqlx::query_as!(
+            RelayDominance,
+            r#"
+            SELECT
+                UNNEST(relays) AS relay_id,
+                COUNT(*) AS block_count,
+                SUM(value / array_length(relays, 1)) / 10^18 AS total_value,
+                AVG(value / array_length(relays, 1)) / 10^18 AS avg_value
+            FROM
+                block_production
+            WHERE
+                inserted_at >= NOW() - $1::interval
+            GROUP BY
+                relay_id
+            "#,
+            Timeframe::ThirtyDays.to_interval()
+        )
+        .fetch_all(&state.mev_db_pool)
+    )
+    .map_err(internal_error)?;
+
+    Ok(Json(Timeframed {
+        seven_days,
+        thirty_days,
+    }))
 }

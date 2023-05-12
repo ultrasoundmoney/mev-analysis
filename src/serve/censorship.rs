@@ -1,31 +1,12 @@
 use axum::{extract::State, Json};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::postgres::types::PgInterval;
 
-use super::{internal_error, ApiResponse, AppState};
-
-#[allow(dead_code)]
-pub enum Timeframe {
-    SevenDays,
-    ThirtyDays,
-}
-
-impl Timeframe {
-    fn to_interval(&self) -> PgInterval {
-        match self {
-            Timeframe::SevenDays => PgInterval::try_from(Duration::days(7)).unwrap(),
-            Timeframe::ThirtyDays => PgInterval::try_from(Duration::days(30)).unwrap(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Timeframed<T> {
-    pub seven_days: T,
-    pub thirty_days: T,
-}
+use super::{
+    internal_error,
+    timeframe::{Timeframe, Timeframed},
+    ApiResponse, AppState,
+};
 
 // TODO: Add NOT NULL modifiers to all columns in matviews. These will never actually be null
 // but without not null modifiers, sqlx doesn't know this

@@ -375,6 +375,44 @@
     },
     "query": "\n        INSERT INTO monitor_checkpoints (monitor_id, timestamp)\n        VALUES ('demotion_monitor', $1)\n        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1\n        "
   },
+  "60c76c079e46f42a1cfbe737ea246d56d1bb3984470677da3cbe3260e2a29d7c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "relay_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "block_count",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "total_value",
+          "ordinal": 2,
+          "type_info": "Float8"
+        },
+        {
+          "name": "avg_value",
+          "ordinal": 3,
+          "type_info": "Float8"
+        }
+      ],
+      "nullable": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Interval"
+        ]
+      }
+    },
+    "query": "\n            SELECT\n                UNNEST(relays) AS relay_id,\n                COUNT(*) AS block_count,\n                SUM(value / array_length(relays, 1)) / 10^18 AS total_value,\n                AVG(value / array_length(relays, 1)) / 10^18 AS avg_value\n            FROM\n                block_production\n            WHERE\n                inserted_at >= NOW() - $1::interval\n            GROUP BY\n                relay_id\n            "
+  },
   "6f2ba37d7de520fbbbea680170556ffee644e58264a09f768c5feba34f8a7577": {
     "describe": {
       "columns": [

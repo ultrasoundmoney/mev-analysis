@@ -4,6 +4,7 @@ mod censorship;
 mod env;
 mod payload;
 mod relay_redis;
+mod timeframe;
 mod validator;
 
 use anyhow::Result;
@@ -115,6 +116,10 @@ pub async fn start_server() -> Result<()> {
         .route(
             "/api/block-production",
             get(block_production::block_production),
+        )
+        .route(
+            "/api/block-production/relay-dominance",
+            get(block_production::relay_dominance),
         )
         .with_state(shared_state)
         .layer(cors);
