@@ -12,7 +12,7 @@ struct BuilderDemotion {
     inserted_at: DateTime<Utc>,
     builder_pubkey: String,
     slot: i64,
-    submit_block_sim_error: String,
+    sim_error: String,
 }
 
 async fn get_checkpoint(mev_pool: &PgPool) -> Result<Option<DateTime<Utc>>> {
@@ -54,7 +54,7 @@ async fn get_builder_demotions(
             inserted_at,
             builder_pubkey,
             slot,
-            submit_block_sim_error
+            sim_error
         FROM {}_builder_demotions
         WHERE inserted_at > $1
         ORDER BY inserted_at ASC
@@ -72,7 +72,7 @@ async fn get_builder_demotions(
                     inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     builder_pubkey: row.get("builder_pubkey"),
                     slot: row.get("slot"),
-                    submit_block_sim_error: row.get("submit_block_sim_error"),
+                    sim_error: row.get("sim_error"),
                 })
                 .collect()
         })
@@ -109,7 +109,7 @@ pub async fn start_demotion_monitor() -> Result<()> {
         for demotion in &demotions {
             let message = format!(
                 "builder {} was demoted during slot {} with the following error:\n{}",
-                demotion.builder_pubkey, demotion.slot, demotion.submit_block_sim_error
+                demotion.builder_pubkey, demotion.slot, demotion.sim_error
             );
             info!("{}", &message);
             alert::send_telegram_alert(&message).await?;
