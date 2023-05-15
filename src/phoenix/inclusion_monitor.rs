@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::Duration;
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use reqwest::StatusCode;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::{error, info, warn};
@@ -10,92 +10,66 @@ use super::env::APP_CONFIG;
 
 #[derive(Debug)]
 struct DeliveredPayload {
+    inserted_at: DateTime<Utc>,
     slot: i64,
     block_hash: String,
 }
 
-struct CheckedPayload {
-    slot_number: i64,
-    relayed_block_hash: String,
-    canonical_block_hash: String,
-}
-
-async fn get_last_checked_slot(mev_pool: &PgPool) -> Result<Option<i64>> {
-    let slot_number = sqlx::query_scalar!(
+async fn get_checkpoint(mev_pool: &PgPool) -> Result<Option<DateTime<Utc>>> {
+    sqlx::query_scalar!(
         r#"
-        SELECT slot_number
-        FROM inclusion_monitor
-        ORDER BY slot_number DESC
+        SELECT timestamp
+        FROM monitor_checkpoints
+        WHERE monitor_id = 'inclusion_monitor'
         LIMIT 1
-        "#,
+        "#
     )
     .fetch_optional(mev_pool)
-    .await?;
-
-    Ok(slot_number)
+    .await
+    .map_err(Into::into)
 }
 
-async fn put_checked_payload(mev_pool: &PgPool, payload: CheckedPayload) -> Result<()> {
+async fn put_checkpoint(mev_pool: &PgPool, checkpoint: &DateTime<Utc>) -> Result<()> {
     sqlx::query!(
         r#"
-            INSERT INTO inclusion_monitor (
-                slot_number,
-                relayed_block_hash,
-                canonical_block_hash
-            ) VALUES (
-                $1,
-                $2,
-                $3
-            )
-            "#,
-        payload.slot_number,
-        payload.relayed_block_hash,
-        payload.canonical_block_hash
+        INSERT INTO monitor_checkpoints (monitor_id, timestamp)
+        VALUES ('inclusion_monitor', $1)
+        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1
+        "#,
+        checkpoint
     )
     .execute(mev_pool)
-    .await?;
-
-    Ok(())
+    .await
+    .map(|_| ())
+    .map_err(Into::into)
 }
 
 async fn get_delivered_payloads(
     relay_pool: &PgPool,
-    checkpoint: &Option<i64>,
+    checkpoint: &DateTime<Utc>,
 ) -> Result<Vec<DeliveredPayload>> {
-    let query = match checkpoint {
-        Some(checkpoint) => format!(
-            "
-            SELECT
-                slot,
-                block_hash
-            FROM {}_payload_delivered
-            WHERE slot > {}
-            AND inserted_at <= NOW() - '3 minutes'::interval
-            ORDER BY slot ASC
-            ",
-            &APP_CONFIG.env.to_network().to_string(),
-            checkpoint
-        ),
-        // No checkpoint, get last payload
-        None => format!(
-            "
-            SELECT
-                slot,
-                block_hash
-            FROM {}_payload_delivered
-            ORDER BY slot DESC
-            LIMIT 1
-            ",
-            &APP_CONFIG.env.to_network().to_string()
-        ),
-    };
+    let query = format!(
+        "
+        SELECT
+            inserted_at,
+            slot,
+            block_hash
+        FROM {}_payload_delivered
+        WHERE inserted_at > $1
+        AND inserted_at <= NOW() - '3 minutes'::interval
+        ORDER BY inserted_at ASC
+        ",
+        &APP_CONFIG.env.to_network().to_string(),
+    );
 
     sqlx::query(&query)
+        .bind(checkpoint)
         .fetch_all(relay_pool)
         .await
         .map(|rows| {
             rows.iter()
                 .map(|row| DeliveredPayload {
+                    inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     slot: row.get("slot"),
                     block_hash: row.get("block_hash"),
                 })
@@ -118,7 +92,15 @@ pub async fn start_inclusion_monitor() -> Result<()> {
         .await?;
 
     loop {
-        let checkpoint = get_last_checked_slot(&mev_pool).await?;
+        let checkpoint = match get_checkpoint(&mev_pool).await? {
+            Some(c) => c,
+            None => {
+                info!("no checkpoint found, initializing");
+                let now = Utc::now();
+                put_checkpoint(&mev_pool, &now).await?;
+                now
+            }
+        };
         let payloads = get_delivered_payloads(&relay_pool, &checkpoint).await?;
 
         info!(
@@ -126,7 +108,7 @@ pub async fn start_inclusion_monitor() -> Result<()> {
             payloads.len()
         );
 
-        for payload in payloads {
+        for payload in &payloads {
             let block_hash = beacon_api.get_block_hash(&payload.slot).await;
 
             match block_hash {
@@ -141,16 +123,6 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                         ))
                         .await?;
                     }
-
-                    put_checked_payload(
-                        &mev_pool,
-                        CheckedPayload {
-                            slot_number: payload.slot,
-                            relayed_block_hash: payload.block_hash,
-                            canonical_block_hash: block_hash,
-                        },
-                    )
-                    .await?;
                 }
                 Err(err) => {
                     if err.status() == Some(StatusCode::NOT_FOUND) {
@@ -169,6 +141,13 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                     }
                 }
             }
+        }
+
+        let new_checkpoint = &payloads.last().map(|d| d.inserted_at);
+
+        if let Some(new) = new_checkpoint {
+            info!("updating checkpoint to {}", new);
+            put_checkpoint(&mev_pool, &new).await?;
         }
 
         tokio::time::sleep(Duration::minutes(1).to_std()?).await;
