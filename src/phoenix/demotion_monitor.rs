@@ -11,6 +11,7 @@ use super::env::APP_CONFIG;
 struct BuilderDemotion {
     inserted_at: DateTime<Utc>,
     builder_pubkey: String,
+    builder_description: String,
     slot: i64,
     sim_error: String,
 }
@@ -51,15 +52,18 @@ async fn get_builder_demotions(
     let query = format!(
         "
         SELECT
-            inserted_at,
-            builder_pubkey,
-            slot,
-            sim_error
-        FROM {}_builder_demotions
-        WHERE inserted_at > $1
-        ORDER BY inserted_at ASC
+            bd.inserted_at,
+            bd.builder_pubkey,
+            bb.description,
+            bd.slot,
+            bd.sim_error
+        FROM {network}_builder_demotions bd
+        INNER JOIN {network}_blockbuilder bb
+          ON bd.builder_pubkey = bb.builder_pubkey
+        WHERE bd.inserted_at > $1
+        ORDER BY bd.inserted_at ASC
      ",
-        &APP_CONFIG.env.to_network().to_string()
+        network = &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)
@@ -71,6 +75,9 @@ async fn get_builder_demotions(
                 .map(|row| BuilderDemotion {
                     inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     builder_pubkey: row.get("builder_pubkey"),
+                    builder_description: row
+                        .try_get("description")
+                        .unwrap_or("unknown builder".to_string()),
                     slot: row.get("slot"),
                     sim_error: row.get("sim_error"),
                 })
@@ -108,8 +115,11 @@ pub async fn start_demotion_monitor() -> Result<()> {
 
         for demotion in &demotions {
             let message = format!(
-                "builder {} was demoted during slot {} with the following error:\n{}",
-                demotion.builder_pubkey, demotion.slot, demotion.sim_error
+                "{} {} was demoted during slot {} with the following error:\n\n{}",
+                demotion.builder_description,
+                demotion.builder_pubkey,
+                demotion.slot,
+                demotion.sim_error
             );
             info!("{}", &message);
             alert::send_telegram_alert(&message).await?;
