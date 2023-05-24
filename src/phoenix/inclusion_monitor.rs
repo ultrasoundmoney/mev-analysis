@@ -4,7 +4,11 @@ use reqwest::StatusCode;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::{error, info, warn};
 
-use crate::{beacon_api::BeaconApi, env::ToNetwork, phoenix::alert};
+use crate::{
+    beacon_api::BeaconApi,
+    env::{ToBeaconExplorerUrl, ToNetwork},
+    phoenix::alert,
+};
 
 use super::env::APP_CONFIG;
 
@@ -108,6 +112,8 @@ pub async fn start_inclusion_monitor() -> Result<()> {
             payloads.len()
         );
 
+        let explorer_url = &APP_CONFIG.env.to_beacon_explorer_url();
+
         for payload in &payloads {
             let block_hash = beacon_api.get_block_hash(&payload.slot).await;
 
@@ -118,8 +124,11 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                     } else {
                         error!("block hash mismatch for slot {}", payload.slot);
                         alert::send_telegram_alert(&format!(
-                            "block hash mismatch for slot {}: relayed {} but found {}",
-                            payload.slot, payload.block_hash, block_hash
+                            "block hash mismatch for slot [{slot}]({url}/slot/{slot}): relayed {relayed} but found {found}",
+                            slot = payload.slot,
+                            url = explorer_url,
+                            relayed = payload.block_hash,
+                            found = block_hash
                         ))
                         .await?;
                     }
@@ -128,8 +137,9 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                     if err.status() == Some(StatusCode::NOT_FOUND) {
                         warn!("delivered block not found for slot {}", payload.slot);
                         alert::send_telegram_alert(&format!(
-                            "delivered block not found for slot {}",
-                            payload.slot
+                            "delivered block not found for slot [{slot}]({url}/slot/{slot})",
+                            slot = payload.slot,
+                            url = explorer_url,
                         ))
                         .await?;
                     } else {

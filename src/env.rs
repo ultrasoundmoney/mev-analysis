@@ -69,6 +69,20 @@ impl ToNetwork for Env {
     }
 }
 
+pub trait ToBeaconExplorerUrl {
+    fn to_beacon_explorer_url(&self) -> String;
+}
+
+impl ToBeaconExplorerUrl for Env {
+    fn to_beacon_explorer_url(&self) -> String {
+        match *self {
+            Env::Stag => "https://goerli.beaconcha.in",
+            Env::Prod => "https://beaconcha.in",
+        }
+        .to_string()
+    }
+}
+
 pub fn deserialize_urls<'de, D>(deserializer: D) -> Result<Vec<Url>, D::Error>
 where
     D: Deserializer<'de>,

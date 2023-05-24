@@ -3,7 +3,10 @@ use chrono::{DateTime, Duration, TimeZone, Utc};
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::info;
 
-use crate::{env::ToNetwork, phoenix::alert};
+use crate::{
+    env::{ToBeaconExplorerUrl, ToNetwork},
+    phoenix::alert,
+};
 
 use super::env::APP_CONFIG;
 
@@ -115,11 +118,12 @@ pub async fn start_demotion_monitor() -> Result<()> {
 
         for demotion in &demotions {
             let message = format!(
-                "{} {} was demoted during slot {} with the following error:\n\n{}",
-                demotion.builder_description,
-                demotion.builder_pubkey,
-                demotion.slot,
-                demotion.sim_error
+                "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
+                name = demotion.builder_description,
+                pubkey = demotion.builder_pubkey,
+                slot = demotion.slot,
+                url = &APP_CONFIG.env.to_beacon_explorer_url(),
+                error = demotion.sim_error
             );
             info!("{}", &message);
             alert::send_telegram_alert(&message).await?;
