@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::info;
 
@@ -115,8 +116,13 @@ pub async fn start_demotion_monitor() -> Result<()> {
         info!("checking demotions since {}", checkpoint);
 
         let demotions = get_builder_demotions(&relay_pool, &checkpoint).await?;
+        // reduce alert noise by filtering out duplicate demotions
+        let unique_demotions = demotions
+            .iter()
+            .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
+            .collect_vec();
 
-        for demotion in &demotions {
+        for demotion in &unique_demotions {
             let message = format!(
                 "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
                 name = demotion.builder_description,
