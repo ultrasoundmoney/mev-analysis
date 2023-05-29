@@ -207,6 +207,8 @@ impl CensorshipDB for PostgresCensorshipDB {
                     .push_bind(block.transactions_root);
             });
 
+            query_builder.push("ON CONFLICT (block_hash) DO NOTHING");
+
             query_builder.build().execute(&self.pool).await?;
         }
 
