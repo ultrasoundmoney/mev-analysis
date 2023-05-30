@@ -1,5 +1,6 @@
 mod alert;
 mod builder;
+mod checkpoint;
 mod consensus_node;
 mod demotion_monitor;
 mod env;

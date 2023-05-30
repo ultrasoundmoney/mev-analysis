@@ -4,12 +4,13 @@ use itertools::Itertools;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use tracing::info;
 
-use crate::{
-    env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::alert,
-};
+use crate::env::{ToBeaconExplorerUrl, ToNetwork};
 
-use super::env::APP_CONFIG;
+use super::{
+    alert,
+    checkpoint::{self, CheckpointId},
+    env::APP_CONFIG,
+};
 
 #[derive(Debug)]
 struct BuilderDemotion {
@@ -18,35 +19,6 @@ struct BuilderDemotion {
     builder_description: String,
     slot: i64,
     sim_error: String,
-}
-
-async fn get_checkpoint(mev_pool: &PgPool) -> Result<Option<DateTime<Utc>>> {
-    sqlx::query_scalar!(
-        r#"
-        SELECT timestamp
-        FROM monitor_checkpoints
-        WHERE monitor_id = 'demotion_monitor'
-        LIMIT 1
-        "#
-    )
-    .fetch_optional(mev_pool)
-    .await
-    .map_err(Into::into)
-}
-
-async fn put_checkpoint(mev_pool: &PgPool, checkpoint: &DateTime<Utc>) -> Result<()> {
-    sqlx::query!(
-        r#"
-        INSERT INTO monitor_checkpoints (monitor_id, timestamp)
-        VALUES ('demotion_monitor', $1)
-        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1
-        "#,
-        checkpoint
-    )
-    .execute(mev_pool)
-    .await
-    .map(|_| ())
-    .map_err(Into::into)
 }
 
 async fn get_builder_demotions(
@@ -103,12 +75,13 @@ pub async fn start_demotion_monitor() -> Result<()> {
         .await?;
 
     loop {
-        let checkpoint = match get_checkpoint(&mev_pool).await? {
+        let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Demotion).await?
+        {
             Some(c) => c,
             None => {
                 info!("no checkpoint found, initializing");
                 let now = Utc::now();
-                put_checkpoint(&mev_pool, &now).await?;
+                checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &now).await?;
                 now
             }
         };
@@ -139,7 +112,7 @@ pub async fn start_demotion_monitor() -> Result<()> {
 
         if let Some(new) = new_checkpoint {
             info!("updating checkpoint to {}", new);
-            put_checkpoint(&mev_pool, &new).await?;
+            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &new).await?;
         }
 
         tokio::time::sleep(Duration::minutes(1).to_std()?).await;

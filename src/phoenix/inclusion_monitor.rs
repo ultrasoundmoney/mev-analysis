@@ -7,45 +7,19 @@ use tracing::{error, info, warn};
 use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::alert,
 };
 
-use super::env::APP_CONFIG;
+use super::{
+    alert,
+    checkpoint::{self, CheckpointId},
+    env::APP_CONFIG,
+};
 
 #[derive(Debug)]
 struct DeliveredPayload {
     inserted_at: DateTime<Utc>,
     slot: i64,
     block_hash: String,
-}
-
-async fn get_checkpoint(mev_pool: &PgPool) -> Result<Option<DateTime<Utc>>> {
-    sqlx::query_scalar!(
-        r#"
-        SELECT timestamp
-        FROM monitor_checkpoints
-        WHERE monitor_id = 'inclusion_monitor'
-        LIMIT 1
-        "#
-    )
-    .fetch_optional(mev_pool)
-    .await
-    .map_err(Into::into)
-}
-
-async fn put_checkpoint(mev_pool: &PgPool, checkpoint: &DateTime<Utc>) -> Result<()> {
-    sqlx::query!(
-        r#"
-        INSERT INTO monitor_checkpoints (monitor_id, timestamp)
-        VALUES ('inclusion_monitor', $1)
-        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1
-        "#,
-        checkpoint
-    )
-    .execute(mev_pool)
-    .await
-    .map(|_| ())
-    .map_err(Into::into)
 }
 
 async fn get_delivered_payloads(
@@ -96,15 +70,16 @@ pub async fn start_inclusion_monitor() -> Result<()> {
         .await?;
 
     loop {
-        let checkpoint = match get_checkpoint(&mev_pool).await? {
-            Some(c) => c,
-            None => {
-                info!("no checkpoint found, initializing");
-                let now = Utc::now();
-                put_checkpoint(&mev_pool, &now).await?;
-                now
-            }
-        };
+        let checkpoint =
+            match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Inclusion).await? {
+                Some(c) => c,
+                None => {
+                    info!("no checkpoint found, initializing");
+                    let now = Utc::now();
+                    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &now).await?;
+                    now
+                }
+            };
         let payloads = get_delivered_payloads(&relay_pool, &checkpoint).await?;
 
         info!(
@@ -157,7 +132,7 @@ pub async fn start_inclusion_monitor() -> Result<()> {
 
         if let Some(new) = new_checkpoint {
             info!("updating checkpoint to {}", new);
-            put_checkpoint(&mev_pool, &new).await?;
+            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &new).await?;
         }
 
         tokio::time::sleep(Duration::minutes(1).to_std()?).await;
