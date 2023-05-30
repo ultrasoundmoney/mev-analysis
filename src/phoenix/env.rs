@@ -17,6 +17,12 @@ pub struct AppConfig {
     pub opsgenie_api_key: String,
     pub telegram_api_key: String,
     pub telegram_channel_id: String,
+    #[serde(default = "default_wait")]
+    pub canonical_wait_minutes: i64,
+}
+
+fn default_wait() -> i64 {
+    2
 }
 
 lazy_static! {

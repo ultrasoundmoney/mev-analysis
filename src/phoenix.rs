@@ -5,6 +5,7 @@ mod consensus_node;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
+mod promotion_monitor;
 mod validation_node;
 
 use std::{
@@ -18,17 +19,20 @@ use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
 use lazy_static::lazy_static;
-use sqlx::{Connection, PgConnection};
+use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use crate::log;
 use crate::phoenix::{
     builder::BuilderStatusMonitor, consensus_node::ConsensusNodeMonitor,
-    inclusion_monitor::start_inclusion_monitor, validation_node::ValidationNodeMonitor,
+    validation_node::ValidationNodeMonitor,
 };
 
-use self::demotion_monitor::start_demotion_monitor;
+use self::{
+    demotion_monitor::run_demotion_monitor, inclusion_monitor::run_inclusion_monitor,
+    promotion_monitor::run_promotion_monitor,
+};
 
 lazy_static! {
     static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(6);
@@ -171,6 +175,26 @@ async fn mount_health_route() -> Result<()> {
         .map_err(Into::into)
 }
 
+async fn run_ops_monitors() -> Result<()> {
+    let relay_pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::seconds(3).to_std().unwrap())
+        .connect(&APP_CONFIG.relay_database_url)
+        .await?;
+    let mev_pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::seconds(3).to_std().unwrap())
+        .connect(&APP_CONFIG.database_url)
+        .await?;
+
+    loop {
+        run_demotion_monitor(&relay_pool, &mev_pool).await?;
+        run_inclusion_monitor(&relay_pool, &mev_pool).await?;
+        run_promotion_monitor(&relay_pool, &mev_pool).await?;
+        tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
+    }
+}
+
 pub async fn monitor_critical_services() -> Result<()> {
     log::init();
 
@@ -182,9 +206,8 @@ pub async fn monitor_critical_services() -> Result<()> {
 
     let result = tokio::try_join!(
         mount_health_route(),
-        start_inclusion_monitor(),
-        start_demotion_monitor(),
         run_alarm_loop(last_checked),
+        run_ops_monitors()
     );
 
     match result {

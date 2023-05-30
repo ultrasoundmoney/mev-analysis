@@ -6,6 +6,7 @@ use std::fmt;
 pub enum CheckpointId {
     Demotion,
     Inclusion,
+    Promotion,
 }
 
 impl fmt::Display for CheckpointId {
@@ -13,6 +14,7 @@ impl fmt::Display for CheckpointId {
         match self {
             CheckpointId::Demotion => write!(f, "demotion_monitor"),
             CheckpointId::Inclusion => write!(f, "inclusion_monitor"),
+            CheckpointId::Promotion => write!(f, "promotion_monitor"),
         }
     }
 }

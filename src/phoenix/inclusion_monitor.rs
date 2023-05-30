@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use reqwest::StatusCode;
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use sqlx::{postgres::types::PgInterval, PgPool, Row};
 use tracing::{error, info, warn};
 
 use crate::{
@@ -34,14 +34,18 @@ async fn get_delivered_payloads(
             block_hash
         FROM {}_payload_delivered
         WHERE inserted_at > $1
-        AND inserted_at <= NOW() - '3 minutes'::interval
+        AND inserted_at <= NOW() - $2
         ORDER BY inserted_at ASC
         ",
         &APP_CONFIG.env.to_network().to_string(),
     );
 
+    let canonical_wait = PgInterval::try_from(Duration::minutes(APP_CONFIG.canonical_wait_minutes))
+        .expect("invalid canonical wait minutes");
+
     sqlx::query(&query)
         .bind(checkpoint)
+        .bind(canonical_wait)
         .fetch_all(relay_pool)
         .await
         .map(|rows| {
@@ -64,11 +68,11 @@ async fn insert_missed_slot(
 ) -> Result<()> {
     sqlx::query!(
         r#"
-            INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (slot_number) DO UPDATE
-            SET relayed_block_hash = $2, canonical_block_hash = $3
-            "#,
+        INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (slot_number) DO UPDATE
+        SET relayed_block_hash = $2, canonical_block_hash = $3
+        "#,
         slot_number,
         relayed,
         canonical
@@ -79,58 +83,46 @@ async fn insert_missed_slot(
     .map_err(Into::into)
 }
 
-pub async fn start_inclusion_monitor() -> Result<()> {
+pub async fn run_inclusion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
-    let relay_pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::seconds(3).to_std()?)
-        .connect(&APP_CONFIG.relay_database_url)
-        .await?;
-    let mev_pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::seconds(3).to_std()?)
-        .connect(&APP_CONFIG.database_url)
-        .await?;
 
-    loop {
-        let checkpoint =
-            match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Inclusion).await? {
-                Some(c) => c,
-                None => {
-                    info!("no checkpoint found, initializing");
-                    let now = Utc::now();
-                    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &now).await?;
-                    now
-                }
-            };
-        let payloads = get_delivered_payloads(&relay_pool, &checkpoint).await?;
+    let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Inclusion).await? {
+        Some(c) => c,
+        None => {
+            info!("no checkpoint found, initializing");
+            let now = Utc::now();
+            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &now).await?;
+            now
+        }
+    };
+    let payloads = get_delivered_payloads(&relay_pool, &checkpoint).await?;
 
-        info!(
-            "validating block hash for {} delivered payloads",
-            payloads.len()
-        );
+    info!(
+        "validating block hash for {} delivered payloads",
+        payloads.len()
+    );
 
-        let explorer_url = &APP_CONFIG.env.to_beacon_explorer_url();
+    let explorer_url = &APP_CONFIG.env.to_beacon_explorer_url();
 
-        for payload in &payloads {
-            let block_hash = beacon_api.get_block_hash(&payload.slot).await;
+    for payload in &payloads {
+        let block_hash = beacon_api.get_block_hash(&payload.slot).await;
 
-            match block_hash {
-                Ok(block_hash) => {
-                    if payload.block_hash == block_hash {
-                        info!("found matching block hash for slot {}", payload.slot);
-                    } else {
-                        error!("block hash mismatch for slot {}", payload.slot);
+        match block_hash {
+            Ok(block_hash) => {
+                if payload.block_hash == block_hash {
+                    info!("found matching block hash for slot {}", payload.slot);
+                } else {
+                    error!("block hash mismatch for slot {}", payload.slot);
 
-                        insert_missed_slot(
-                            &mev_pool,
-                            &payload.slot,
-                            &payload.block_hash,
-                            Some(&block_hash),
-                        )
-                        .await?;
+                    insert_missed_slot(
+                        &mev_pool,
+                        &payload.slot,
+                        &payload.block_hash,
+                        Some(&block_hash),
+                    )
+                    .await?;
 
-                        alert::send_telegram_alert(&format!(
+                    alert::send_telegram_alert(&format!(
                             "block hash mismatch for slot [{slot}]({url}/slot/{slot}): relayed {relayed} but found {found}",
                             slot = payload.slot,
                             url = explorer_url,
@@ -138,39 +130,37 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                             found = block_hash
                         ))
                         .await?;
-                    }
                 }
-                Err(err) => {
-                    if err.status() == Some(StatusCode::NOT_FOUND) {
-                        warn!("delivered block not found for slot {}", payload.slot);
+            }
+            Err(err) => {
+                if err.status() == Some(StatusCode::NOT_FOUND) {
+                    warn!("delivered block not found for slot {}", payload.slot);
 
-                        insert_missed_slot(&mev_pool, &payload.slot, &payload.block_hash, None)
-                            .await?;
+                    insert_missed_slot(&mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
-                        alert::send_telegram_alert(&format!(
-                            "delivered block not found for slot [{slot}]({url}/slot/{slot})",
-                            slot = payload.slot,
-                            url = explorer_url,
-                        ))
-                        .await?;
-                    } else {
-                        error!(
-                            "error getting block hash for slot {}: {}",
-                            payload.slot, err
-                        );
-                        break;
-                    }
+                    alert::send_telegram_alert(&format!(
+                        "delivered block not found for slot [{slot}]({url}/slot/{slot})",
+                        slot = payload.slot,
+                        url = explorer_url,
+                    ))
+                    .await?;
+                } else {
+                    error!(
+                        "error getting block hash for slot {}: {}",
+                        payload.slot, err
+                    );
+                    break;
                 }
             }
         }
-
-        let new_checkpoint = &payloads.last().map(|d| d.inserted_at);
-
-        if let Some(new) = new_checkpoint {
-            info!("updating checkpoint to {}", new);
-            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &new).await?;
-        }
-
-        tokio::time::sleep(Duration::minutes(1).to_std()?).await;
     }
+
+    let new_checkpoint = &payloads.last().map(|d| d.inserted_at);
+
+    if let Some(new) = new_checkpoint {
+        info!("updating checkpoint to {}", new);
+        checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &new).await?;
+    }
+
+    Ok(())
 }

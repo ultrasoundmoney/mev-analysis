@@ -190,7 +190,7 @@
     },
     "query": "\n                INSERT INTO block_production (slot_number, block_number, block_hash, builder_pubkey, proposer_pubkey, relays, value)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ON CONFLICT (slot_number, block_number, block_hash)\n                DO UPDATE SET\n                  relays = ARRAY (SELECT DISTINCT UNNEST(block_production.relays || $6)),\n                  value = $7\n                "
   },
-  "385efcacefc0e9210712b5355511b766ab910fc83f4b366324a1937a0e965160": {
+  "3b46131f6339a8f8f12f3bfc6e4e2a511f86c45a2ec6b38495cb3cb046b616e1": {
     "describe": {
       "columns": [
         {
@@ -203,10 +203,12 @@
         false
       ],
       "parameters": {
-        "Left": []
+        "Left": [
+          "Text"
+        ]
       }
     },
-    "query": "\n        SELECT timestamp\n        FROM monitor_checkpoints\n        WHERE monitor_id = 'inclusion_monitor'\n        LIMIT 1\n        "
+    "query": "\n        SELECT timestamp\n        FROM monitor_checkpoints\n        WHERE monitor_id = $1\n        LIMIT 1\n        "
   },
   "42a5b7e42b58c30dd938249b7deed8ce306ab50c376ddc94a50c221249785709": {
     "describe": {
@@ -349,17 +351,18 @@
     },
     "query": "SELECT timestamp FROM blocks ORDER BY timestamp DESC LIMIT 1"
   },
-  "604cd4f63bcd89fd64cf91bc919398e80ad9c7947ea80d592c19fac6af065d74": {
+  "57e76c5f66376b4f6afed09b85f259ff0111a950e9da769b5804f91129246705": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
         "Left": [
+          "Text",
           "Timestamptz"
         ]
       }
     },
-    "query": "\n        INSERT INTO monitor_checkpoints (monitor_id, timestamp)\n        VALUES ('demotion_monitor', $1)\n        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1\n        "
+    "query": "\n        INSERT INTO monitor_checkpoints (monitor_id, timestamp)\n        VALUES ($1, $2)\n        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $2\n        "
   },
   "60c76c079e46f42a1cfbe737ea246d56d1bb3984470677da3cbe3260e2a29d7c": {
     "describe": {
@@ -464,24 +467,6 @@
       }
     },
     "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_30d\n            "
-  },
-  "88deb529ab69235ce52c628327002dcd209160b880f3b31333b21db58947012c": {
-    "describe": {
-      "columns": [
-        {
-          "name": "timestamp",
-          "ordinal": 0,
-          "type_info": "Timestamptz"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "\n        SELECT timestamp\n        FROM monitor_checkpoints\n        WHERE monitor_id = 'demotion_monitor'\n        LIMIT 1\n        "
   },
   "8b70af619d8edd7797abcbf57e6105b60cd9f74fb87c4a68ce7e33b7a1eaf01c": {
     "describe": {
@@ -666,6 +651,40 @@
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
   },
+  "c6fc1f0919354a9e318b4a6916c7ba787e9f22db52c2de990e22494f6e03266e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (slot_number) DO UPDATE\n        SET relayed_block_hash = $2, canonical_block_hash = $3\n        "
+  },
+  "d4b5b444c5ab41863031f44991fede1deba00ee9824a61d1f581f7a3faf4855a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "slot_number",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "\n        SELECT slot_number\n        FROM missed_slots\n        WHERE inserted_at > $1\n        "
+  },
   "df8ad42619e4bd31754b0f76e37a0bb2a01e3b0002549c3cd6c19bd5086e2e33": {
     "describe": {
       "columns": [
@@ -737,18 +756,6 @@
       }
     },
     "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_30d\n            "
-  },
-  "ee2a1c5061c6890bf7df820d56d3841c9a38e8e9eb3022eeaa3d5798c653dbf8": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Timestamptz"
-        ]
-      }
-    },
-    "query": "\n        INSERT INTO monitor_checkpoints (monitor_id, timestamp)\n        VALUES ('inclusion_monitor', $1)\n        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $1\n        "
   },
   "f6e651aecad08bfbee7c36cd19b65f0b970450c9527302e16549f0b6ac5f8b43": {
     "describe": {
