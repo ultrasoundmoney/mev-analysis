@@ -56,6 +56,29 @@ async fn get_delivered_payloads(
         .map_err(Into::into)
 }
 
+async fn insert_missed_slot(
+    mev_pool: &PgPool,
+    slot_number: &i64,
+    relayed: &String,
+    canonical: Option<&String>,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+            INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (slot_number) DO UPDATE
+            SET relayed_block_hash = $2, canonical_block_hash = $3
+            "#,
+        slot_number,
+        relayed,
+        canonical
+    )
+    .execute(mev_pool)
+    .await
+    .map(|_| ())
+    .map_err(Into::into)
+}
+
 pub async fn start_inclusion_monitor() -> Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
     let relay_pool = PgPoolOptions::new()
@@ -98,6 +121,15 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                         info!("found matching block hash for slot {}", payload.slot);
                     } else {
                         error!("block hash mismatch for slot {}", payload.slot);
+
+                        insert_missed_slot(
+                            &mev_pool,
+                            &payload.slot,
+                            &payload.block_hash,
+                            Some(&block_hash),
+                        )
+                        .await?;
+
                         alert::send_telegram_alert(&format!(
                             "block hash mismatch for slot [{slot}]({url}/slot/{slot}): relayed {relayed} but found {found}",
                             slot = payload.slot,
@@ -111,6 +143,10 @@ pub async fn start_inclusion_monitor() -> Result<()> {
                 Err(err) => {
                     if err.status() == Some(StatusCode::NOT_FOUND) {
                         warn!("delivered block not found for slot {}", payload.slot);
+
+                        insert_missed_slot(&mev_pool, &payload.slot, &payload.block_hash, None)
+                            .await?;
+
                         alert::send_telegram_alert(&format!(
                             "delivered block not found for slot [{slot}]({url}/slot/{slot})",
                             slot = payload.slot,
