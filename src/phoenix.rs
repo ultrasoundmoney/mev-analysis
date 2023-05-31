@@ -188,9 +188,10 @@ async fn run_ops_monitors() -> Result<()> {
         .await?;
 
     loop {
+        let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
         run_demotion_monitor(&relay_pool, &mev_pool).await?;
-        run_inclusion_monitor(&relay_pool, &mev_pool).await?;
-        run_promotion_monitor(&relay_pool, &mev_pool).await?;
+        run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
+        run_promotion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
         tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
     }
 }

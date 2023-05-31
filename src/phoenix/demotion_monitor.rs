@@ -23,7 +23,8 @@ pub struct BuilderDemotion {
 
 pub async fn get_builder_demotions(
     relay_pool: &PgPool,
-    checkpoint: &DateTime<Utc>,
+    start: &DateTime<Utc>,
+    end: &DateTime<Utc>,
 ) -> Result<Vec<BuilderDemotion>> {
     let query = format!(
         "
@@ -37,13 +38,15 @@ pub async fn get_builder_demotions(
         INNER JOIN {network}_blockbuilder bb
           ON bd.builder_pubkey = bb.builder_pubkey
         WHERE bd.inserted_at > $1
+          AND bd.inserted_at <= $2
         ORDER BY bd.inserted_at ASC
      ",
         network = &APP_CONFIG.env.to_network().to_string()
     );
 
     sqlx::query(&query)
-        .bind(checkpoint)
+        .bind(start)
+        .bind(end)
         .fetch_all(relay_pool)
         .await
         .map(|rows| {
@@ -73,9 +76,11 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         }
     };
 
-    info!("checking demotions since {}", checkpoint);
+    let now = Utc::now();
 
-    let demotions = get_builder_demotions(&relay_pool, &checkpoint).await?;
+    info!("checking demotions between {} and {}", &checkpoint, &now);
+
+    let demotions = get_builder_demotions(&relay_pool, &checkpoint, &now).await?;
     // reduce alert noise by filtering out duplicate demotions
     let unique_demotions = demotions
         .iter()
@@ -95,12 +100,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         alert::send_telegram_alert(&message).await?;
     }
 
-    let new_checkpoint = &demotions.last().map(|d| d.inserted_at);
-
-    if let Some(new) = new_checkpoint {
-        info!("updating checkpoint to {}", new);
-        checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &new).await?;
-    }
+    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &now).await?;
 
     Ok(())
 }

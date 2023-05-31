@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sqlx::PgPool;
 use tracing::info;
@@ -8,17 +8,16 @@ use super::{
     alert,
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
-    env::APP_CONFIG,
 };
 
-async fn get_missed_slots(mev_pool: &PgPool, checkpoint: &DateTime<Utc>) -> Result<Vec<i64>> {
+async fn get_missed_slots(mev_pool: &PgPool, start: &DateTime<Utc>) -> Result<Vec<i64>> {
     sqlx::query_scalar!(
         r#"
         SELECT slot_number
         FROM missed_slots
         WHERE inserted_at > $1
         "#,
-        checkpoint
+        start,
     )
     .fetch_all(mev_pool)
     .await
@@ -62,7 +61,11 @@ fn get_eligible_builders(
         .collect()
 }
 
-pub async fn run_promotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
+pub async fn run_promotion_monitor(
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+    canonical_horizon: &DateTime<Utc>,
+) -> Result<()> {
     let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Promotion).await? {
         Some(c) => c,
         None => {
@@ -73,15 +76,12 @@ pub async fn run_promotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Re
         }
     };
 
-    let canonical_barrier = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
+    info!(
+        "checking promotions between {} and {}",
+        &checkpoint, &canonical_horizon
+    );
 
-    let demotions = get_builder_demotions(&relay_pool, &checkpoint)
-        .await?
-        .into_iter()
-        // only consider promoting after the slot has been verified
-        .filter(|d| d.inserted_at <= canonical_barrier)
-        .collect_vec();
-
+    let demotions = get_builder_demotions(&relay_pool, &checkpoint, canonical_horizon).await?;
     let missed_slots = get_missed_slots(&mev_pool, &checkpoint).await?;
     let eligible = get_eligible_builders(demotions, missed_slots);
 
@@ -99,7 +99,7 @@ pub async fn run_promotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Re
         alert::send_telegram_alert(&message).await?;
     }
 
-    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, &canonical_barrier).await?;
+    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, canonical_horizon).await?;
 
     Ok(())
 }
