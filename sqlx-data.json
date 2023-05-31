@@ -498,6 +498,20 @@
     },
     "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        "
   },
+  "9c0d78883385fc3abb9112bb7aaa75badbada1b3374bfaa7fecb877e541bd089": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)\n        VALUES ($1, $2, $3)\n        "
+  },
   "a81f8d6a22e778ca9006989860792c87ed3851d22dfb2438e4a7169331d6fab8": {
     "describe": {
       "columns": [],
@@ -650,20 +664,6 @@
       }
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
-  },
-  "c6fc1f0919354a9e318b4a6916c7ba787e9f22db52c2de990e22494f6e03266e": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Int8",
-          "Varchar",
-          "Varchar"
-        ]
-      }
-    },
-    "query": "\n        INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (slot_number) DO UPDATE\n        SET relayed_block_hash = $2, canonical_block_hash = $3\n        "
   },
   "d4b5b444c5ab41863031f44991fede1deba00ee9824a61d1f581f7a3faf4855a": {
     "describe": {

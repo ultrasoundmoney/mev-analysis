@@ -70,8 +70,6 @@ async fn insert_missed_slot(
         r#"
         INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
         VALUES ($1, $2, $3)
-        ON CONFLICT (slot_number) DO UPDATE
-        SET relayed_block_hash = $2, canonical_block_hash = $3
         "#,
         slot_number,
         relayed,
