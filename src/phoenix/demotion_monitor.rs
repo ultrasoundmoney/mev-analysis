@@ -16,7 +16,7 @@ use super::{
 pub struct BuilderDemotion {
     pub inserted_at: DateTime<Utc>,
     pub builder_pubkey: String,
-    pub builder_description: String,
+    pub builder_id: Option<String>,
     pub slot: i64,
     pub sim_error: String,
 }
@@ -31,7 +31,7 @@ pub async fn get_builder_demotions(
         SELECT
             bd.inserted_at,
             bd.builder_pubkey,
-            bb.description,
+            bb.builder_id,
             bd.slot,
             bd.sim_error
         FROM {network}_builder_demotions bd
@@ -54,9 +54,7 @@ pub async fn get_builder_demotions(
                 .map(|row| BuilderDemotion {
                     inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     builder_pubkey: row.get("builder_pubkey"),
-                    builder_description: row
-                        .try_get("description")
-                        .unwrap_or("unknown builder".to_string()),
+                    builder_id: row.try_get("builder_id").ok(),
                     slot: row.get("slot"),
                     sim_error: row.get("sim_error"),
                 })
@@ -89,13 +87,13 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
     for demotion in &unique_demotions {
         let message = format!(
-                "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
-                name = demotion.builder_description,
-                pubkey = demotion.builder_pubkey,
-                slot = demotion.slot,
-                url = &APP_CONFIG.env.to_beacon_explorer_url(),
-                error = demotion.sim_error
-            );
+            "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
+            name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
+            pubkey = demotion.builder_pubkey,
+            slot = demotion.slot,
+            url = &APP_CONFIG.env.to_beacon_explorer_url(),
+            error = demotion.sim_error
+        );
         info!("{}", &message);
         alert::send_telegram_alert(&message).await?;
     }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sqlx::PgPool;
-use tracing::info;
+use tracing::{info, warn};
 
 use super::{
     alert,
@@ -27,7 +27,7 @@ async fn get_missed_slots(mev_pool: &PgPool, start: &DateTime<Utc>) -> Result<Ve
 #[derive(Debug, PartialEq)]
 struct BuilderPromotion {
     builder_pubkey: String,
-    builder_description: String,
+    builder_id: String,
 }
 
 fn get_eligible_builders(
@@ -54,14 +54,21 @@ fn get_eligible_builders(
             let only_eligible_errors = demotions
                 .iter()
                 .all(|d| eligible_errors.contains(&d.sim_error.as_str()));
+            let builder_id = demotions[0].builder_id.clone();
 
-            if no_missed_slots && only_eligible_errors {
-                Some(BuilderPromotion {
+            match (no_missed_slots, only_eligible_errors, builder_id) {
+                (true, true, Some(builder_id)) => Some(BuilderPromotion {
                     builder_pubkey: pubkey,
-                    builder_description: demotions[0].builder_description.clone(),
-                })
-            } else {
-                None
+                    builder_id,
+                }),
+                (_, _, None) => {
+                    warn!(
+                        "no builder_id found for pubkey {}, unable to promote",
+                        &pubkey
+                    );
+                    None
+                }
+                _ => None,
             }
         })
         .collect()
@@ -96,7 +103,7 @@ pub async fn run_promotion_monitor(
 
         let builder_list = eligible
             .iter()
-            .map(|b| format!("*{}* `{}`", b.builder_description, b.builder_pubkey))
+            .map(|b| format!("*{}* `{}`", b.builder_id, b.builder_pubkey))
             .collect_vec()
             .join("\n");
 
@@ -122,14 +129,14 @@ mod tests {
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
-                builder_description: "builder1".to_string(),
+                builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
         ];
         let missed_slots = vec![];
@@ -140,11 +147,11 @@ mod tests {
             vec![
                 BuilderPromotion {
                     builder_pubkey: "pubkey1".to_string(),
-                    builder_description: "builder1".to_string(),
+                    builder_id: "builder1".to_string(),
                 },
                 BuilderPromotion {
                     builder_pubkey: "pubkey2".to_string(),
-                    builder_description: "builder2".to_string(),
+                    builder_id: "builder2".to_string(),
                 }
             ]
         );
@@ -159,14 +166,14 @@ mod tests {
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 1,
-                builder_description: "builder1".to_string(),
+                builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
         ];
         let missed_slots = vec![2];
@@ -185,21 +192,21 @@ mod tests {
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
-                builder_description: "builder1".to_string(),
+                builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 3,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
         ];
         let missed_slots = vec![2];
@@ -210,7 +217,7 @@ mod tests {
             result,
             vec![BuilderPromotion {
                 builder_pubkey: "pubkey1".to_string(),
-                builder_description: "builder1".to_string(),
+                builder_id: "builder1".to_string(),
             }]
         );
     }
@@ -224,21 +231,21 @@ mod tests {
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
-                builder_description: "builder1".to_string(),
+                builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
                 inserted_at,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
-                builder_description: "builder2".to_string(),
+                builder_id: Some("builder2".to_string()),
             },
         ];
         let missed_slots = vec![];
@@ -249,7 +256,7 @@ mod tests {
             result,
             vec![BuilderPromotion {
                 builder_pubkey: "pubkey1".to_string(),
-                builder_description: "builder1".to_string(),
+                builder_id: "builder1".to_string(),
             }]
         );
     }
