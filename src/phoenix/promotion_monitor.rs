@@ -34,16 +34,22 @@ fn get_eligible_builders(
     demotions: Vec<BuilderDemotion>,
     missed_slots: Vec<i64>,
 ) -> Vec<BuilderPromotion> {
+    info!(
+        "get_eligible_builders: demotions: {:?}, missed_slots {:?}",
+        &demotions, &missed_slots
+    );
     let eligible_errors = vec![
         "json error: request timeout hit before processing",
         "simulation failed: unknown ancestor",
     ];
     demotions
         .into_iter()
+        .sorted_by_key(|d| d.builder_pubkey.clone())
         .group_by(|d| d.builder_pubkey.clone())
         .into_iter()
         .filter_map(|(pubkey, group)| {
             let demotions = group.collect_vec();
+            info!("grouped demotions for {}: {:?}", &pubkey, &demotions);
             let no_missed_slots = demotions.iter().all(|d| !missed_slots.contains(&d.slot));
             let only_eligible_errors = demotions
                 .iter()
@@ -168,5 +174,83 @@ mod tests {
         let result = get_eligible_builders(demotions, missed_slots);
 
         assert_eq!(result, vec![]);
+    }
+
+    #[test]
+    fn test_get_eligible_builders_some_eligible() {
+        let inserted_at = Utc::now();
+        let demotions = vec![
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey1".to_string(),
+                sim_error: "json error: request timeout hit before processing".to_string(),
+                slot: 1,
+                builder_description: "builder1".to_string(),
+            },
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey2".to_string(),
+                sim_error: "invalid error".to_string(),
+                slot: 2,
+                builder_description: "builder2".to_string(),
+            },
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey2".to_string(),
+                sim_error: "simulation failed: unknown ancestor".to_string(),
+                slot: 3,
+                builder_description: "builder2".to_string(),
+            },
+        ];
+        let missed_slots = vec![2];
+
+        let result = get_eligible_builders(demotions, missed_slots);
+
+        assert_eq!(
+            result,
+            vec![BuilderPromotion {
+                builder_pubkey: "pubkey1".to_string(),
+                builder_description: "builder1".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn test_same_slot_both_valid_and_invalid() {
+        let inserted_at = Utc::now();
+        let demotions = vec![
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey2".to_string(),
+                sim_error: "invalid error".to_string(),
+                slot: 2,
+                builder_description: "builder2".to_string(),
+            },
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey1".to_string(),
+                sim_error: "json error: request timeout hit before processing".to_string(),
+                slot: 1,
+                builder_description: "builder1".to_string(),
+            },
+            BuilderDemotion {
+                inserted_at,
+                builder_pubkey: "pubkey2".to_string(),
+                sim_error: "simulation failed: unknown ancestor".to_string(),
+                slot: 2,
+                builder_description: "builder2".to_string(),
+            },
+        ];
+        let missed_slots = vec![];
+
+        let result = get_eligible_builders(demotions, missed_slots);
+
+        assert_eq!(
+            result,
+            vec![BuilderPromotion {
+                builder_pubkey: "pubkey1".to_string(),
+                builder_description: "builder1".to_string(),
+            }]
+        );
     }
 }
