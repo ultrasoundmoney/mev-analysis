@@ -110,7 +110,7 @@ async fn ingest_chain_data(
         let start_time = checkpoint;
         // Stay at least 10 minutes behind current time to make sure the data is available in BigQuery
         let end_time = cmp::min(
-            start_time + Duration::hours(3),
+            start_time + APP_CONFIG.chain_data_batch_size,
             (begin - Duration::minutes(10)).round_subsecs(0),
         );
 

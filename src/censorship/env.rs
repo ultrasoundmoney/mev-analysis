@@ -16,6 +16,8 @@ pub struct AppConfig {
     #[serde(deserialize_with = "deserialize_duration_minutes")]
     pub chain_data_interval: Duration,
     #[serde(deserialize_with = "deserialize_duration_minutes")]
+    pub chain_data_batch_size: Duration,
+    #[serde(deserialize_with = "deserialize_duration_minutes")]
     pub block_production_interval: Duration,
 }
 
