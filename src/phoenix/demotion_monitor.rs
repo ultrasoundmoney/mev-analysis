@@ -56,7 +56,7 @@ pub async fn get_builder_demotions(
                     builder_pubkey: row.get("builder_pubkey"),
                     builder_id: row.try_get("builder_id").ok(),
                     slot: row.get("slot"),
-                    sim_error: row.get("sim_error"),
+                    sim_error: row.get::<String, _>("sim_error").trim().to_string(),
                 })
                 .collect()
         })
