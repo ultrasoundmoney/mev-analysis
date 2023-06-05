@@ -3,12 +3,12 @@ use super::{util::hex_to_option, Block, ChainStore, Tx};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use futures::TryStreamExt;
 use gcp_bigquery_client::{
     model::{job_configuration_query::JobConfigurationQuery, table_row::TableRow},
     Client,
 };
 use tokio_stream::StreamExt;
+use tracing::error;
 
 #[async_trait]
 impl ChainStore for Client {
@@ -42,24 +42,31 @@ impl ChainStore for Client {
             end = end
         );
 
-        let blocks: Vec<Block> = self
-            .job()
-            .query_all(
-                "ultra-sound-relay",
-                JobConfigurationQuery {
-                    query,
-                    use_legacy_sql: Some(false),
-                    ..Default::default()
-                },
-                None,
-            )
-            .map_err(Into::into)
-            .collect::<Result<Vec<_>>>()
-            .await?
-            .into_iter()
-            .flatten()
-            .map(parse_block_row)
-            .collect();
+        let result_set = self.job().query_all(
+            "ultra-sound-relay",
+            JobConfigurationQuery {
+                query,
+                query_parameters: None,
+                use_legacy_sql: Some(false),
+                ..Default::default()
+            },
+            None,
+        );
+
+        tokio::pin!(result_set);
+
+        let mut blocks = Vec::new();
+
+        while let Some(page) = result_set.next().await {
+            match page {
+                Ok(rows) => {
+                    for row in rows {
+                        blocks.push(parse_block_row(row));
+                    }
+                }
+                Err(e) => error!("BigQuery block ingestion error: {e:?}"),
+            }
+        }
 
         Ok(blocks)
     }
@@ -136,24 +143,31 @@ impl ChainStore for Client {
             lookback = *start - Duration::days(60)
         );
 
-        let txs: Vec<Tx> = self
-            .job()
-            .query_all(
-                "ultra-sound-relay",
-                JobConfigurationQuery {
-                    query,
-                    use_legacy_sql: Some(false),
-                    ..Default::default()
-                },
-                None,
-            )
-            .map_err(Into::into)
-            .collect::<Result<Vec<_>>>()
-            .await?
-            .into_iter()
-            .flatten()
-            .map(parse_tx_row)
-            .collect();
+        let result_set = self.job().query_all(
+            "ultra-sound-relay",
+            JobConfigurationQuery {
+                query,
+                query_parameters: None,
+                use_legacy_sql: Some(false),
+                ..Default::default()
+            },
+            None,
+        );
+
+        tokio::pin!(result_set);
+
+        let mut txs = Vec::new();
+
+        while let Some(page) = result_set.next().await {
+            match page {
+                Ok(rows) => {
+                    for row in rows {
+                        txs.push(parse_tx_row(row));
+                    }
+                }
+                Err(e) => error!("BigQuery tx ingestion error: {e:?}"),
+            }
+        }
 
         Ok(txs)
     }
