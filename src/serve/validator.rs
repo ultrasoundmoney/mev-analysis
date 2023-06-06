@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{
     extract::{Path, State},
     Json,
@@ -5,7 +6,7 @@ use axum::{
 use chrono::{DateTime, TimeZone, Utc};
 use futures::future::join_all;
 use serde::Serialize;
-use sqlx::Row;
+use sqlx::{PgPool, Row};
 
 use crate::env::ToNetwork;
 
@@ -19,10 +20,24 @@ pub struct ValidatorStatsBody {
     known_validator_count: i64,
 }
 
+async fn get_registered_validator_count(relay_pool: &PgPool) -> Result<i64> {
+    sqlx::query(&format!(
+        "
+         select count(*) as validator_count
+         from (select distinct pubkey from {}_validator_registration) as sq
+        ",
+        &APP_CONFIG.env.to_network().to_string()
+    ))
+    .fetch_one(relay_pool)
+    .await
+    .map(|row| row.get::<i64, _>("validator_count"))
+    .map_err(Into::into)
+}
+
 pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<ValidatorStatsBody> {
     let (known_validator_count, validator_count) = tokio::try_join!(
         relay_redis::get_known_validator_count(&state.redis_client),
-        relay_redis::get_active_validator_count(&state.redis_client),
+        get_registered_validator_count(&state.relay_db_pool)
     )
     .map_err(internal_error)?;
 
