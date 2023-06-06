@@ -213,11 +213,15 @@ pub async fn monitor_critical_services() -> Result<()> {
 
     match result {
         Ok(_) => {
-            error!("phoenix processes exited unexpectedly");
-            Err(anyhow!("phoenix processes exited unexpectedly"))
+            let message = "phoenix processes exited unexpectedly";
+            error!("{}", &message);
+            alert::send_telegram_alert(&message).await?;
+            Err(anyhow!(message))
         }
         Err(err) => {
-            error!("phoenix process exited with error: {}", err);
+            let message = format!("phoenix process exited with error: {}", err);
+            error!("{}", &message);
+            alert::send_telegram_alert(&message).await?;
             Err(err)
         }
     }
