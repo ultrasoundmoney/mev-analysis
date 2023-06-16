@@ -150,7 +150,9 @@ pub async fn run_promotion_monitor(
 
         let message = format!("*promoted the following builders*:\n\n{}", builder_list);
 
-        alert::send_telegram_alert(&message).await?;
+        if !promoted.is_empty() {
+            alert::send_telegram_alert(&message).await?;
+        }
     }
 
     checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, canonical_horizon).await?;
