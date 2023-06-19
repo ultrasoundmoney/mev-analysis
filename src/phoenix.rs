@@ -35,7 +35,7 @@ use self::{
 };
 
 lazy_static! {
-    static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(6);
+    static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(3);
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
 }
 
@@ -62,14 +62,17 @@ impl Alarm {
 
         error!(message, "firing alarm");
 
-        alert::send_alert(message).await.unwrap();
+        let result = alert::send_alert(message).await;
+        if let Err(err) = result {
+            error!(?err, "failed to send alert!");
+        }
 
         self.last_fired = Some(Utc::now());
     }
 
     async fn fire_with_name(&mut self, name: &str) {
         let message = format!(
-            "{} hasn't updated for more than {} seconds!",
+            "{} hasn't updated for more than {} seconds",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
         );
@@ -120,17 +123,17 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(BuilderStatusMonitor::new()),
-            name: "builder-status",
+            name: "builder status",
         },
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
-            name: "consensus-node",
+            name: "consensus node",
         },
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ValidationNodeMonitor::new()),
-            name: "validation-node",
+            name: "validation node",
         },
     ];
 

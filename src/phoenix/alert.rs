@@ -19,7 +19,8 @@ pub async fn send_telegram_alert(message: &str) -> Result<()> {
             ("disable_web_page_preview", &"true".to_string()),
         ])
         .send()
-        .await?;
+        .await?
+        .error_for_status()?;
 
     Ok(())
 }
