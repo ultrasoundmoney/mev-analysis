@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, TimeZone, Utc};
 use itertools::Itertools;
 use sqlx::{PgPool, Row};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::env::{ToBeaconExplorerUrl, ToNetwork};
 
@@ -99,7 +99,9 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
         info!("{}", &message);
 
-        alert::send_telegram_alert(&message).await?;
+        if let Err(err) = alert::send_telegram_alert(&message).await {
+            error!("failed to send telegram alert: {}", err);
+        }
     }
 
     checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &now).await?;
