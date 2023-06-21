@@ -79,22 +79,26 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
     info!("checking demotions between {} and {}", &checkpoint, &now);
 
     let demotions = get_builder_demotions(&relay_pool, &checkpoint, &now).await?;
-    // reduce alert noise by filtering out duplicate demotions
-    let unique_demotions = demotions
-        .iter()
-        .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
-        .collect_vec();
 
-    for demotion in &unique_demotions {
-        let message = format!(
-            "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
-            name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
-            pubkey = demotion.builder_pubkey,
-            slot = demotion.slot,
-            url = &APP_CONFIG.env.to_beacon_explorer_url(),
-            error = demotion.sim_error
-        );
+    if !demotions.is_empty() {
+        let message = demotions
+            .into_iter()
+            // reduce alert noise by filtering out duplicate demotions
+            .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
+            .map(|demotion| {
+                format!(
+                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
+                    name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
+                    pubkey = demotion.builder_pubkey,
+                    slot = demotion.slot,
+                    url = &APP_CONFIG.env.to_beacon_explorer_url(),
+                    error = demotion.sim_error
+                )
+
+            }).join("\n\n");
+
         info!("{}", &message);
+
         alert::send_telegram_alert(&message).await?;
     }
 
