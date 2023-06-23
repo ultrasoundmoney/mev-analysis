@@ -87,7 +87,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
             .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
             .map(|demotion| {
                 format!(
-                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
+                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n```{error}```",
                     name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
                     pubkey = demotion.builder_pubkey,
                     slot = demotion.slot,
