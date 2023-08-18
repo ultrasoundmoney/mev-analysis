@@ -7,7 +7,6 @@ use tracing::{debug, info, warn};
 use crate::env::ToNetwork;
 
 use super::{
-    alert,
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
     env::APP_CONFIG,
@@ -56,6 +55,7 @@ async fn promote_builder_ids(
         .map_err(Into::into)
 }
 
+#[allow(dead_code)]
 fn format_builder_list(builders: &Vec<(String, String)>) -> String {
     builders
         .iter()
@@ -76,7 +76,7 @@ fn format_builder_list(builders: &Vec<(String, String)>) -> String {
         })
 }
 
-const ELIGIBLE_ERRORS: &[&str] = &[
+pub const ELIGIBLE_ERRORS: &[&str] = &[
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
     "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)"
@@ -145,14 +145,7 @@ pub async fn run_promotion_monitor(
     if !eligible.is_empty() {
         info!("found builder ids eligible for promotion: {:?}", &eligible);
 
-        let promoted = promote_builder_ids(&relay_pool, &eligible).await?;
-        let builder_list = format_builder_list(&promoted);
-
-        let message = format!("*promoted the following builders*:\n\n{}", builder_list);
-
-        if !promoted.is_empty() {
-            alert::send_telegram_alert(&message).await?;
-        }
+        let _promoted = promote_builder_ids(&relay_pool, &eligible).await?;
     }
 
     checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, canonical_horizon).await?;

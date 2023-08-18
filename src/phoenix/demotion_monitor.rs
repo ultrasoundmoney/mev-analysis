@@ -4,7 +4,7 @@ use itertools::Itertools;
 use sqlx::{PgPool, Row};
 use tracing::{error, info};
 
-use crate::env::{ToBeaconExplorerUrl, ToNetwork};
+use crate::{env::{ToBeaconExplorerUrl, ToNetwork}, phoenix::promotion_monitor::ELIGIBLE_ERRORS};
 
 use super::{
     alert,
@@ -83,8 +83,9 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
     if !demotions.is_empty() {
         let message = demotions
             .into_iter()
-            // reduce alert noise by filtering out duplicate demotions
+            // reduce alert noise by filtering out duplicate demotions and auto-promotable ones
             .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
+            .filter(|d| !ELIGIBLE_ERRORS.contains(&d.sim_error.as_str()))
             .map(|demotion| {
                 format!(
                     "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n```{error}```",
