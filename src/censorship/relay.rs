@@ -32,7 +32,6 @@ pub enum RelayId {
     Flashbots,
     BlxrMaxProfit,
     BlxrRegulated,
-    BlxrEthical,
     Blocknative,
     Eden,
     Aestus,
@@ -47,7 +46,6 @@ impl fmt::Display for RelayId {
             RelayId::Flashbots => write!(f, "flashbots"),
             RelayId::BlxrMaxProfit => write!(f, "blxr-max-profit"),
             RelayId::BlxrRegulated => write!(f, "blxr-regulated"),
-            RelayId::BlxrEthical => write!(f, "blxr-ethical"),
             RelayId::Blocknative => write!(f, "blocknative"),
             RelayId::Eden => write!(f, "eden"),
             RelayId::Aestus => write!(f, "aestus"),
@@ -68,7 +66,6 @@ impl Into<Url> for RelayId {
             RelayId::BlxrRegulated => {
                 Url::parse("https://bloxroute.regulated.blxrbdn.com").unwrap()
             }
-            RelayId::BlxrEthical => Url::parse("https://bloxroute.ethical.blxrbdn.com").unwrap(),
             RelayId::Blocknative => {
                 Url::parse("https://builder-relay-mainnet.blocknative.com").unwrap()
             }
