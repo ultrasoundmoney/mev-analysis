@@ -4,7 +4,10 @@ use itertools::Itertools;
 use sqlx::{PgPool, Row};
 use tracing::{error, info};
 
-use crate::{env::{ToBeaconExplorerUrl, ToNetwork}, phoenix::promotion_monitor::ELIGIBLE_ERRORS};
+use crate::{
+    env::{ToBeaconExplorerUrl, ToNetwork},
+    phoenix::promotion_monitor::ELIGIBLE_ERRORS,
+};
 
 use super::{
     alert,
@@ -78,14 +81,17 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
     info!("checking demotions between {} and {}", &checkpoint, &now);
 
-    let demotions = get_builder_demotions(&relay_pool, &checkpoint, &now).await?;
+    let demotions = get_builder_demotions(&relay_pool, &checkpoint, &now)
+        .await?
+        .into_iter()
+        // reduce alert noise by filtering out duplicate demotions and auto-promotable ones
+        .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
+        .filter(|d| !ELIGIBLE_ERRORS.contains(&d.sim_error.as_str()))
+        .collect_vec();
 
     if !demotions.is_empty() {
         let message = demotions
             .into_iter()
-            // reduce alert noise by filtering out duplicate demotions and auto-promotable ones
-            .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
-            .filter(|d| !ELIGIBLE_ERRORS.contains(&d.sim_error.as_str()))
             .map(|demotion| {
                 format!(
                     "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
@@ -98,10 +104,10 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
             }).join("\n\n");
 
-        info!("{}", &message);
+        info!(?message, "sending telegram alert");
 
-        if let Err(err) = alert::send_telegram_alert(&message).await {
-            error!("failed to send telegram alert: {}", err);
+        if let Err(error) = alert::send_telegram_alert(&message).await {
+            error!(?error, ?message, "failed to send telegram alert");
         }
     }
 
