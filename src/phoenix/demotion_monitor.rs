@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::{
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::promotion_monitor::ELIGIBLE_ERRORS,
+    phoenix::{markdown, promotion_monitor::ELIGIBLE_ERRORS},
 };
 
 use super::{
@@ -94,12 +94,12 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
             .into_iter()
             .map(|demotion| {
                 format!(
-                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n{error}",
+                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n```{error}```",
                     name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
                     pubkey = demotion.builder_pubkey,
                     slot = demotion.slot,
                     url = &APP_CONFIG.env.to_beacon_explorer_url(),
-                    error = demotion.sim_error
+                    error = markdown::escape_code_block(&demotion.sim_error)
                 )
 
             }).join("\n\n");

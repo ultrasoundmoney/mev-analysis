@@ -5,6 +5,7 @@ mod consensus_node;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
+mod markdown;
 mod promotion_monitor;
 mod validation_node;
 
