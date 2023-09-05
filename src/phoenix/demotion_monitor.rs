@@ -108,6 +108,10 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
         if let Err(error) = alert::send_telegram_alert(&message).await {
             error!(?error, ?message, "failed to send telegram alert");
+            alert::send_telegram_alert(
+                "there were builder demotions, but the telegram alert failed",
+            )
+            .await?;
         }
     }
 
