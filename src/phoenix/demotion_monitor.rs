@@ -95,7 +95,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
             .map(|demotion| {
                 format!(
                     "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n```{error}```",
-                    name = demotion.builder_id.clone().unwrap_or("unknown builder_id".to_string()),
+                    name = markdown::escape_body(&demotion.builder_id.unwrap_or("unknown builder_id".to_string())),
                     pubkey = demotion.builder_pubkey,
                     slot = demotion.slot,
                     url = &APP_CONFIG.env.to_beacon_explorer_url(),
