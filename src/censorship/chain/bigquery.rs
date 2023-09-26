@@ -322,12 +322,7 @@ fn parse_tx_row(row: TableRow) -> Tx {
             .parse::<i64>()
             .unwrap(),
         block_timestamp: DateTime::parse_from_rfc3339(
-            columns[2]
-                .clone()
-                .value
-                .unwrap()
-                .as_str()
-                .unwrap(),
+            columns[2].clone().value.unwrap().as_str().unwrap(),
         )
         .unwrap()
         .with_timezone(&Utc),
