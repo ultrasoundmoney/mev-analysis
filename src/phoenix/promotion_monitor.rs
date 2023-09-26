@@ -55,7 +55,7 @@ async fn promote_builder_ids(
         .map_err(Into::into)
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::ptr_arg)]
 fn format_builder_list(builders: &Vec<(String, String)>) -> String {
     builders
         .iter()

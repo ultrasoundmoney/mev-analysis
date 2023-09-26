@@ -32,6 +32,7 @@ pub struct TaggedTx {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[allow(clippy::enum_variant_names)]
 pub enum SourceId {
     ZeroMevInf,
     ZeroMevQn,

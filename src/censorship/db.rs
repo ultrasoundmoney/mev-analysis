@@ -17,6 +17,7 @@ pub trait CensorshipDB {
     // slot_number checkpoint for offchain (relay) data
     async fn get_block_production_checkpoint(&self) -> Result<Option<i64>>;
     async fn get_tx_low_balance_checks(&self) -> Result<Vec<TxLowBalanceCheck>>;
+    #[allow(clippy::ptr_arg)]
     async fn update_tx_low_balance_status(&self, tx_hash: &String, status: &bool) -> Result<()>;
     async fn put_chain_data(&self, blocks: Vec<Block>, txs: Vec<TaggedTx>) -> Result<()>;
     // this method is idempotent for a given set of relays
