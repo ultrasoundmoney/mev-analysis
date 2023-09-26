@@ -28,7 +28,6 @@ impl ChainStoreFile {
     pub fn new(blocks_path: &str, txs_path: &str) -> Result<Self> {
         let block_streams = fs::read_dir(blocks_path)
             .unwrap()
-            .into_iter()
             .map(|entry| entry.unwrap())
             .sorted_by_key(|entry| entry.path())
             .rev()
@@ -40,7 +39,6 @@ impl ChainStoreFile {
 
         let tx_streams = fs::read_dir(txs_path)
             .unwrap()
-            .into_iter()
             .map(|entry| entry.unwrap())
             .sorted_by_key(|entry| entry.path())
             .rev()
@@ -148,25 +146,25 @@ struct BlockRow {
     pub transactions_root: String,
 }
 
-impl Into<Block> for BlockRow {
-    fn into(self) -> Block {
+impl From<BlockRow> for Block {
+    fn from(val: BlockRow) -> Self {
         Block {
-            base_fee_per_gas: self.base_fee_per_gas.parse().unwrap(),
-            block_hash: self.hash,
-            block_number: self.number.parse().unwrap(),
-            extra_data: hex_to_option(self.extra_data),
-            fee_recipient: self.miner,
-            gas_limit: self.gas_limit.parse().unwrap(),
-            gas_used: self.gas_used.parse().unwrap(),
-            logs_bloom: self.logs_bloom,
-            parent_hash: self.parent_hash,
-            receipts_root: self.receipts_root,
-            sha3_uncles: self.sha3_uncles,
-            size: self.size.parse().unwrap(),
-            state_root: self.state_root,
-            timestamp: self.f0_,
-            transaction_count: self.transaction_count.parse().unwrap(),
-            transactions_root: self.transactions_root,
+            base_fee_per_gas: val.base_fee_per_gas.parse().unwrap(),
+            block_hash: val.hash,
+            block_number: val.number.parse().unwrap(),
+            extra_data: hex_to_option(val.extra_data),
+            fee_recipient: val.miner,
+            gas_limit: val.gas_limit.parse().unwrap(),
+            gas_used: val.gas_used.parse().unwrap(),
+            logs_bloom: val.logs_bloom,
+            parent_hash: val.parent_hash,
+            receipts_root: val.receipts_root,
+            sha3_uncles: val.sha3_uncles,
+            size: val.size.parse().unwrap(),
+            state_root: val.state_root,
+            timestamp: val.f0_,
+            transaction_count: val.transaction_count.parse().unwrap(),
+            transactions_root: val.transactions_root,
         }
     }
 }
@@ -195,30 +193,30 @@ pub struct TxRow {
     // pub value: String,
 }
 
-impl Into<Tx> for TxRow {
-    fn into(self) -> Tx {
+impl From<TxRow> for Tx {
+    fn from(val: TxRow) -> Self {
         Tx {
-            address_trace: self.address_trace,
-            block_number: self.block_number.parse().unwrap(),
-            block_timestamp: self.f0_,
-            from_address: self.from_address,
-            gas: self.gas.parse().unwrap(),
-            gas_price: self.gas_price.parse().unwrap(),
-            input: hex_to_option(self.input),
-            max_fee_per_gas: self.max_fee_per_gas.map(|s| s.parse().unwrap()),
-            max_priority_fee_per_gas: self.max_priority_fee_per_gas.map(|s| s.parse().unwrap()),
-            nonce: self.nonce.parse().unwrap(),
-            receipt_contract_address: self.receipt_contract_address,
-            receipt_cumulative_gas_used: self.receipt_cumulative_gas_used.parse().unwrap(),
-            receipt_effective_gas_price: self
+            address_trace: val.address_trace,
+            block_number: val.block_number.parse().unwrap(),
+            block_timestamp: val.f0_,
+            from_address: val.from_address,
+            gas: val.gas.parse().unwrap(),
+            gas_price: val.gas_price.parse().unwrap(),
+            input: hex_to_option(val.input),
+            max_fee_per_gas: val.max_fee_per_gas.map(|s| s.parse().unwrap()),
+            max_priority_fee_per_gas: val.max_priority_fee_per_gas.map(|s| s.parse().unwrap()),
+            nonce: val.nonce.parse().unwrap(),
+            receipt_contract_address: val.receipt_contract_address,
+            receipt_cumulative_gas_used: val.receipt_cumulative_gas_used.parse().unwrap(),
+            receipt_effective_gas_price: val
                 .receipt_effective_gas_price
                 .map(|s| s.parse().unwrap()),
-            receipt_gas_used: self.receipt_gas_used.parse().unwrap(),
-            receipt_status: self.receipt_status.parse().unwrap(),
-            to_address: self.to_address,
-            transaction_hash: self.hash,
-            transaction_index: self.transaction_index.parse().unwrap(),
-            transaction_type: self.transaction_type.parse().unwrap(),
+            receipt_gas_used: val.receipt_gas_used.parse().unwrap(),
+            receipt_status: val.receipt_status.parse().unwrap(),
+            to_address: val.to_address,
+            transaction_hash: val.hash,
+            transaction_index: val.transaction_index.parse().unwrap(),
+            transaction_type: val.transaction_type.parse().unwrap(),
             value: "lol".to_string(), // value: self.value.parse().unwrap(),
             prev_nonce_timestamp: None,
         }
@@ -257,7 +255,7 @@ mod tests {
         let first = blocks.first().unwrap().timestamp;
         let last = blocks.last().unwrap().timestamp;
 
-        assert!(blocks.len() > 0);
+        assert!(!blocks.is_empty());
         assert!(first > start && first <= end);
         assert!(last > start && last <= end);
         assert!(first < last);
@@ -269,14 +267,14 @@ mod tests {
         let new_first = more_blocks.first().unwrap().timestamp;
         let new_last = more_blocks.last().unwrap().timestamp;
 
-        assert!(more_blocks.len() > 0);
+        assert!(!more_blocks.is_empty());
         assert!(new_first > new_start && new_first < new_last);
         assert!(new_last > new_first && new_last <= new_end);
 
         // blocks get consumed, so reading an interval only works once
         let blocks = store.fetch_blocks(&start, &end).await.unwrap();
 
-        assert!(blocks.len() == 0);
+        assert!(blocks.is_empty());
     }
 
     #[tokio::test]
@@ -298,7 +296,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(new_blocks.len() > 0);
+        assert!(!new_blocks.is_empty());
         assert_eq!(new_blocks.first().unwrap().block_number, 16530248);
     }
 
@@ -312,7 +310,7 @@ mod tests {
 
         let blocks = store.fetch_blocks(&start, &end).await.unwrap();
 
-        assert!(blocks.len() > 0);
+        assert!(!blocks.is_empty());
 
         let first = blocks.first().unwrap();
         let last = blocks.last().unwrap();

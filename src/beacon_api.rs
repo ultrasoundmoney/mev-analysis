@@ -46,7 +46,7 @@ pub struct BeaconApi {
 
 impl BeaconApi {
     pub fn new(nodes: &Vec<Url>) -> Self {
-        if nodes.len() > 0 {
+        if !nodes.is_empty() {
             Self {
                 nodes: nodes.clone(),
                 client: reqwest::Client::new(),

@@ -54,9 +54,9 @@ impl fmt::Display for RelayId {
     }
 }
 
-impl Into<Url> for RelayId {
-    fn into(self) -> Url {
-        match self {
+impl From<RelayId> for Url {
+    fn from(val: RelayId) -> Self {
+        match val {
             RelayId::UltraSound => Url::parse("https://relay.ultrasound.money").unwrap(),
             RelayId::Agnostic => Url::parse("https://agnostic-relay.net").unwrap(),
             RelayId::Flashbots => Url::parse("https://boost-relay.flashbots.net").unwrap(),

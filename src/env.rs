@@ -16,8 +16,8 @@ pub enum Env {
 impl fmt::Display for Env {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            Env::Stag => write!(f, "{}", "staging"),
-            Env::Prod => write!(f, "{}", "production"),
+            Env::Stag => write!(f, "staging"),
+            Env::Prod => write!(f, "production"),
         }
     }
 }
@@ -89,7 +89,6 @@ where
 {
     let s: String = Deserialize::deserialize(deserializer)?;
     s.split(',')
-        .into_iter()
         .map(|s| Url::parse(s).map_err(Error::custom))
         .collect()
 }

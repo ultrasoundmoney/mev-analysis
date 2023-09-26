@@ -87,12 +87,12 @@ pub async fn run_inclusion_monitor(
 ) -> Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
 
-    let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Inclusion).await? {
+    let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Inclusion).await? {
         Some(c) => c,
         None => {
             info!("no checkpoint found, initializing");
             let now = Utc::now();
-            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, &now).await?;
+            checkpoint::put_checkpoint(mev_pool, CheckpointId::Inclusion, &now).await?;
             now
         }
     };
@@ -102,7 +102,7 @@ pub async fn run_inclusion_monitor(
         &checkpoint, canonical_horizon
     );
 
-    let payloads = get_delivered_payloads(&relay_pool, &checkpoint, canonical_horizon).await?;
+    let payloads = get_delivered_payloads(relay_pool, &checkpoint, canonical_horizon).await?;
 
     let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
 
@@ -117,7 +117,7 @@ pub async fn run_inclusion_monitor(
                     error!("block hash mismatch for slot {}", payload.slot);
 
                     insert_missed_slot(
-                        &mev_pool,
+                        mev_pool,
                         &payload.slot,
                         &payload.block_hash,
                         Some(&block_hash),
@@ -138,7 +138,7 @@ pub async fn run_inclusion_monitor(
                 if err.status() == Some(StatusCode::NOT_FOUND) {
                     warn!("delivered block not found for slot {}", payload.slot);
 
-                    insert_missed_slot(&mev_pool, &payload.slot, &payload.block_hash, None).await?;
+                    insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
                     alert::send_telegram_alert(&format!(
                         "delivered block not found for slot [{slot}]({url}/slot/{slot})",
@@ -157,7 +157,7 @@ pub async fn run_inclusion_monitor(
         }
     }
 
-    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Inclusion, canonical_horizon).await?;
+    checkpoint::put_checkpoint(mev_pool, CheckpointId::Inclusion, canonical_horizon).await?;
 
     Ok(())
 }

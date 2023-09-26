@@ -126,7 +126,7 @@ pub async fn start_server() -> Result<()> {
 
     info!("listening on {}", addr);
 
-    let _ = axum::Server::bind(&addr)
+    axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await?;
 

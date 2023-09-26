@@ -67,12 +67,12 @@ pub async fn get_builder_demotions(
 }
 
 pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
-    let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Demotion).await? {
+    let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Demotion).await? {
         Some(c) => c,
         None => {
             info!("no checkpoint found, initializing");
             let now = Utc::now();
-            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &now).await?;
+            checkpoint::put_checkpoint(mev_pool, CheckpointId::Demotion, &now).await?;
             now
         }
     };
@@ -81,7 +81,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
     info!("checking demotions between {} and {}", &checkpoint, &now);
 
-    let demotions = get_builder_demotions(&relay_pool, &checkpoint, &now)
+    let demotions = get_builder_demotions(relay_pool, &checkpoint, &now)
         .await?
         .into_iter()
         // reduce alert noise by filtering out duplicate demotions and auto-promotable ones
@@ -115,7 +115,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         }
     }
 
-    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Demotion, &now).await?;
+    checkpoint::put_checkpoint(mev_pool, CheckpointId::Demotion, &now).await?;
 
     Ok(())
 }

@@ -240,7 +240,7 @@ async fn backfill_block_production_data(db: &impl CensorshipDB) -> Result<()> {
                 break;
             }
             slot_option => {
-                if let None = slot_option {
+                if slot_option.is_none() {
                     info!("backfilling block production from now until slot {}", goal);
                 }
                 if let Some(slot_number) = slot_option {

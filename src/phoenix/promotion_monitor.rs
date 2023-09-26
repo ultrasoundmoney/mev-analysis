@@ -40,7 +40,7 @@ async fn promote_builder_ids(
         AND is_optimistic = false
         RETURNING builder_id, builder_pubkey
         ",
-        APP_CONFIG.env.to_network().to_string()
+        APP_CONFIG.env.to_network()
     );
 
     sqlx::query(&query)
@@ -123,12 +123,12 @@ pub async fn run_promotion_monitor(
     mev_pool: &PgPool,
     canonical_horizon: &DateTime<Utc>,
 ) -> Result<()> {
-    let checkpoint = match checkpoint::get_checkpoint(&mev_pool, CheckpointId::Promotion).await? {
+    let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Promotion).await? {
         Some(c) => c,
         None => {
             info!("no checkpoint found, initializing");
             let now = Utc::now();
-            checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, &now).await?;
+            checkpoint::put_checkpoint(mev_pool, CheckpointId::Promotion, &now).await?;
             now
         }
     };
@@ -138,17 +138,17 @@ pub async fn run_promotion_monitor(
         &checkpoint, &canonical_horizon
     );
 
-    let demotions = get_builder_demotions(&relay_pool, &checkpoint, canonical_horizon).await?;
-    let missed_slots = get_missed_slots(&mev_pool, &checkpoint).await?;
+    let demotions = get_builder_demotions(relay_pool, &checkpoint, canonical_horizon).await?;
+    let missed_slots = get_missed_slots(mev_pool, &checkpoint).await?;
     let eligible = get_eligible_builders(demotions, missed_slots);
 
     if !eligible.is_empty() {
         info!("found builder ids eligible for promotion: {:?}", &eligible);
 
-        let _promoted = promote_builder_ids(&relay_pool, &eligible).await?;
+        let _promoted = promote_builder_ids(relay_pool, &eligible).await?;
     }
 
-    checkpoint::put_checkpoint(&mev_pool, CheckpointId::Promotion, canonical_horizon).await?;
+    checkpoint::put_checkpoint(mev_pool, CheckpointId::Promotion, canonical_horizon).await?;
 
     Ok(())
 }

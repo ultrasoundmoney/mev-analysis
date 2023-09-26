@@ -141,7 +141,7 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     loop {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
-                alarm.fire_with_name(&phoenix.name).await;
+                alarm.fire_with_name(phoenix.name).await;
             }
 
             let current = phoenix.monitor.refresh().await;
@@ -219,7 +219,7 @@ pub async fn monitor_critical_services() -> Result<()> {
         Ok(_) => {
             let message = "phoenix processes exited unexpectedly";
             error!("{}", &message);
-            alert::send_telegram_alert(&message).await?;
+            alert::send_telegram_alert(message).await?;
             Err(anyhow!(message))
         }
         Err(err) => {

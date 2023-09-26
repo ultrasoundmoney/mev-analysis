@@ -70,7 +70,7 @@ fn tag_transactions(
 
             let valid_extractors = filter_extractor_rows(block_txs.len(), block_extractors);
 
-            let missing_extractors = block_txs.len() > 0 && valid_extractors.len() == 0;
+            let missing_extractors = !block_txs.is_empty() && valid_extractors.is_empty();
 
             if missing_extractors {
                 warn!(
@@ -86,12 +86,12 @@ fn tag_transactions(
 
     data_by_block
         .iter()
-        .map(|(_, txs, extractors)| {
+        .flat_map(|(_, txs, extractors)| {
             txs.iter().map(|tx| {
                 let timestamps: Vec<MempoolTimestamp> = extractors
                     .iter()
                     .map(|ex| MempoolTimestamp {
-                        id: ex.extractor.clone(),
+                        id: ex.extractor,
                         timestamp: ex
                             .tx_data
                             .get(usize::try_from(tx.transaction_index).unwrap())
@@ -110,7 +110,6 @@ fn tag_transactions(
                 }
             })
         })
-        .flatten()
         .collect()
 }
 
