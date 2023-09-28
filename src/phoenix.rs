@@ -181,12 +181,12 @@ async fn mount_health_route() -> Result<()> {
 
 async fn run_ops_monitors() -> Result<()> {
     let relay_pool = PgPoolOptions::new()
-        .max_connections(1)
+        .max_connections(3)
         .acquire_timeout(Duration::seconds(3).to_std().unwrap())
         .connect(&APP_CONFIG.relay_database_url)
         .await?;
     let mev_pool = PgPoolOptions::new()
-        .max_connections(1)
+        .max_connections(3)
         .acquire_timeout(Duration::seconds(3).to_std().unwrap())
         .connect(&APP_CONFIG.database_url)
         .await?;
