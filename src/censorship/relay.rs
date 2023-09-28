@@ -55,7 +55,8 @@ impl fmt::Display for RelayId {
 impl From<RelayId> for Url {
     fn from(val: RelayId) -> Self {
         match val {
-            RelayId::UltraSound => Url::parse("https://relay.ultrasound.money").unwrap(),
+            // Use k8s service name for our relay
+            RelayId::UltraSound => Url::parse("http://data-api").unwrap(),
             RelayId::Agnostic => Url::parse("https://agnostic-relay.net").unwrap(),
             RelayId::Flashbots => Url::parse("https://boost-relay.flashbots.net").unwrap(),
             RelayId::BlxrMaxProfit => {
