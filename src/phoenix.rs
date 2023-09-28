@@ -1,5 +1,4 @@
 mod alert;
-mod builder;
 mod checkpoint;
 mod consensus_node;
 mod demotion_monitor;
@@ -26,8 +25,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::log;
 use crate::phoenix::{
-    builder::BuilderStatusMonitor, consensus_node::ConsensusNodeMonitor,
-    validation_node::ValidationNodeMonitor,
+    consensus_node::ConsensusNodeMonitor, validation_node::ValidationNodeMonitor,
 };
 
 use self::{
@@ -121,11 +119,6 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     let mut alarm = Alarm::new();
 
     let mut phoenixes = vec![
-        Phoenix {
-            last_seen: Utc::now(),
-            monitor: Box::new(BuilderStatusMonitor::new()),
-            name: "builder status",
-        },
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
