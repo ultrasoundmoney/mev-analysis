@@ -665,6 +665,27 @@
     },
     "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            "
   },
+  "c84abce611c428b46cb09a33a0cbc2fa83abddd5f5bf1f7c7d60650f45c1ff1b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT COUNT(*) FROM missed_slots WHERE slot_number > $1 AND slot_number <= $2"
+  },
   "d4b5b444c5ab41863031f44991fede1deba00ee9824a61d1f581f7a3faf4855a": {
     "describe": {
       "columns": [
