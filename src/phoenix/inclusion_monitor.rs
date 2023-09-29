@@ -80,6 +80,18 @@ async fn insert_missed_slot(
     .map_err(Into::into)
 }
 
+async fn get_missed_slot_count(mev_pool: &PgPool, start_slot: &i64, end_slot: &i64) -> Result<i64> {
+    sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM missed_slots WHERE slot_number > $1 AND slot_number <= $2",
+        start_slot,
+        end_slot
+    )
+    .fetch_one(mev_pool)
+    .await
+    .map(|count| count.unwrap_or(0))
+    .map_err(Into::into)
+}
+
 pub async fn run_inclusion_monitor(
     relay_pool: &PgPool,
     mev_pool: &PgPool,
@@ -154,6 +166,24 @@ pub async fn run_inclusion_monitor(
                     break;
                 }
             }
+        }
+    }
+
+    let last_slot_delivered = payloads.last().map(|p| p.slot);
+
+    if let Some(last_slot) = last_slot_delivered {
+        let start = last_slot - APP_CONFIG.missed_slots_check_range;
+        let end = last_slot;
+
+        let missed_slot_count = get_missed_slot_count(mev_pool, &start, &end).await?;
+
+        if missed_slot_count >= APP_CONFIG.missed_slots_alert_threshold {
+            let message = format!(
+                "missed {} slots in the last {} slots",
+                missed_slot_count, APP_CONFIG.missed_slots_check_range
+            );
+            warn!("{}", &message);
+            alert::send_alert(&message).await?;
         }
     }
 
