@@ -19,8 +19,8 @@ use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
 use lazy_static::lazy_static;
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
-use tokio::time::sleep;
+use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, warn};
 
 use crate::log;
@@ -172,17 +172,54 @@ async fn mount_health_route() -> Result<()> {
         .map_err(Into::into)
 }
 
+/// Get a database connection, retrying until we can connect. Send an alert if we can't.
+async fn get_db_connection(
+    db_url: &str,
+    retry_interval: &Duration,
+    max_retry_duration: &Duration,
+) -> Result<PgPool> {
+    let start_time = Instant::now();
+    loop {
+        match PgPoolOptions::new()
+            .max_connections(3)
+            .acquire_timeout(std::time::Duration::from_secs(3))
+            .connect(db_url)
+            .await
+        {
+            Ok(pool) => return Ok(pool),
+            Err(error)
+                if Instant::now().duration_since(start_time)
+                    < max_retry_duration.to_std().unwrap() =>
+            {
+                error!(?error, "failed to connect to database, retrying");
+                tokio::time::sleep(retry_interval.to_std().unwrap()).await;
+            }
+            Err(error) => {
+                error!(?error, "failed to connect to database, sending alert");
+                alert::send_alert("phoenix service failed to connect to database").await?;
+                return Err(error.into());
+            }
+        }
+    }
+}
+
 async fn run_ops_monitors() -> Result<()> {
-    let relay_pool = PgPoolOptions::new()
-        .max_connections(3)
-        .acquire_timeout(Duration::seconds(3).to_std().unwrap())
-        .connect(&APP_CONFIG.relay_database_url)
-        .await?;
-    let mev_pool = PgPoolOptions::new()
-        .max_connections(3)
-        .acquire_timeout(Duration::seconds(3).to_std().unwrap())
-        .connect(&APP_CONFIG.database_url)
-        .await?;
+    let max_retry_duration = Duration::minutes(2);
+    let retry_interval = Duration::seconds(10);
+
+    let relay_pool = get_db_connection(
+        &APP_CONFIG.relay_database_url,
+        &retry_interval,
+        &max_retry_duration,
+    )
+    .await?;
+
+    let mev_pool = get_db_connection(
+        &APP_CONFIG.database_url,
+        &retry_interval,
+        &max_retry_duration,
+    )
+    .await?;
 
     loop {
         let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
