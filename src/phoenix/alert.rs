@@ -1,7 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use axum::http::{HeaderMap, HeaderValue};
+use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::json;
+use tracing::debug;
 
 use crate::{env::Env, phoenix::env::APP_CONFIG};
 
@@ -10,19 +12,31 @@ pub async fn send_telegram_alert(message: &str) -> Result<()> {
         "https://api.telegram.org/bot{}/sendMessage",
         &APP_CONFIG.telegram_api_key
     );
-    reqwest::Client::new()
+    let response = reqwest::Client::new()
         .get(&url)
         .query(&[
-            ("chat_id", &APP_CONFIG.telegram_channel_id),
-            ("text", &message.to_string()),
-            ("parse_mode", &"MarkdownV2".to_string()),
-            ("disable_web_page_preview", &"true".to_string()),
+            ("chat_id", APP_CONFIG.telegram_channel_id.as_str()),
+            ("text", message),
+            ("parse_mode", "MarkdownV2"),
+            ("disable_web_page_preview", "true"),
         ])
         .send()
-        .await?
-        .error_for_status()?;
+        .await?;
 
-    Ok(())
+    match response.status() {
+        StatusCode::OK => {
+            debug!("sent telegram alert: {}", message);
+            Ok(())
+        }
+        StatusCode::BAD_REQUEST => {
+            let body = response.text().await?;
+            Err(anyhow!("failed to send telegram alert: {}", body))
+        }
+        _ => Err(anyhow!(
+            "failed to send telegram alert, status: {:?}",
+            response.status()
+        )),
+    }
 }
 
 #[derive(Deserialize)]
