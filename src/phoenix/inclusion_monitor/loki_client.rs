@@ -48,7 +48,7 @@ impl FromStr for PayloadLogStats {
                 })
                 .map(|result| &result["stream"])
                 .cloned()
-                .with_context(|| format!("no proposer-api log lines with msg field found"))?
+                .context("no proposer-api log lines with msg field found")?
         };
 
         let received_at = date_time_from_timestamp(&request_finished_log, "timestampRequestStart")?;
