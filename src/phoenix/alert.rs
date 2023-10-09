@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use axum::http::{HeaderMap, HeaderValue};
 use reqwest::StatusCode;
 use serde::Deserialize;
