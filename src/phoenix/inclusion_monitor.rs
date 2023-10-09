@@ -164,9 +164,9 @@ pub async fn run_inclusion_monitor(
                     insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
                     let PayloadLogStats {
+                        decoded_at_slot_age_ms,
                         pre_publish_duration_ms,
                         publish_duration_ms,
-                        received_at_slot_age_ms,
                         request_download_duration_ms,
                     } = log_client.payload_logs(&(payload.slot as i32)).await?;
 
@@ -181,9 +181,9 @@ pub async fn run_inclusion_monitor(
                         [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
 
                         ```
+                        decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
                         pre_publish_duration_ms: {pre_publish_duration_ms}
                         publish_duration_ms: {publish_duration_ms}
-                        received_at_slot_age_ms: {received_at_slot_age_ms}
                         request_download_duration_ms: {request_download_duration_ms}
                         safe_to_ignore: {safe_to_ignore}
                         slot: {slot}

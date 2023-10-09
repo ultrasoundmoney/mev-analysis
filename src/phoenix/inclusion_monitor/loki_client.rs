@@ -8,10 +8,10 @@ use reqwest::Url;
 /// on-chain should concern us.
 #[derive(Debug)]
 pub struct PayloadLogStats {
+    pub decoded_at_slot_age_ms: i64,
     pub pre_publish_duration_ms: i64,
     // The time it took to call our consensus node and have it publish the block.
     pub publish_duration_ms: i64,
-    pub received_at_slot_age_ms: i64,
     pub request_download_duration_ms: i64,
 }
 
@@ -57,7 +57,7 @@ impl FromStr for PayloadLogStats {
             date_time_from_timestamp(&request_finished_log, "timestampBeforePublishing")?;
         let post_publish_at =
             date_time_from_timestamp(&request_finished_log, "timestampAfterPublishing")?;
-        let received_at_slot_age_ms = request_finished_log["msIntoSlot"]
+        let decoded_at_slot_age_ms = request_finished_log["msIntoSlot"]
             .as_str()
             .and_then(|s| s.parse::<i64>().ok())
             .context("failed to parse msIntoSlot as i64")?;
@@ -75,9 +75,9 @@ impl FromStr for PayloadLogStats {
             .num_milliseconds();
 
         let payload_log_stats = PayloadLogStats {
+            decoded_at_slot_age_ms,
             pre_publish_duration_ms,
             publish_duration_ms,
-            received_at_slot_age_ms,
             request_download_duration_ms,
         };
 
