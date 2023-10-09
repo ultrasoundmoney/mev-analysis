@@ -86,7 +86,11 @@ async fn insert_missed_slot(
     .map_err(Into::into)
 }
 
-async fn get_missed_slot_count(mev_pool: &PgPool, start_slot: &i64, end_slot: &i64) -> Result<i64> {
+async fn get_missed_slot_count(
+    mev_pool: &PgPool,
+    start_slot: &i64,
+    end_slot: &i64,
+) -> anyhow::Result<i64> {
     sqlx::query_scalar!(
         "SELECT COUNT(*) FROM missed_slots WHERE slot_number > $1 AND slot_number <= $2",
         start_slot,
