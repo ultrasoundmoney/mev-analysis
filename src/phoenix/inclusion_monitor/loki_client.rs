@@ -31,7 +31,7 @@ impl FromStr for PayloadLogStats {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let request_finished_log: serde_json::Value = {
-            let log_data: serde_json::Value = serde_json::from_str(&text)
+            let log_data: serde_json::Value = serde_json::from_str(text)
                 .context("failed to parse payload log request body as JSON")?;
 
             // This is the array of parsed log lines and their raw values.
