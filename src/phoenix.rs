@@ -29,7 +29,8 @@ use crate::phoenix::{
 };
 
 use self::{
-    demotion_monitor::run_demotion_monitor, inclusion_monitor::run_inclusion_monitor,
+    demotion_monitor::run_demotion_monitor,
+    inclusion_monitor::{run_inclusion_monitor, LokiClient},
     promotion_monitor::run_promotion_monitor,
 };
 
@@ -220,11 +221,12 @@ async fn run_ops_monitors() -> Result<()> {
         &max_retry_duration,
     )
     .await?;
+    let loki_client = LokiClient::new(APP_CONFIG.loki_url.clone());
 
     loop {
         let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
         run_demotion_monitor(&relay_pool, &mev_pool).await?;
-        run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
+        run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon, &loki_client).await?;
         run_promotion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
         tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
     }

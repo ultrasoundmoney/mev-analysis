@@ -1,8 +1,14 @@
-use anyhow::Result;
+mod loki_client;
+
+pub use loki_client::LokiClient;
+
 use chrono::{DateTime, TimeZone, Utc};
+use indoc::formatdoc;
 use reqwest::StatusCode;
 use sqlx::{PgPool, Row};
 use tracing::{error, info, warn};
+
+use loki_client::PayloadLogStats;
 
 use crate::{
     beacon_api::BeaconApi,
@@ -27,7 +33,7 @@ async fn get_delivered_payloads(
     relay_pool: &PgPool,
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
-) -> Result<Vec<DeliveredPayload>> {
+) -> anyhow::Result<Vec<DeliveredPayload>> {
     let query = format!(
         "
         SELECT
@@ -64,7 +70,7 @@ async fn insert_missed_slot(
     slot_number: &i64,
     relayed: &String,
     canonical: Option<&String>,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     sqlx::query!(
         r#"
         INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
@@ -96,7 +102,8 @@ pub async fn run_inclusion_monitor(
     relay_pool: &PgPool,
     mev_pool: &PgPool,
     canonical_horizon: &DateTime<Utc>,
-) -> Result<()> {
+    log_client: &LokiClient,
+) -> anyhow::Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
 
     let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Inclusion).await? {
@@ -152,12 +159,36 @@ pub async fn run_inclusion_monitor(
 
                     insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
-                    alert::send_telegram_alert(&format!(
-                        "delivered block not found for slot [{slot}]({url}/slot/{slot})",
-                        slot = payload.slot,
-                        url = explorer_url,
-                    ))
-                    .await?;
+                    let PayloadLogStats {
+                        pre_publish_duration_ms,
+                        publish_duration_ms,
+                        received_at_slot_age_ms,
+                        request_download_duration_ms,
+                    } = log_client.payload_logs(&(payload.slot as i32)).await?;
+
+                    let publish_took_too_long = publish_duration_ms > 1000;
+                    let request_arrived_too_late = request_download_duration_ms > 1000;
+                    let safe_to_ignore = request_arrived_too_late && !publish_took_too_long;
+
+                    let msg = formatdoc!(
+                        "
+                        delivered block not found for slot
+
+                        [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+
+                        ```
+                        pre_publish_duration_ms: {pre_publish_duration_ms}
+                        publish_duration_ms: {publish_duration_ms}
+                        received_at_slot_age_ms: {received_at_slot_age_ms}
+                        request_download_duration_ms: {request_download_duration_ms}
+                        safe_to_ignore: {safe_to_ignore}
+                        slot: {slot}
+                        ```
+                        ",
+                        slot = payload.slot
+                    );
+
+                    alert::send_telegram_alert(&msg).await?;
                 } else {
                     error!(
                         "error getting block hash for slot {}: {}",
