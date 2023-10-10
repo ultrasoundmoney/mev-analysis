@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
@@ -251,13 +251,30 @@ pub async fn monitor_critical_services() -> Result<()> {
         Ok(_) => {
             let message = "phoenix processes exited unexpectedly";
             error!("{}", &message);
-            alert::send_telegram_alert(message).await?;
+            alert::send_telegram_alert(message)
+                .await
+                .context("failed to send alert when phoenix processes exited unexpectedly")?;
             Err(anyhow!(message))
         }
         Err(err) => {
             let message = format!("phoenix process exited with error: {}", err);
             error!("{}", &message);
-            alert::send_telegram_alert(&message).await?;
+            // It's possible the error contains a character which should've been
+            // escaped and fails to send. So in case of an error when sending, we send
+            // a simpler alert message without the error.
+            let send_result = alert::send_telegram_alert(&message)
+                .await
+                .context("failed to send alert with error");
+            match send_result {
+                Ok(_) => {}
+                Err(err) => {
+                    error!(?err, "failed to send alert");
+                    alert::send_telegram_alert(
+                        "phoenix process hit error, tried to send it here, but error contains illegal telegram message characters",
+                    )
+                    .await.context("failed to send alert for error, but without error")?;
+                }
+            }
             Err(err)
         }
     }
