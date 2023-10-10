@@ -13,51 +13,47 @@ pub struct PayloadLogStats {
     pub request_download_duration_ms: i64,
 }
 
-fn date_time_from_timestamp(
-    request_finished_log: &serde_json::Value,
-    key: &str,
-) -> anyhow::Result<DateTime<Utc>> {
-    request_finished_log[key]
-        .as_str()
+fn extract_date_time(json_map: &serde_json::Value, key: &str) -> anyhow::Result<DateTime<Utc>> {
+    json_map
+        .get(key)
+        .and_then(|timestamp| timestamp.as_str())
         .and_then(|timestamp| timestamp.parse::<i64>().ok())
         .and_then(|timestamp| Utc.timestamp_millis_opt(timestamp).single())
-        .with_context(|| format!("failed to parse {key} as timestamp from payload log"))
+        .with_context(|| {
+            format!(
+                "failed to parse {} as timestamp from payload published log",
+                key
+            )
+        })
 }
 
-fn parse_log_response(text: &str) -> anyhow::Result<Option<PayloadLogStats>> {
-    let request_finished_log: serde_json::Value = {
-        let log_data: serde_json::Value = serde_json::from_str(text)
+/// Takes the payload logs response and extracts the first log line. We rely on the query being
+/// crafted in such a way that the oldest matching result is the one we're looking for.
+fn parse_payload_published_log(text: &str) -> anyhow::Result<Option<PayloadLogStats>> {
+    let payload_published_log: serde_json::Value = {
+        let log_response_json: serde_json::Value = serde_json::from_str(text)
             .context("failed to parse payload log request body as JSON")?;
 
-        // This is the array of parsed log lines and their raw values.
-        let results = log_data["data"]["result"]
-            .as_array()
-            .context("expected at least one log line in payload logs response")?;
-
-        let log_data = results
-            .iter()
-            .find(|result| {
-                let stream = &result["stream"];
-                let msg = stream["msg"].as_str().unwrap_or("");
-                msg.contains("request finished")
-            })
-            .map(|result| &result["stream"])
-            .cloned();
-
-        match log_data {
-            Some(log_data) => log_data,
-            // If there are no logs, we stop here.
-            None => return Ok(None),
-        }
+        // See the tests for an example of the data.
+        log_response_json
+            // The rest is response metadata
+            .get("data")
+            // These are the lines, the rest is metadata about the lines
+            .and_then(|data| data.get("result"))
+            .and_then(|result| result.as_array())
+            .and_then(|lines| lines.iter().next())
+            // Each of these lines is expected to contain parsed JSON values in the `stream` field and
+            // raw values in the `values` field.
+            .and_then(|line| line.get("stream"))
+            .context("failed to get stream from payload published log")
+            .cloned()?
     };
 
-    let received_at = date_time_from_timestamp(&request_finished_log, "timestampRequestStart")?;
-    let decoded_at = date_time_from_timestamp(&request_finished_log, "timestampAfterDecode")?;
-    let pre_publish_at =
-        date_time_from_timestamp(&request_finished_log, "timestampBeforePublishing")?;
-    let post_publish_at =
-        date_time_from_timestamp(&request_finished_log, "timestampAfterPublishing")?;
-    let decoded_at_slot_age_ms = request_finished_log["msIntoSlot"]
+    let received_at = extract_date_time(&payload_published_log, "timestampRequestStart")?;
+    let decoded_at = extract_date_time(&payload_published_log, "timestampAfterDecode")?;
+    let pre_publish_at = extract_date_time(&payload_published_log, "timestampBeforePublishing")?;
+    let post_publish_at = extract_date_time(&payload_published_log, "timestampAfterPublishing")?;
+    let decoded_at_slot_age_ms = payload_published_log["msIntoSlot"]
         .as_str()
         .and_then(|s| s.parse::<i64>().ok())
         .context("failed to parse msIntoSlot as i64")?;
@@ -98,17 +94,25 @@ impl LokiClient {
     }
 
     pub async fn payload_logs(&self, slot: &i32) -> anyhow::Result<Option<PayloadLogStats>> {
-        let query = format!(r#"{{app="proposer-api"}} |= `"slot":{slot}` | json"#);
+        let query = format!(
+            r#"{{app="proposer-api"}} |= `"slot":{slot}` |= "block published through beacon node" | json"#
+        );
         let since = "24h";
 
         let url = format!("{}/loki/api/v1/query_range", self.server_url);
-        let url_with_params =
-            Url::parse_with_params(&url, &[("query", query.as_str()), ("since", since)])?;
+        let url_with_params = Url::parse_with_params(
+            &url,
+            &[
+                ("direction", "forward"),
+                ("query", query.as_str()),
+                ("since", since),
+            ],
+        )?;
 
         let response = self.client.get(url_with_params).send().await?;
         let body = response.text().await?;
 
-        parse_log_response(&body)
+        parse_payload_published_log(&body)
     }
 }
 
@@ -128,6 +132,6 @@ mod tests {
             })
             .unwrap();
 
-        parse_log_response(&str).unwrap();
+        parse_payload_published_log(&str).unwrap();
     }
 }

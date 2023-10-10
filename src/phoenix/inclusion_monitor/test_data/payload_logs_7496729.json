@@ -20,48 +20,6 @@
           "method": "getPayload",
           "mevBoostV": "v1.6",
           "msIntoSlot": "3625",
-          "msg": "getPayload request received",
-          "namespace": "default",
-          "node_name": "kate",
-          "pod": "proposer-api-cf64dbf6-wmz9h",
-          "proposerIndex": "138873",
-          "proposerPubkey": "0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488",
-          "service": "relay/api",
-          "slot": "7496729",
-          "slotEpochPos": "26",
-          "slotStartSec": "1696784771",
-          "stream": "stdout",
-          "time": "2023-10-08T17:06:14.62824969Z",
-          "timestampAfterDecode": "1696784774625",
-          "timestampAfterSignatureVerify": "1696784774628",
-          "timestampRequestStart": "1696784773892",
-          "ua": "mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336",
-          "version": ""
-        },
-        "values": [
-          [
-            "1696784774628249690",
-            "{\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"contentLength\":81587,\"feeRecipient\":\"0x4675c7e5baafbffbca748158becba61ef3b0a263\",\"headSlot\":7496728,\"headSlotEpochPos\":25,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3625,\"msg\":\"getPayload request received\",\"proposerIndex\":138873,\"proposerPubkey\":\"0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488\",\"service\":\"relay/api\",\"slot\":7496729,\"slotEpochPos\":26,\"slotStartSec\":1696784771,\"time\":\"2023-10-08T17:06:14.62824969Z\",\"timestampAfterDecode\":1696784774625,\"timestampAfterSignatureVerify\":1696784774628,\"timestampRequestStart\":1696784773892,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336\",\"version\":\"\"}"
-          ]
-        ]
-      },
-      {
-        "stream": {
-          "app": "proposer-api",
-          "blockHash": "0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096",
-          "container": "proposer-api",
-          "contentLength": "81587",
-          "feeRecipient": "0x4675c7e5baafbffbca748158becba61ef3b0a263",
-          "filename": "/var/log/pods/default_proposer-api-cf64dbf6-wmz9h_5805ffc1-3abf-4e10-9468-1120c8add007/proposer-api/0.log",
-          "headSlot": "7496728",
-          "headSlotEpochPos": "25",
-          "idArg": "",
-          "job": "default/proposer-api",
-          "level": "info",
-          "level_extracted": "info",
-          "method": "getPayload",
-          "mevBoostV": "v1.6",
-          "msIntoSlot": "3625",
           "msNeededForPublishing": "647",
           "msg": "block published through beacon node",
           "namespace": "default",
@@ -91,209 +49,33 @@
             "{\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"contentLength\":81587,\"feeRecipient\":\"0x4675c7e5baafbffbca748158becba61ef3b0a263\",\"headSlot\":7496728,\"headSlotEpochPos\":25,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3625,\"msNeededForPublishing\":647,\"msg\":\"block published through beacon node\",\"proposerIndex\":138873,\"proposerPubkey\":\"0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488\",\"service\":\"relay/api\",\"slot\":7496729,\"slotEpochPos\":26,\"slotStartSec\":1696784771,\"time\":\"2023-10-08T17:06:15.285183899Z\",\"timestampAfterAlreadyDeliveredCheck\":1696784774635,\"timestampAfterDecode\":1696784774625,\"timestampAfterLoadResponse\":1696784774634,\"timestampAfterPublishing\":1696784775285,\"timestampAfterSignatureVerify\":1696784774628,\"timestampBeforePublishing\":1696784774638,\"timestampRequestStart\":1696784773892,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336\",\"version\":\"\"}"
           ]
         ]
-      },
-      {
-        "stream": {
-          "app": "proposer-api",
-          "blockHash": "0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096",
-          "blockNumber": "18307137",
-          "container": "proposer-api",
-          "contentLength": "81587",
-          "feeRecipient": "0x4675c7e5baafbffbca748158becba61ef3b0a263",
-          "filename": "/var/log/pods/default_proposer-api-cf64dbf6-wmz9h_5805ffc1-3abf-4e10-9468-1120c8add007/proposer-api/0.log",
-          "headSlot": "7496728",
-          "headSlotEpochPos": "25",
-          "idArg": "",
-          "job": "default/proposer-api",
-          "level": "info",
-          "level_extracted": "info",
-          "method": "getPayload",
-          "mevBoostV": "v1.6",
-          "msIntoSlot": "3625",
-          "msg": "request finished",
-          "namespace": "default",
-          "node_name": "kate",
-          "numTx": "196",
-          "pod": "proposer-api-cf64dbf6-wmz9h",
-          "proposerIndex": "138873",
-          "proposerPubkey": "0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488",
-          "requestDurationMs": "2425",
-          "service": "relay/api",
-          "slot": "7496729",
-          "slotEpochPos": "26",
-          "slotStartSec": "1696784771",
-          "stream": "stdout",
-          "time": "2023-10-08T17:06:16.318189593Z",
-          "timestampAfterAlreadyDeliveredCheck": "1696784774635",
-          "timestampAfterDecode": "1696784774625",
-          "timestampAfterLoadResponse": "1696784774634",
-          "timestampAfterPublishing": "1696784775285",
-          "timestampAfterSignatureVerify": "1696784774628",
-          "timestampBeforePublishing": "1696784774638",
-          "timestampRequestFin": "1696784776318",
-          "timestampRequestStart": "1696784773892",
-          "ua": "mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336",
-          "version": ""
-        },
-        "values": [
-          [
-            "1696784776318189593",
-            "{\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"blockNumber\":18307137,\"contentLength\":81587,\"feeRecipient\":\"0x4675c7e5baafbffbca748158becba61ef3b0a263\",\"headSlot\":7496728,\"headSlotEpochPos\":25,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3625,\"msg\":\"request finished\",\"numTx\":196,\"proposerIndex\":138873,\"proposerPubkey\":\"0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488\",\"requestDurationMs\":2425,\"service\":\"relay/api\",\"slot\":7496729,\"slotEpochPos\":26,\"slotStartSec\":1696784771,\"time\":\"2023-10-08T17:06:16.318189593Z\",\"timestampAfterAlreadyDeliveredCheck\":1696784774635,\"timestampAfterDecode\":1696784774625,\"timestampAfterLoadResponse\":1696784774634,\"timestampAfterPublishing\":1696784775285,\"timestampAfterSignatureVerify\":1696784774628,\"timestampBeforePublishing\":1696784774638,\"timestampRequestFin\":1696784776318,\"timestampRequestStart\":1696784773892,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336\",\"version\":\"\"}"
-          ]
-        ]
-      },
-      {
-        "stream": {
-          "app": "proposer-api",
-          "blockHash": "0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096",
-          "blockNumber": "18307137",
-          "container": "proposer-api",
-          "contentLength": "81587",
-          "feeRecipient": "0x4675c7e5baafbffbca748158becba61ef3b0a263",
-          "filename": "/var/log/pods/default_proposer-api-cf64dbf6-wmz9h_5805ffc1-3abf-4e10-9468-1120c8add007/proposer-api/0.log",
-          "headSlot": "7496728",
-          "headSlotEpochPos": "25",
-          "idArg": "",
-          "job": "default/proposer-api",
-          "level": "info",
-          "level_extracted": "info",
-          "method": "getPayload",
-          "mevBoostV": "v1.6",
-          "msIntoSlot": "3625",
-          "msg": "no demotion in getPayload, successful block proposal",
-          "namespace": "default",
-          "node_name": "kate",
-          "numTx": "196",
-          "pod": "proposer-api-cf64dbf6-wmz9h",
-          "proposerIndex": "138873",
-          "proposerPubkey": "0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488",
-          "service": "relay/api",
-          "slot": "7496729",
-          "slotEpochPos": "26",
-          "slotStartSec": "1696784771",
-          "stream": "stdout",
-          "time": "2023-10-08T17:06:16.321953648Z",
-          "timestampAfterAlreadyDeliveredCheck": "1696784774635",
-          "timestampAfterDecode": "1696784774625",
-          "timestampAfterLoadResponse": "1696784774634",
-          "timestampAfterPublishing": "1696784775285",
-          "timestampAfterSignatureVerify": "1696784774628",
-          "timestampBeforePublishing": "1696784774638",
-          "timestampRequestStart": "1696784773892",
-          "ua": "mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336",
-          "version": ""
-        },
-        "values": [
-          [
-            "1696784776321953648",
-            "{\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"blockNumber\":18307137,\"contentLength\":81587,\"feeRecipient\":\"0x4675c7e5baafbffbca748158becba61ef3b0a263\",\"headSlot\":7496728,\"headSlotEpochPos\":25,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3625,\"msg\":\"no demotion in getPayload, successful block proposal\",\"numTx\":196,\"proposerIndex\":138873,\"proposerPubkey\":\"0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488\",\"service\":\"relay/api\",\"slot\":7496729,\"slotEpochPos\":26,\"slotStartSec\":1696784771,\"time\":\"2023-10-08T17:06:16.321953648Z\",\"timestampAfterAlreadyDeliveredCheck\":1696784774635,\"timestampAfterDecode\":1696784774625,\"timestampAfterLoadResponse\":1696784774634,\"timestampAfterPublishing\":1696784775285,\"timestampAfterSignatureVerify\":1696784774628,\"timestampBeforePublishing\":1696784774638,\"timestampRequestStart\":1696784773892,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336\",\"version\":\"\"}"
-          ]
-        ]
-      },
-      {
-        "stream": {
-          "app": "proposer-api",
-          "blockHash": "0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096",
-          "blockNumber": "18307137",
-          "container": "proposer-api",
-          "contentLength": "81587",
-          "feeRecipient": "0x4675c7e5baafbffbca748158becba61ef3b0a263",
-          "filename": "/var/log/pods/default_proposer-api-cf64dbf6-wmz9h_5805ffc1-3abf-4e10-9468-1120c8add007/proposer-api/0.log",
-          "headSlot": "7496728",
-          "headSlotEpochPos": "25",
-          "idArg": "",
-          "job": "default/proposer-api",
-          "level": "info",
-          "level_extracted": "info",
-          "method": "getPayload",
-          "metric_stream": "execution-payload-delivered",
-          "mevBoostV": "v1.6",
-          "msIntoSlot": "3625",
-          "msg": "execution payload delivered",
-          "namespace": "default",
-          "node_name": "kate",
-          "numTx": "196",
-          "pod": "proposer-api-cf64dbf6-wmz9h",
-          "proposerIndex": "138873",
-          "proposerPubkey": "0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488",
-          "service": "relay/api",
-          "slot": "7496729",
-          "slotEpochPos": "26",
-          "slotStartSec": "1696784771",
-          "stream": "stdout",
-          "time": "2023-10-08T17:06:16.310283235Z",
-          "timestampAfterAlreadyDeliveredCheck": "1696784774635",
-          "timestampAfterDecode": "1696784774625",
-          "timestampAfterLoadResponse": "1696784774634",
-          "timestampAfterPublishing": "1696784775285",
-          "timestampAfterSignatureVerify": "1696784774628",
-          "timestampBeforePublishing": "1696784774638",
-          "timestampRequestStart": "1696784773892",
-          "ua": "mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336",
-          "version": ""
-        },
-        "values": [
-          [
-            "1696784776310283235",
-            "{\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"blockNumber\":18307137,\"contentLength\":81587,\"feeRecipient\":\"0x4675c7e5baafbffbca748158becba61ef3b0a263\",\"headSlot\":7496728,\"headSlotEpochPos\":25,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3625,\"msg\":\"execution payload delivered\",\"numTx\":196,\"proposerIndex\":138873,\"proposerPubkey\":\"0x8f94956dde1ba8d8a800163e0c654553a5e05eabebed8d443ffc5f52a77ffffc5ec69a14e406b4982371ddc96c007488\",\"service\":\"relay/api\",\"slot\":7496729,\"slotEpochPos\":26,\"slotStartSec\":1696784771,\"time\":\"2023-10-08T17:06:16.310283235Z\",\"timestampAfterAlreadyDeliveredCheck\":1696784774635,\"timestampAfterDecode\":1696784774625,\"timestampAfterLoadResponse\":1696784774634,\"timestampAfterPublishing\":1696784775285,\"timestampAfterSignatureVerify\":1696784774628,\"timestampBeforePublishing\":1696784774638,\"timestampRequestStart\":1696784773892,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.3.0-dfcb336\",\"version\":\"\"}"
-          ]
-        ]
-      },
-      {
-        "stream": {
-          "app": "proposer-api",
-          "beacon": "http://10.0.0.1:3500",
-          "blockHash": "0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096",
-          "component": "beaconClient",
-          "container": "proposer-api",
-          "filename": "/var/log/pods/default_proposer-api-cf64dbf6-wmz9h_5805ffc1-3abf-4e10-9468-1120c8add007/proposer-api/0.log",
-          "job": "default/proposer-api",
-          "level": "info",
-          "level_extracted": "info",
-          "msg": "published block",
-          "namespace": "default",
-          "node_name": "kate",
-          "pod": "proposer-api-cf64dbf6-wmz9h",
-          "service": "relay/api",
-          "slot": "7496729",
-          "statusCode": "200",
-          "stream": "stdout",
-          "time": "2023-10-08T17:06:15.285144063Z",
-          "version": ""
-        },
-        "values": [
-          [
-            "1696784775285144063",
-            "{\"beacon\":\"http://10.0.0.1:3500\",\"blockHash\":\"0x73bec1f6e7571247af2037120680a8a7e57fdbfc1d27202d619638141f0e0096\",\"component\":\"beaconClient\",\"level\":\"info\",\"msg\":\"published block\",\"service\":\"relay/api\",\"slot\":7496729,\"statusCode\":200,\"time\":\"2023-10-08T17:06:15.285144063Z\",\"version\":\"\"}"
-          ]
-        ]
       }
     ],
     "stats": {
       "summary": {
-        "bytesProcessedPerSecond": 230885010,
-        "linesProcessedPerSecond": 785906,
-        "totalBytesProcessed": 67432281,
-        "totalLinesProcessed": 229532,
-        "execTime": 0.29206,
-        "queueTime": 0.000567,
+        "bytesProcessedPerSecond": 339288704,
+        "linesProcessedPerSecond": 1162829,
+        "totalBytesProcessed": 127584551,
+        "totalLinesProcessed": 437265,
+        "execTime": 0.376035,
+        "queueTime": 0.000848,
         "subqueries": 0,
-        "totalEntriesReturned": 6,
-        "splits": 97,
-        "shards": 3
+        "totalEntriesReturned": 1,
+        "splits": 193,
+        "shards": 4
       },
       "querier": {
         "store": {
-          "totalChunksRef": 48,
-          "totalChunksDownloaded": 48,
-          "chunksDownloadTime": 67631518,
+          "totalChunksRef": 95,
+          "totalChunksDownloaded": 95,
+          "chunksDownloadTime": 506314604,
           "chunk": {
             "headChunkBytes": 0,
             "headChunkLines": 0,
-            "decompressedBytes": 67432281,
-            "decompressedLines": 229532,
-            "compressedBytes": 5421475,
-            "totalDuplicates": 2
+            "decompressedBytes": 127584551,
+            "decompressedLines": 437265,
+            "compressedBytes": 10312251,
+            "totalDuplicates": 0
           }
         }
       },
@@ -318,13 +100,13 @@
       },
       "cache": {
         "chunk": {
-          "entriesFound": 44,
-          "entriesRequested": 48,
-          "entriesStored": 4,
-          "bytesReceived": 16970760,
-          "bytesSent": 244499,
-          "requests": 3,
-          "downloadTime": 28564786
+          "entriesFound": 46,
+          "entriesRequested": 95,
+          "entriesStored": 49,
+          "bytesReceived": 1053238,
+          "bytesSent": 36044743,
+          "requests": 5,
+          "downloadTime": 5628161
         },
         "index": {
           "entriesFound": 0,
@@ -336,13 +118,13 @@
           "downloadTime": 0
         },
         "result": {
-          "entriesFound": 94,
-          "entriesRequested": 95,
-          "entriesStored": 0,
-          "bytesReceived": 9218,
+          "entriesFound": 189,
+          "entriesRequested": 191,
+          "entriesStored": 1,
+          "bytesReceived": 26655,
           "bytesSent": 0,
-          "requests": 95,
-          "downloadTime": 101725232
+          "requests": 192,
+          "downloadTime": 271432420
         }
       }
     }
