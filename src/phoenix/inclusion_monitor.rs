@@ -102,6 +102,57 @@ async fn get_missed_slot_count(
     .map_err(Into::into)
 }
 
+fn format_delivered_not_found_message(log_stats: Option<PayloadLogStats>, slot: &i64) -> String {
+    let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
+
+    match log_stats {
+        Some(stats) => {
+            let PayloadLogStats {
+                decoded_at_slot_age_ms,
+                pre_publish_duration_ms,
+                publish_duration_ms,
+                request_download_duration_ms,
+            } = stats;
+
+            let publish_took_too_long = publish_duration_ms > 1000;
+            let request_arrived_too_late = request_download_duration_ms > 1000;
+            let safe_to_ignore = request_arrived_too_late && !publish_took_too_long;
+
+            formatdoc!(
+                "
+                delivered block not found for slot
+
+                [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+
+                ```
+                decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
+                pre_publish_duration_ms: {pre_publish_duration_ms}
+                publish_duration_ms: {publish_duration_ms}
+                request_download_duration_ms: {request_download_duration_ms}
+                safe_to_ignore: {safe_to_ignore}
+                slot: {slot}
+                ```
+                ",
+            )
+        }
+        None => {
+            error!("no payload log stats found for slot {}", slot);
+
+            formatdoc!(
+                "
+                delivered block not found for slot
+
+                [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+
+                ```
+                log based stats not found, check logs for details
+                ```
+                ",
+            )
+        }
+    }
+}
+
 pub async fn run_inclusion_monitor(
     relay_pool: &PgPool,
     mev_pool: &PgPool,
@@ -163,34 +214,8 @@ pub async fn run_inclusion_monitor(
 
                     insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
-                    let PayloadLogStats {
-                        decoded_at_slot_age_ms,
-                        pre_publish_duration_ms,
-                        publish_duration_ms,
-                        request_download_duration_ms,
-                    } = log_client.payload_logs(&(payload.slot as i32)).await?;
-
-                    let publish_took_too_long = publish_duration_ms > 1000;
-                    let request_arrived_too_late = request_download_duration_ms > 1000;
-                    let safe_to_ignore = request_arrived_too_late && !publish_took_too_long;
-
-                    let msg = formatdoc!(
-                        "
-                        delivered block not found for slot
-
-                        [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
-
-                        ```
-                        decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
-                        pre_publish_duration_ms: {pre_publish_duration_ms}
-                        publish_duration_ms: {publish_duration_ms}
-                        request_download_duration_ms: {request_download_duration_ms}
-                        safe_to_ignore: {safe_to_ignore}
-                        slot: {slot}
-                        ```
-                        ",
-                        slot = payload.slot
-                    );
+                    let log_stats = log_client.payload_logs(&(payload.slot as i32)).await?;
+                    let msg = format_delivered_not_found_message(log_stats, &payload.slot);
 
                     alert::send_telegram_alert(&msg).await?;
                 } else {

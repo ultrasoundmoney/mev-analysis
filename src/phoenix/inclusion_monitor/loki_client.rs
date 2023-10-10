@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use anyhow::Context;
 use chrono::{DateTime, TimeZone, Utc};
 use reqwest::Url;
@@ -26,63 +24,64 @@ fn date_time_from_timestamp(
         .with_context(|| format!("failed to parse {key} as timestamp from payload log"))
 }
 
-impl FromStr for PayloadLogStats {
-    type Err = anyhow::Error;
+fn parse_log_response(text: &str) -> anyhow::Result<Option<PayloadLogStats>> {
+    let request_finished_log: serde_json::Value = {
+        let log_data: serde_json::Value = serde_json::from_str(text)
+            .context("failed to parse payload log request body as JSON")?;
 
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let request_finished_log: serde_json::Value = {
-            let log_data: serde_json::Value = serde_json::from_str(text)
-                .context("failed to parse payload log request body as JSON")?;
+        // This is the array of parsed log lines and their raw values.
+        let results = log_data["data"]["result"]
+            .as_array()
+            .context("expected at least one log line in payload logs response")?;
 
-            // This is the array of parsed log lines and their raw values.
-            let results = log_data["data"]["result"]
-                .as_array()
-                .context("expected at least one log line in payload logs response")?;
+        let log_data = results
+            .iter()
+            .find(|result| {
+                let stream = &result["stream"];
+                let msg = stream["msg"].as_str().unwrap_or("");
+                msg.contains("request finished")
+            })
+            .map(|result| &result["stream"])
+            .cloned();
 
-            results
-                .iter()
-                .find(|result| {
-                    let stream = &result["stream"];
-                    let msg = stream["msg"].as_str().unwrap_or("");
-                    msg.contains("request finished")
-                })
-                .map(|result| &result["stream"])
-                .cloned()
-                .context("no proposer-api log lines with msg field found")?
-        };
+        match log_data {
+            Some(log_data) => log_data,
+            // If there are no logs, we stop here.
+            None => return Ok(None),
+        }
+    };
 
-        let received_at = date_time_from_timestamp(&request_finished_log, "timestampRequestStart")?;
-        let decoded_at = date_time_from_timestamp(&request_finished_log, "timestampAfterDecode")?;
-        let pre_publish_at =
-            date_time_from_timestamp(&request_finished_log, "timestampBeforePublishing")?;
-        let post_publish_at =
-            date_time_from_timestamp(&request_finished_log, "timestampAfterPublishing")?;
-        let decoded_at_slot_age_ms = request_finished_log["msIntoSlot"]
-            .as_str()
-            .and_then(|s| s.parse::<i64>().ok())
-            .context("failed to parse msIntoSlot as i64")?;
+    let received_at = date_time_from_timestamp(&request_finished_log, "timestampRequestStart")?;
+    let decoded_at = date_time_from_timestamp(&request_finished_log, "timestampAfterDecode")?;
+    let pre_publish_at =
+        date_time_from_timestamp(&request_finished_log, "timestampBeforePublishing")?;
+    let post_publish_at =
+        date_time_from_timestamp(&request_finished_log, "timestampAfterPublishing")?;
+    let decoded_at_slot_age_ms = request_finished_log["msIntoSlot"]
+        .as_str()
+        .and_then(|s| s.parse::<i64>().ok())
+        .context("failed to parse msIntoSlot as i64")?;
 
-        let pre_publish_duration_ms = pre_publish_at
-            .signed_duration_since(received_at)
-            .num_milliseconds();
+    let pre_publish_duration_ms = pre_publish_at
+        .signed_duration_since(received_at)
+        .num_milliseconds();
 
-        let publish_duration_ms = post_publish_at
-            .signed_duration_since(pre_publish_at)
-            .num_milliseconds();
+    let publish_duration_ms = post_publish_at
+        .signed_duration_since(pre_publish_at)
+        .num_milliseconds();
 
-        let request_download_duration_ms = decoded_at
-            .signed_duration_since(received_at)
-            .num_milliseconds();
+    let request_download_duration_ms = decoded_at
+        .signed_duration_since(received_at)
+        .num_milliseconds();
 
-        let payload_log_stats = PayloadLogStats {
-            decoded_at_slot_age_ms,
-            pre_publish_duration_ms,
-            publish_duration_ms,
-            request_download_duration_ms,
-        };
+    let payload_log_stats = PayloadLogStats {
+        decoded_at_slot_age_ms,
+        pre_publish_duration_ms,
+        publish_duration_ms,
+        request_download_duration_ms,
+    };
 
-        Ok(payload_log_stats)
-    }
+    Ok(Some(payload_log_stats))
 }
 
 pub struct LokiClient {
@@ -98,7 +97,7 @@ impl LokiClient {
         }
     }
 
-    pub async fn payload_logs(&self, slot: &i32) -> anyhow::Result<PayloadLogStats> {
+    pub async fn payload_logs(&self, slot: &i32) -> anyhow::Result<Option<PayloadLogStats>> {
         let query = format!(r#"{{app="proposer-api"}} |= `"slot":{slot}` | json"#);
         let since = "24h";
 
@@ -109,7 +108,7 @@ impl LokiClient {
         let response = self.client.get(url_with_params).send().await?;
         let body = response.text().await?;
 
-        body.parse::<PayloadLogStats>()
+        parse_log_response(&body)
     }
 }
 
