@@ -100,7 +100,7 @@ impl LokiClient {
 
     pub async fn payload_logs(&self, slot: &i32) -> anyhow::Result<PayloadLogStats> {
         let query = format!(r#"{{app="proposer-api"}} |= `"slot":{slot}` | json"#);
-        let since = "15m";
+        let since = "24h";
 
         let url = format!("{}/loki/api/v1/query_range", self.server_url);
         let url_with_params =
