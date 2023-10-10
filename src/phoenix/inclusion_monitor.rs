@@ -115,8 +115,8 @@ fn format_delivered_not_found_message(log_stats: Option<PayloadLogStats>, slot: 
             } = stats;
 
             let publish_took_too_long = publish_duration_ms > 1000;
-            let request_arrived_too_late = request_download_duration_ms > 1000;
-            let safe_to_ignore = request_arrived_too_late && !publish_took_too_long;
+            let request_delivered_late = decoded_at_slot_age_ms >= 3000;
+            let safe_to_ignore = request_delivered_late && !publish_took_too_long;
 
             formatdoc!(
                 "
