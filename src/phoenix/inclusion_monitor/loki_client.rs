@@ -119,7 +119,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_log_response() {
+    fn parse_log_response_test() {
         let str = File::open("src/phoenix/inclusion_monitor/test_data/payload_logs_7496729.json")
             .map(|mut file| {
                 let mut str = String::new();
@@ -128,6 +128,6 @@ mod tests {
             })
             .unwrap();
 
-        str.parse::<PayloadLogStats>().unwrap();
+        parse_log_response(&str).unwrap();
     }
 }
