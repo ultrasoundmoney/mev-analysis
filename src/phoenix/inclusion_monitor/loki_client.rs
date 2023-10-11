@@ -101,7 +101,7 @@ impl LokiClient {
 
     pub async fn payload_logs(&self, slot: &i32) -> anyhow::Result<Option<PayloadLogStats>> {
         let query = format!(
-            r#"{{app="proposer-api"}} |= `"slot":{slot}` |= "block published through beacon node" | json"#
+            r#"{{app="payload-api"}} |= `"slot":{slot}` |= "block published through beacon node" | json"#
         );
         let since = "24h";
 
