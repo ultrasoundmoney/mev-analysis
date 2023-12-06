@@ -43,6 +43,7 @@ async fn get_delivered_payloads(
         FROM {}_payload_delivered
         WHERE inserted_at > $1
         AND inserted_at <= $2
+        AND publish_ms != 0
         ORDER BY inserted_at ASC
         ",
         &APP_CONFIG.env.to_network().to_string(),
