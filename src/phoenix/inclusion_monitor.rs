@@ -1,5 +1,6 @@
 mod loki_client;
 
+use anyhow::Context;
 pub use loki_client::LokiClient;
 
 use chrono::{DateTime, TimeZone, Utc};
@@ -13,6 +14,7 @@ use loki_client::PayloadLogStats;
 use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
+    phoenix::telegram::telegram_escape,
 };
 
 use super::{
@@ -22,11 +24,11 @@ use super::{
 };
 
 #[derive(Debug)]
-#[allow(dead_code)]
 struct DeliveredPayload {
-    inserted_at: DateTime<Utc>,
-    slot: i64,
     block_hash: String,
+    inserted_at: DateTime<Utc>,
+    proposer_pubkey: String,
+    slot: i64,
 }
 
 async fn get_delivered_payloads(
@@ -39,7 +41,8 @@ async fn get_delivered_payloads(
         SELECT
             inserted_at,
             slot,
-            block_hash
+            block_hash,
+            proposer_pubkey
         FROM {}_payload_delivered
         WHERE inserted_at > $1
         AND inserted_at <= $2
@@ -57,9 +60,10 @@ async fn get_delivered_payloads(
         .map(|rows| {
             rows.iter()
                 .map(|row| DeliveredPayload {
-                    inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
-                    slot: row.get("slot"),
                     block_hash: row.get("block_hash"),
+                    inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
+                    proposer_pubkey: row.get("proposer_pubkey"),
+                    slot: row.get("slot"),
                 })
                 .collect()
         })
@@ -103,7 +107,40 @@ async fn get_missed_slot_count(
     .map_err(Into::into)
 }
 
-fn format_delivered_not_found_message(log_stats: Option<PayloadLogStats>, slot: &i64) -> String {
+#[derive(Default, sqlx::FromRow)]
+pub struct ProposerLabelMeta {
+    pub grafitti: Option<String>,
+    pub label: Option<String>,
+    pub lido_operator: Option<String>,
+}
+
+pub async fn proposer_label_meta(
+    pg_pool: &PgPool,
+    proposer_pubkey: &str,
+) -> anyhow::Result<ProposerLabelMeta> {
+    sqlx::query_as!(
+        ProposerLabelMeta,
+        "
+        SELECT
+            label,
+            lido_operator,
+            last_graffiti AS grafitti
+        FROM validators
+        WHERE pubkey = $1
+        ",
+        proposer_pubkey
+    )
+    .fetch_optional(pg_pool)
+    .await
+    .map(|row| row.unwrap_or_default())
+    .context("failed to get proposer label meta")
+}
+
+fn format_delivered_not_found_message(
+    log_stats: Option<PayloadLogStats>,
+    proposer_meta: ProposerLabelMeta,
+    slot: &i64,
+) -> String {
     let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
 
     match log_stats {
@@ -119,6 +156,21 @@ fn format_delivered_not_found_message(log_stats: Option<PayloadLogStats>, slot: 
             let request_delivered_late = decoded_at_slot_age_ms >= 3000;
             let safe_to_ignore = request_delivered_late && !publish_took_too_long;
 
+            let operator = {
+                let label = proposer_meta.label.as_deref().unwrap_or("-");
+                telegram_escape(label)
+            };
+
+            let lido_operator = {
+                let lido_operator = proposer_meta.lido_operator.as_deref().unwrap_or("-");
+                telegram_escape(lido_operator)
+            };
+
+            let grafitti = {
+                let grafitti = proposer_meta.grafitti.as_deref().unwrap_or("-");
+                telegram_escape(grafitti)
+            };
+
             formatdoc!(
                 "
                 delivered block not found for slot
@@ -128,6 +180,9 @@ fn format_delivered_not_found_message(log_stats: Option<PayloadLogStats>, slot: 
                 ```
                 decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
                 pre_publish_duration_ms: {pre_publish_duration_ms}
+                proposer_grafitti: {grafitti}
+                proposer_label: {operator}
+                proposer_lido_operator: {lido_operator}
                 publish_duration_ms: {publish_duration_ms}
                 request_download_duration_ms: {request_download_duration_ms}
                 safe_to_ignore: {safe_to_ignore}
@@ -215,8 +270,11 @@ pub async fn run_inclusion_monitor(
 
                     insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
-                    let log_stats = log_client.payload_logs(&(payload.slot as i32)).await?;
-                    let msg = format_delivered_not_found_message(log_stats, &payload.slot);
+                    let log_stats = log_client.payload_logs(payload.slot).await?;
+                    let proposer_meta =
+                        proposer_label_meta(mev_pool, &payload.proposer_pubkey).await?;
+                    let msg =
+                        format_delivered_not_found_message(log_stats, proposer_meta, &payload.slot);
 
                     alert::send_telegram_alert(&msg).await?;
                 } else {

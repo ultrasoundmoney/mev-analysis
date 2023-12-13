@@ -6,6 +6,7 @@ mod env;
 mod inclusion_monitor;
 mod markdown;
 mod promotion_monitor;
+mod telegram;
 mod validation_node;
 
 use std::{
