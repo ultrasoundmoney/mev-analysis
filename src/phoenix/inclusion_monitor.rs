@@ -26,6 +26,7 @@ use super::{
 #[derive(Debug)]
 struct DeliveredPayload {
     block_hash: String,
+    #[allow(dead_code)]
     inserted_at: DateTime<Utc>,
     proposer_pubkey: String,
     slot: i64,
