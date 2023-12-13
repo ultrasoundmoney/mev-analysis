@@ -119,8 +119,7 @@ pub async fn proposer_label_meta(
     pg_pool: &PgPool,
     proposer_pubkey: &str,
 ) -> anyhow::Result<ProposerLabelMeta> {
-    sqlx::query_as!(
-        ProposerLabelMeta,
+    sqlx::query_as::<_, ProposerLabelMeta>(
         "
         SELECT
             label,
@@ -129,8 +128,8 @@ pub async fn proposer_label_meta(
         FROM validators
         WHERE pubkey = $1
         ",
-        proposer_pubkey
     )
+    .bind(proposer_pubkey)
     .fetch_optional(pg_pool)
     .await
     .map(|row| row.unwrap_or_default())
