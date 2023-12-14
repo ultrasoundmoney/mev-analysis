@@ -55,8 +55,6 @@ fn parse_payload_published_log(text: &str) -> anyhow::Result<Option<PayloadLogSt
             let decoded_at = extract_date_time(&payload_published_log, "timestampAfterDecode")?;
             let pre_publish_at =
                 extract_date_time(&payload_published_log, "timestampBeforePublishing")?;
-            let post_publish_at =
-                extract_date_time(&payload_published_log, "timestampAfterPublishing")?;
             let decoded_at_slot_age_ms = payload_published_log["msIntoSlot"]
                 .as_str()
                 .and_then(|s| s.parse::<i64>().ok())
@@ -66,9 +64,11 @@ fn parse_payload_published_log(text: &str) -> anyhow::Result<Option<PayloadLogSt
                 .signed_duration_since(received_at)
                 .num_milliseconds();
 
-            let publish_duration_ms = post_publish_at
-                .signed_duration_since(pre_publish_at)
-                .num_milliseconds();
+            let publish_duration_ms = payload_published_log
+                .get("msNeededForPublishing")
+                .and_then(|timestamp| timestamp.as_str())
+                .and_then(|timestamp| timestamp.parse::<i64>().ok())
+                .context("failed to parse msNeededForPublishing as i64")?;
 
             let request_download_duration_ms = decoded_at
                 .signed_duration_since(received_at)
