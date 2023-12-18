@@ -203,11 +203,29 @@ async fn proposer_location(pg_pool: &PgPool, ip_address: &str) -> anyhow::Result
     .context("failed to get proposer location")
 }
 
+async fn check_is_adjustment_hash(pg_pool: &PgPool, block_hash: &str) -> anyhow::Result<bool> {
+    sqlx::query(
+        "
+        SELECT EXISTS (
+            SELECT 1
+            FROM turbo_adjustment_trace
+            WHERE adjusted_block_hash = $1
+        )
+        ",
+    )
+    .bind(block_hash)
+    .fetch_optional(pg_pool)
+    .await
+    .map(|row| row.map(|row| row.get(0)).unwrap_or(false))
+    .context("failed to check if block hash is adjustment hash")
+}
+
 fn format_delivered_not_found_message(
     log_stats: Option<PayloadLogStats>,
     proposer_meta: ProposerLabelMeta,
     proposer_ip: Option<String>,
     proposer_location: ProposerLocation,
+    is_missed_adjustment: bool,
     slot: &i64,
 ) -> String {
     let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
@@ -263,6 +281,7 @@ fn format_delivered_not_found_message(
 
                 ```
                 decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
+                is_missed_adjustment: {is_missed_adjustment}
                 pre_publish_duration_ms: {pre_publish_duration_ms}
                 proposer_city: {proposer_city}
                 proposer_country: {proposer_country}
@@ -366,11 +385,14 @@ pub async fn run_inclusion_monitor(
                     } else {
                         ProposerLocation::default()
                     };
+                    let is_adjustment_hash =
+                        check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
                     let msg = format_delivered_not_found_message(
                         log_stats,
                         proposer_meta,
                         proposer_ip,
                         proposer_location,
+                        is_adjustment_hash,
                         &payload.slot,
                     );
 
