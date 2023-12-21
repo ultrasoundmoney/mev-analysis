@@ -77,9 +77,10 @@ fn format_builder_list(builders: &Vec<(String, String)>) -> String {
 }
 
 pub const ELIGIBLE_ERRORS: &[&str] = &[
+    "HTTP status server error (500 Internal Server Error) for url",
+    "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
-    "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)"
 ];
 
 fn get_eligible_builders(demotions: Vec<BuilderDemotion>, missed_slots: Vec<i64>) -> Vec<String> {
