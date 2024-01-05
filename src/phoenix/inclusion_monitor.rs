@@ -376,7 +376,18 @@ pub async fn run_inclusion_monitor(
 
                     insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
 
-                    let log_stats = log_client.payload_logs(payload.slot).await?;
+                    let log_stats = {
+                        match log_client.payload_log_stats(payload.slot).await {
+                            Ok(log_stats) => log_stats,
+                            Err(err) => {
+                                error!(
+                                    "error getting payload logs for slot {}: {}",
+                                    payload.slot, err
+                                );
+                                None
+                            }
+                        }
+                    };
                     let proposer_meta =
                         proposer_label_meta(mev_pool, &payload.proposer_pubkey).await?;
                     let proposer_ip = get_proposer_ip(mev_pool, &payload.proposer_pubkey).await?;

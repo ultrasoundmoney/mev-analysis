@@ -99,7 +99,7 @@ impl LokiClient {
         }
     }
 
-    pub async fn payload_logs(&self, slot: i64) -> anyhow::Result<Option<PayloadLogStats>> {
+    pub async fn payload_log_stats(&self, slot: i64) -> anyhow::Result<Option<PayloadLogStats>> {
         let query = format!(
             r#"{{app="payload-api"}} |= `"slot":{slot}` |= "block published through beacon node" | json"#
         );
