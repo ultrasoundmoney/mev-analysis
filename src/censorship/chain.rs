@@ -7,8 +7,6 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-pub use file::ChainStoreFile;
-
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub base_fee_per_gas: i64,
