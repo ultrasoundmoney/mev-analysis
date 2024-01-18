@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::{
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::{markdown, promotion_monitor::ELIGIBLE_ERRORS},
+    phoenix::markdown,
 };
 
 use super::{
@@ -66,6 +66,14 @@ pub async fn get_builder_demotions(
         .map_err(Into::into)
 }
 
+/// Demotion errors that shouldn't be broadcast on telegram
+pub const SILENT_ERRORS: &[&str] = &[
+    "HTTP status server error (500 Internal Server Error) for url (http://prio-load-balancer/)",
+    "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+    "json error: request timeout hit before processing",
+    "simulation failed: unknown ancestor",
+];
+
 pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
     let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Demotion).await? {
         Some(c) => c,
@@ -86,7 +94,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         .into_iter()
         // reduce alert noise by filtering out duplicate demotions and auto-promotable ones
         .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
-        .filter(|d| !ELIGIBLE_ERRORS.contains(&d.sim_error.as_str()))
+        .filter(|d| !SILENT_ERRORS.contains(&d.sim_error.as_str()))
         .collect_vec();
 
     if !demotions.is_empty() {

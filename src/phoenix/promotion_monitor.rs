@@ -76,12 +76,21 @@ fn format_builder_list(builders: &Vec<(String, String)>) -> String {
         })
 }
 
-pub const ELIGIBLE_ERRORS: &[&str] = &[
+/// Demotion errors eligible for re-promotion if no slot was missed
+const PROMOTABLE_ERRORS: &[&str] = &[
     "HTTP status server error (500 Internal Server Error) for url (http://prio-load-balancer/)",
     "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
+    "simulation failed: incorrect gas limit set"
 ];
+
+fn is_promotable_error(error: &str) -> bool {
+    PROMOTABLE_ERRORS
+        .iter()
+        // Use starts_with to account for additional info in gas limit error
+        .any(|promotable_error| error.starts_with(promotable_error))
+}
 
 fn get_eligible_builders(demotions: Vec<BuilderDemotion>, missed_slots: Vec<i64>) -> Vec<String> {
     debug!(
@@ -107,7 +116,7 @@ fn get_eligible_builders(demotions: Vec<BuilderDemotion>, missed_slots: Vec<i64>
                 let no_missed_slots = demotions.iter().all(|d| !missed_slots.contains(&d.slot));
                 let only_eligible_errors = demotions
                     .iter()
-                    .all(|d| ELIGIBLE_ERRORS.contains(&d.sim_error.as_str()));
+                    .all(|d| is_promotable_error(d.sim_error.as_str()));
 
                 if no_missed_slots && only_eligible_errors {
                     Some(builder_id)
