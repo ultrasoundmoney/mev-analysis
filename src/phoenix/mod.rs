@@ -4,7 +4,6 @@ mod consensus_node;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
-mod markdown;
 mod promotion_monitor;
 mod telegram;
 mod validation_node;
@@ -19,6 +18,7 @@ use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
+use indoc::formatdoc;
 use lazy_static::lazy_static;
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
 use tokio::time::{sleep, Instant};
@@ -33,6 +33,7 @@ use self::{
     demotion_monitor::run_demotion_monitor,
     inclusion_monitor::{run_inclusion_monitor, LokiClient},
     promotion_monitor::run_promotion_monitor,
+    telegram::telegram_escape,
 };
 
 lazy_static! {
@@ -63,7 +64,7 @@ impl Alarm {
 
         error!(message, "firing alarm");
 
-        let result = alert::send_alert(message).await;
+        let result = alert::send_opsgenie_telegram_alert(message).await;
         if let Err(err) = result {
             error!(?err, "failed to send alert!");
         }
@@ -198,7 +199,10 @@ async fn get_db_connection(
             }
             Err(error) => {
                 error!(?error, "failed to connect to database, sending alert");
-                alert::send_alert("phoenix service failed to connect to database").await?;
+                alert::send_opsgenie_telegram_alert(
+                    "phoenix service failed to connect to database",
+                )
+                .await?;
                 return Err(error.into());
             }
         }
@@ -251,29 +255,37 @@ pub async fn monitor_critical_services() -> Result<()> {
     match result {
         Ok(_) => {
             let message = "phoenix processes exited unexpectedly";
-            error!("{}", &message);
-            alert::send_telegram_alert(message)
+            telegram::send_telegram_alert(message)
                 .await
                 .context("failed to send alert when phoenix processes exited unexpectedly")?;
             Err(anyhow!(message))
         }
         Err(err) => {
-            let message = format!("phoenix process exited with error: {}", err);
-            error!("{}", &message);
-            // It's possible the error contains a character which should've been
-            // escaped and fails to send. So in case of an error when sending, we send
-            // a simpler alert message without the error.
-            let send_result = alert::send_telegram_alert(&message)
+            let escaped_err = telegram_escape(err.to_string().as_str());
+            let message = formatdoc!(
+                "
+                phoenix process exited with error
+                ```{escaped_err}```
+                "
+            );
+            // In the unlikely event the escaped error fails to send, we send a fallback message.
+            let send_result = telegram::send_telegram_alert(&message)
                 .await
-                .context("failed to send alert with error");
+                .context("failed to send telegram alert with error");
             match send_result {
                 Ok(_) => {}
-                Err(err) => {
-                    error!(?err, "failed to send alert");
-                    alert::send_telegram_alert(
-                        "phoenix process hit error, tried to send it here, but error contains illegal telegram message characters",
+                Err(send_err) => {
+                    error!(
+                        original_error = ?err,
+                        send_error = ?send_err,
+                        "phoenix process hit error, tried to send error alert, but failed"
+                    );
+                    // No period or exclamation mark here!
+                    telegram::send_telegram_alert(
+                        "phoenix process hit error, tried to send error alert, but failed, check logs",
                     )
-                    .await.context("failed to send alert for error, but without error")?;
+                    .await
+                    .context("failed to send simple fallback telegram alert")?;
                 }
             }
             Err(err)
