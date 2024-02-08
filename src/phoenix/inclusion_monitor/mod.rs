@@ -365,10 +365,13 @@ async fn report_missing_payload(
     }
 
     if publish_errors.is_empty() && late_call_stats.is_some() {
-        send_telegram_warning(&message).await
+        send_telegram_warning(&message, "MarkdownV2").await?;
+        send_telegram_warning(&message, "HTML").await?;
     } else {
-        send_telegram_alert(&message).await
+        send_telegram_alert(&message).await?;
     }
+
+    Ok(())
 }
 
 async fn check_missing_payload(
