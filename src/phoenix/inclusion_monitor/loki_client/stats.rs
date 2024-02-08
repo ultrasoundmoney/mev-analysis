@@ -108,14 +108,15 @@ mod tests {
 
     #[test]
     fn parse_published_log_test() {
-        let str =
-            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/published_8371236.json")
-                .map(|mut file| {
-                    let mut str = String::new();
-                    file.read_to_string(&mut str).unwrap();
-                    str
-                })
-                .unwrap();
+        let str = File::open(
+            "src/phoenix/inclusion_monitor/loki_client/test_data/published_8371236.json",
+        )
+        .map(|mut file| {
+            let mut str = String::new();
+            file.read_to_string(&mut str).unwrap();
+            str
+        })
+        .unwrap();
 
         let logs = loki_res_into_json_logs(&str).unwrap();
         published_stats_from_logs(&logs).unwrap();
@@ -123,14 +124,15 @@ mod tests {
 
     #[test]
     fn parse_late_call_log_test() {
-        let str =
-            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/late_call_8365873.json")
-                .map(|mut file| {
-                    let mut str = String::new();
-                    file.read_to_string(&mut str).unwrap();
-                    str
-                })
-                .unwrap();
+        let str = File::open(
+            "src/phoenix/inclusion_monitor/loki_client/test_data/late_call_8365873.json",
+        )
+        .map(|mut file| {
+            let mut str = String::new();
+            file.read_to_string(&mut str).unwrap();
+            str
+        })
+        .unwrap();
 
         let logs = loki_res_into_json_logs(&str).unwrap();
         late_call_stats_from_logs(&logs).unwrap();

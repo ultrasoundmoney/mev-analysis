@@ -175,14 +175,15 @@ mod tests {
 
     #[test]
     fn parse_into_logs_test() {
-        let str =
-            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/late_call_8365873.json")
-                .map(|mut file| {
-                    let mut str = String::new();
-                    file.read_to_string(&mut str).unwrap();
-                    str
-                })
-                .unwrap();
+        let str = File::open(
+            "src/phoenix/inclusion_monitor/loki_client/test_data/late_call_8365873.json",
+        )
+        .map(|mut file| {
+            let mut str = String::new();
+            file.read_to_string(&mut str).unwrap();
+            str
+        })
+        .unwrap();
 
         loki_res_into_json_logs(&str).unwrap();
     }
@@ -190,7 +191,7 @@ mod tests {
     #[test]
     fn error_messages_test() {
         let str =
-            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/error_8365565.json")
+            File::open("src/phoenix/inclusion_monitor/loki_client/test_data/error_8365565.json")
                 .map(|mut file| {
                     let mut str = String::new();
                     file.read_to_string(&mut str).unwrap();
