@@ -275,11 +275,11 @@ async fn report_missing_payload(
                 publish_duration_ms = publish_duration_ms,
                 request_download_duration_ms = request_download_duration_ms
             );
-            message.push('\n');
+            message.push_str("\n\n");
             message.push_str(&published_stats_message);
         }
         None => {
-            message.push('\n');
+            message.push_str("\n\n");
             message.push_str("no logs indicating publish was attempted");
         }
     }
@@ -337,16 +337,16 @@ async fn report_missing_payload(
         operator = operator,
         lido_operator = lido_operator
     );
-    message.push('\n');
+    message.push_str("\n\n");
     message.push_str(&proposer_meta_message);
 
     let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
-    message.push('\n');
+    message.push_str("\n\n");
     message.push_str(&format!("is_missed_adjustment: `{}`", is_adjustment_hash));
 
     let publish_errors = loki_client.error_messages(slot).await?;
     if !publish_errors.is_empty() {
-        message.push('\n');
+        message.push_str("\n\n");
         message.push_str("found publish errors\n");
         for error in publish_errors.iter() {
             message.push_str(&format!("```{}```\n", error));
@@ -367,7 +367,7 @@ async fn report_missing_payload(
             request_download_duration_ms: `{request_download_duration_ms}`
             "
         );
-        message.push('\n');
+        message.push_str("\n\n");
         message.push_str(&late_call_message);
     }
 
