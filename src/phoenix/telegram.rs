@@ -38,7 +38,7 @@ pub fn escape_code_block(input: &str) -> String {
 
 /// Sends a message to the Telegram warnings channel.
 /// Make sure the message is escaped.
-pub async fn send_telegram_warning(message: &str, parse_mode: &str) -> anyhow::Result<()> {
+pub async fn send_telegram_warning(message: &str) -> anyhow::Result<()> {
     let url = format!(
         "https://api.telegram.org/bot{}/sendMessage",
         &APP_CONFIG.telegram_api_key
@@ -49,7 +49,7 @@ pub async fn send_telegram_warning(message: &str, parse_mode: &str) -> anyhow::R
         .query(&[
             ("chat_id", APP_CONFIG.telegram_warnings_channel_id.as_str()),
             ("text", message),
-            ("parse_mode", parse_mode),
+            ("parse_mode", "MarkdownV2"),
             ("disable_web_page_preview", "true"),
         ])
         .send()

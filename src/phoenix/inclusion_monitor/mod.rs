@@ -156,11 +156,14 @@ async fn report_missing_payload(
         delivered block not found
 
         beaconcha\\.in: [slot/{slot}]({explorer_url}/slot/{slot})
-        slot: `{slot}`
-        payload\\_block\\_hash: `{payload_block_hash}`
-        on\\_chain\\_block\\_hash: `{on_chain_block_hash}`
+        slot: {slot}
+        payload\\_block\\_hash: {payload_block_hash}
+        on\\_chain\\_block\\_hash: {on_chain_block_hash}
         "
     );
+
+    let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
+    message.push_str(&format!("is\\_missed\\_adjustment: {}", is_adjustment_hash));
 
     // Check if a publish was attempted, if yes, add publish stats.
     match loki_client.published_stats(payload.slot).await? {
@@ -173,12 +176,11 @@ async fn report_missing_payload(
             } = payload_stats;
             let published_stats_message = formatdoc!(
                 "
-                publish was attempted
-
-                decoded\\_at\\_slot\\_age\\_ms: `{decoded_at_slot_age_ms}`
-                pre\\_publish\\_duration\\_ms: `{pre_publish_duration_ms}`
-                publish\\_duration\\_ms: `{publish_duration_ms}`
-                request\\_download\\_duration\\_ms: `{request_download_duration_ms}`
+                publish was attempted, publish stats
+                decoded\\_at\\_slot\\_age\\_ms: {decoded_at_slot_age_ms}
+                pre\\_publish\\_duration\\_ms: {pre_publish_duration_ms}
+                publish\\_duration\\_ms: {publish_duration_ms}
+                request\\_download\\_duration\\_ms: {request_download_duration_ms}
                 ",
             );
             message.push_str("\n\n");
@@ -228,21 +230,16 @@ async fn report_missing_payload(
     let proposer_meta_message = formatdoc!(
         "
         proposer meta
-
-        proposer\\_city: `{proposer_city}`
-        proposer\\_country: `{proposer_country}`
-        proposer\\_grafitti: `{grafitti}`
-        proposer\\_ip: `{proposer_ip}`
-        proposer\\_label: `{operator}`
-        proposer\\_lido\\_operator: `{lido_operator}`
+        proposer\\_city: {proposer_city}
+        proposer\\_country: {proposer_country}
+        proposer\\_grafitti: {grafitti}
+        proposer\\_ip: {proposer_ip}
+        proposer\\_label: {operator}
+        proposer\\_lido\\_operator: {lido_operator}
         ",
     );
     message.push_str("\n\n");
     message.push_str(&proposer_meta_message);
-
-    let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
-    message.push_str("\n\n");
-    message.push_str(&format!("is_missed_adjustment: `{}`", is_adjustment_hash));
 
     let publish_errors = loki_client.error_messages(slot).await?;
     if !publish_errors.is_empty() {
@@ -262,6 +259,9 @@ async fn report_missing_payload(
             };
             message.push_str(&error_message);
         }
+    } else {
+        message.push_str("\n\n");
+        message.push_str("no publish errors found");
     }
 
     let late_call_stats = loki_client.late_call_stats(slot).await?;
@@ -272,10 +272,9 @@ async fn report_missing_payload(
         } = late_call_stats;
         let late_call_message = formatdoc!(
             "
-            found late call warnings
-
-            decoded\\_at\\_slot\\_age\\_ms: `{decoded_at_slot_age_ms}`
-            request\\_download\\_duration\\_ms: `{request_download_duration_ms}`
+            found late call warnings, first warning stats
+            decoded\\_at\\_slot\\_age\\_ms: {decoded_at_slot_age_ms}
+            request\\_download\\_duration\\_ms: {request_download_duration_ms}
             "
         );
         message.push_str("\n\n");
@@ -283,7 +282,7 @@ async fn report_missing_payload(
     }
 
     if publish_errors.is_empty() && late_call_stats.is_some() {
-        send_telegram_warning(&message, "MarkdownV2").await?;
+        send_telegram_warning(&message).await?;
     } else {
         send_telegram_alert(&message).await?;
     }
