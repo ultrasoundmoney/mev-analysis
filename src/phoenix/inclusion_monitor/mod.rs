@@ -238,7 +238,7 @@ async fn report_missing_payload(
 
     let slot = payload.slot;
     let payload_block_hash = &payload.block_hash;
-    let on_chain_block_hash = found_block_hash.unwrap_or_else(|| "-".to_string());
+    let on_chain_block_hash = telegram_escape(&found_block_hash.as_deref().unwrap_or("-"));
 
     let mut message = formatdoc!(
         "
