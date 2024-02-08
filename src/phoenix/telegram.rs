@@ -62,11 +62,16 @@ pub async fn send_telegram_warning(message: &str) -> anyhow::Result<()> {
         }
         StatusCode::BAD_REQUEST => {
             let body = response.text().await?;
-            Err(anyhow!("failed to send telegram warning: {}", body))
+            Err(anyhow!(
+                "failed to send telegram warning: {}, message: {}",
+                body,
+                message
+            ))
         }
         status => Err(anyhow!(
-            "failed to send telegram warning, status: {:?}",
-            status
+            "failed to send telegram warning, status: {:?}, message: {}",
+            status,
+            message
         )),
     }
 }
@@ -97,11 +102,16 @@ pub async fn send_telegram_alert(message: &str) -> anyhow::Result<()> {
         }
         StatusCode::BAD_REQUEST => {
             let body = response.text().await?;
-            Err(anyhow!("failed to send telegram alert: {}", body))
+            Err(anyhow!(
+                "failed to send telegram alert: {}, message: {}",
+                body,
+                message
+            ))
         }
         _ => Err(anyhow!(
-            "failed to send telegram alert, status: {:?}",
-            response.status()
+            "failed to send telegram alert, status: {:?}, message: {}",
+            response.status(),
+            message
         )),
     }
 }
