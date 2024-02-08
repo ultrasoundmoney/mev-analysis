@@ -372,7 +372,6 @@ async fn report_missing_payload(
     }
 
     if publish_errors.is_empty() && late_call_stats.is_some() {
-        send_telegram_warning(&message, "HTML").await?;
         send_telegram_warning(&message, "MarkdownV2").await?;
     } else {
         send_telegram_alert(&message).await?;
