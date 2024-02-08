@@ -243,8 +243,8 @@ async fn report_missing_payload(
 
     let publish_errors = loki_client.error_messages(slot).await?;
     if !publish_errors.is_empty() {
-        message.push_str("\n\n");
-        message.push_str("found publish errors\n");
+        message.push_str("\n");
+        message.push_str("found publish errors");
         for error in publish_errors.iter() {
             let error_message = {
                 let error_message = formatdoc!(
@@ -257,10 +257,11 @@ async fn report_missing_payload(
                 );
                 telegram_escape(&error_message)
             };
+            message.push_str("\n");
             message.push_str(&error_message);
         }
     } else {
-        message.push_str("\n\n");
+        message.push_str("\n");
         message.push_str("no publish errors found");
     }
 
