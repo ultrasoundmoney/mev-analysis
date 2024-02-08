@@ -302,17 +302,17 @@ async fn report_missing_payload(
 
     let proposer_ip = {
         let ip = proposer_ip.as_deref().unwrap_or("-");
-        telegram_escape(&ip)
+        telegram_escape(ip)
     };
 
     let proposer_country = {
         let country = proposer_location.country.as_deref().unwrap_or("-");
-        telegram_escape(&country)
+        telegram_escape(country)
     };
 
     let proposer_city = {
         let city = proposer_location.city.as_deref().unwrap_or("-");
-        telegram_escape(&city)
+        telegram_escape(city)
     };
     let proposer_meta_message = formatdoc!(
         "
