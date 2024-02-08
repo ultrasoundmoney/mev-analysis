@@ -199,7 +199,6 @@ mod tests {
                 .unwrap();
 
         let logs = loki_res_into_json_logs(&str).unwrap();
-        let messages = errors_from_logs(&logs).unwrap();
-        dbg!(messages);
+        errors_from_logs(&logs).unwrap();
     }
 }
