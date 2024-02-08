@@ -1,16 +1,16 @@
 use anyhow::Result;
 use chrono::{DateTime, TimeZone, Utc};
+use indoc::formatdoc;
 use itertools::Itertools;
 use sqlx::{PgPool, Row};
 use tracing::{error, info};
 
 use crate::{
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::markdown,
+    phoenix::telegram::{self, escape_code_block, telegram_escape},
 };
 
 use super::{
-    alert,
     checkpoint::{self, CheckpointId},
     env::APP_CONFIG,
 };
@@ -75,6 +75,7 @@ pub const SILENT_ERRORS: &[&str] = &[
 ];
 
 pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
+    let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
     let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Demotion).await? {
         Some(c) => c,
         None => {
@@ -101,22 +102,34 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         let message = demotions
             .into_iter()
             .map(|demotion| {
-                format!(
-                    "*{name}* `{pubkey}` was demoted during slot [{slot}]({url}/slot/{slot}) with the following error:\n\n``` {error} ```",
-                    name = markdown::escape_body(&demotion.builder_id.unwrap_or("unknown builder_id".to_string())),
-                    pubkey = demotion.builder_pubkey,
-                    slot = demotion.slot,
-                    url = &APP_CONFIG.env.to_beacon_explorer_url(),
-                    error = markdown::escape_code_block(&demotion.sim_error)
-                )
+                let builder_id = {
+                    let builder_id = demotion.builder_id.unwrap_or("unknown".to_string());
+                    telegram_escape(&builder_id)
+                };
+                let builder_pubkey = demotion.builder_pubkey;
+                let error = escape_code_block(&demotion.sim_error);
+                let slot = demotion.slot;
+                formatdoc!(
+                    "
+                    builder demoted
 
-            }).join("\n\n");
+                    builder_id: `{builder_id}`
+                    builder_pubkey: `{builder_pubkey}`
+                    slot: `{slot}`
+                    beaconcha.in: [{slot}]({explorer_url}/slot/{slot})
+
+                    error:
+                    ```{error}```
+                    "
+                )
+            })
+            .join("\n\n");
 
         info!(?message, "sending telegram alert");
 
-        if let Err(error) = alert::send_telegram_alert(&message).await {
+        if let Err(error) = telegram::send_telegram_alert(&message).await {
             error!(?error, ?message, "failed to send telegram alert");
-            alert::send_telegram_alert(
+            telegram::send_telegram_alert(
                 "there were builder demotions, but the telegram alert failed",
             )
             .await?;
