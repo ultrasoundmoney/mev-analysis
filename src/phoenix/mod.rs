@@ -265,7 +265,9 @@ pub async fn monitor_critical_services() -> Result<()> {
             let message = formatdoc!(
                 "
                 phoenix process exited with error
-                ```{escaped_err}```
+                ```
+                {escaped_err}
+                ```
                 "
             );
             // In the unlikely event the escaped error fails to send, we send a fallback message.

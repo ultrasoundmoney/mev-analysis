@@ -119,7 +119,9 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
                     beaconcha.in: [{slot}]({explorer_url}/slot/{slot})
 
                     error:
-                    ```{error}```
+                    ```
+                    {error}
+                    ```
                     "
                 )
             })

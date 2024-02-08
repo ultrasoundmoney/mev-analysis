@@ -339,7 +339,14 @@ async fn report_missing_payload(
     //     message.push_str("found publish errors\n");
     //     for error in publish_errors.iter() {
     //         let error_message = {
-    //             let error_message = format!("```{}```", error);
+    //             let error_message = formatdoc!(
+    //                 "
+    //                 ```
+    //                 {}
+    //                 ```
+    //                 ",
+    //                 error
+    //             );
     //             telegram_escape(&error_message)
     //         };
     //         message.push_str(&error_message);
