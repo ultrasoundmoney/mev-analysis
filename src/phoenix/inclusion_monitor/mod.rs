@@ -12,11 +12,10 @@ use loki_client::PublishedPayloadStats;
 use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::{
-        inclusion_monitor::loki_client::LatePayloadStats,
-        telegram::{send_telegram_alert, send_telegram_warning, telegram_escape},
-    },
+    phoenix::telegram::{send_telegram_alert, send_telegram_warning, telegram_escape},
 };
+
+use self::loki_client::LatePayloadStats;
 
 use super::{
     alert,
@@ -270,10 +269,6 @@ async fn report_missing_payload(
                 publish_duration_ms: `{publish_duration_ms}`
                 request_download_duration_ms: `{request_download_duration_ms}`
                 ",
-                decoded_at_slot_age_ms = decoded_at_slot_age_ms,
-                pre_publish_duration_ms = pre_publish_duration_ms,
-                publish_duration_ms = publish_duration_ms,
-                request_download_duration_ms = request_download_duration_ms
             );
             message.push_str("\n\n");
             message.push_str(&published_stats_message);
@@ -306,17 +301,17 @@ async fn report_missing_payload(
     };
 
     let proposer_ip = {
-        let ip = proposer_ip.unwrap_or("-".to_string());
+        let ip = proposer_ip.as_deref().unwrap_or("-");
         telegram_escape(&ip)
     };
 
     let proposer_country = {
-        let country = proposer_location.country.unwrap_or("-".to_string());
+        let country = proposer_location.country.as_deref().unwrap_or("-");
         telegram_escape(&country)
     };
 
     let proposer_city = {
-        let city = proposer_location.city.unwrap_or("-".to_string());
+        let city = proposer_location.city.as_deref().unwrap_or("-");
         telegram_escape(&city)
     };
     let proposer_meta_message = formatdoc!(
@@ -330,12 +325,6 @@ async fn report_missing_payload(
         proposer_label: `{operator}`
         proposer_lido_operator: `{lido_operator}`
         ",
-        proposer_city = proposer_city,
-        proposer_country = proposer_country,
-        grafitti = grafitti,
-        proposer_ip = proposer_ip,
-        operator = operator,
-        lido_operator = lido_operator
     );
     message.push_str("\n\n");
     message.push_str(&proposer_meta_message);
@@ -345,17 +334,17 @@ async fn report_missing_payload(
     message.push_str(&format!("is_missed_adjustment: `{}`", is_adjustment_hash));
 
     let publish_errors = loki_client.error_messages(slot).await?;
-    if !publish_errors.is_empty() {
-        message.push_str("\n\n");
-        message.push_str("found publish errors\n");
-        for error in publish_errors.iter() {
-            let error_message = {
-                let error_message = format!("```{}```", error);
-                telegram_escape(&error_message)
-            };
-            message.push_str(&error_message);
-        }
-    }
+    // if !publish_errors.is_empty() {
+    //     message.push_str("\n\n");
+    //     message.push_str("found publish errors\n");
+    //     for error in publish_errors.iter() {
+    //         let error_message = {
+    //             let error_message = format!("```{}```", error);
+    //             telegram_escape(&error_message)
+    //         };
+    //         message.push_str(&error_message);
+    //     }
+    // }
 
     let late_call_stats = loki_client.late_call_stats(slot).await?;
     if let Some(late_call_stats) = &late_call_stats {
