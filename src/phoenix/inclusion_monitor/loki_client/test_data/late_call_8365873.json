@@ -1,0 +1,215 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "app": "payload-api",
+          "container": "payload-api",
+          "filename": "/var/log/pods/default_payload-api-786d67d86b-57vvs_32bfe310-1c46-4a36-b16c-079832df313d/payload-api/0.log",
+          "job": "default/payload-api",
+          "level": "warning",
+          "namespace": "default",
+          "node_name": "enzo",
+          "pod": "payload-api-786d67d86b-57vvs",
+          "stream": "stdout"
+        },
+        "values": [
+          [
+            "1707298614206042717",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":7202,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:54.206042717Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298614206,\"timestampAfterDecode\":1707298614202,\"timestampAfterLoadResponse\":1707298614205,\"timestampAfterSignatureVerify\":1707298614205,\"timestampRequestStart\":1707298614195,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298614869419532",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":7865,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:54.869419532Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298614869,\"timestampAfterDecode\":1707298614865,\"timestampAfterLoadResponse\":1707298614869,\"timestampAfterSignatureVerify\":1707298614868,\"timestampRequestStart\":1707298614859,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298618227705696",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":11224,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:58.227705696Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298618227,\"timestampAfterDecode\":1707298618224,\"timestampAfterLoadResponse\":1707298618227,\"timestampAfterSignatureVerify\":1707298618226,\"timestampRequestStart\":1707298618220,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-c7e5dd1\",\"version\":\"\"}"
+          ],
+          [
+            "1707298618476608175",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":11473,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:58.476608175Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298618476,\"timestampAfterDecode\":1707298618473,\"timestampAfterLoadResponse\":1707298618476,\"timestampAfterSignatureVerify\":1707298618475,\"timestampRequestStart\":1707298618469,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-c7e5dd1\",\"version\":\"\"}"
+          ],
+          [
+            "1707298623997223377",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":16993,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:03.997223377Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298623997,\"timestampAfterDecode\":1707298623993,\"timestampAfterLoadResponse\":1707298623996,\"timestampAfterSignatureVerify\":1707298623996,\"timestampRequestStart\":1707298623982,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298624254746572",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":17251,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:04.254746572Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298624254,\"timestampAfterDecode\":1707298624251,\"timestampAfterLoadResponse\":1707298624254,\"timestampAfterSignatureVerify\":1707298624254,\"timestampRequestStart\":1707298624247,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298624507887854",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":17504,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:04.507887854Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298624507,\"timestampAfterDecode\":1707298624504,\"timestampAfterLoadResponse\":1707298624507,\"timestampAfterSignatureVerify\":1707298624507,\"timestampRequestStart\":1707298624500,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298629437235029",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":22433,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:09.437235029Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298629437,\"timestampAfterDecode\":1707298629433,\"timestampAfterLoadResponse\":1707298629437,\"timestampAfterSignatureVerify\":1707298629436,\"timestampRequestStart\":1707298629428,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-1be5253\",\"version\":\"\"}"
+          ],
+          [
+            "1707298629709690612",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":22706,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:09.709690612Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298629709,\"timestampAfterDecode\":1707298629706,\"timestampAfterLoadResponse\":1707298629709,\"timestampAfterSignatureVerify\":1707298629709,\"timestampRequestStart\":1707298629702,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-1be5253\",\"version\":\"\"}"
+          ],
+          [
+            "1707298636159793741",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372884,\"headSlotEpochPos\":21,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":29157,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:16.159793741Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298636159,\"timestampAfterDecode\":1707298636157,\"timestampAfterLoadResponse\":1707298636159,\"timestampAfterSignatureVerify\":1707298636159,\"timestampRequestStart\":1707298636135,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298636424127211",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372884,\"headSlotEpochPos\":21,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":29421,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:16.424127211Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298636424,\"timestampAfterDecode\":1707298636421,\"timestampAfterLoadResponse\":1707298636423,\"timestampAfterSignatureVerify\":1707298636423,\"timestampRequestStart\":1707298636419,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298636684729445",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372884,\"headSlotEpochPos\":21,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":29682,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:16.684729445Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298636684,\"timestampAfterDecode\":1707298636682,\"timestampAfterLoadResponse\":1707298636684,\"timestampAfterSignatureVerify\":1707298636684,\"timestampRequestStart\":1707298636679,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "app": "payload-api",
+          "container": "payload-api",
+          "filename": "/var/log/pods/default_payload-api-786d67d86b-hw846_9ecf7003-155a-4436-ae95-c4dc13c4a125/payload-api/0.log",
+          "job": "default/payload-api",
+          "level": "warning",
+          "namespace": "default",
+          "node_name": "kate",
+          "pod": "payload-api-786d67d86b-hw846",
+          "stream": "stdout"
+        },
+        "values": [
+          [
+            "1707298613181820585",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":6175,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:53.181820585Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298613181,\"timestampAfterDecode\":1707298613175,\"timestampAfterLoadResponse\":1707298613180,\"timestampAfterSignatureVerify\":1707298613178,\"timestampRequestStart\":1707298612737,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298613877809425",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":6872,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:53.877809425Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298613877,\"timestampAfterDecode\":1707298613872,\"timestampAfterLoadResponse\":1707298613876,\"timestampAfterSignatureVerify\":1707298613875,\"timestampRequestStart\":1707298613866,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298614543812730",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":7539,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:54.54381273Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298614543,\"timestampAfterDecode\":1707298614539,\"timestampAfterLoadResponse\":1707298614542,\"timestampAfterSignatureVerify\":1707298614541,\"timestampRequestStart\":1707298614534,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298618099899082",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":11094,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:58.099899082Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298618099,\"timestampAfterDecode\":1707298618094,\"timestampAfterLoadResponse\":1707298618098,\"timestampAfterSignatureVerify\":1707298618096,\"timestampRequestStart\":1707298618084,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-c7e5dd1\",\"version\":\"\"}"
+          ],
+          [
+            "1707298618352340582",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":11348,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:58.352340582Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298618352,\"timestampAfterDecode\":1707298618348,\"timestampAfterLoadResponse\":1707298618350,\"timestampAfterSignatureVerify\":1707298618349,\"timestampRequestStart\":1707298618346,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-c7e5dd1\",\"version\":\"\"}"
+          ],
+          [
+            "1707298618600859995",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372882,\"headSlotEpochPos\":19,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":11596,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:36:58.600859995Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298618600,\"timestampAfterDecode\":1707298618596,\"timestampAfterLoadResponse\":1707298618599,\"timestampAfterSignatureVerify\":1707298618598,\"timestampRequestStart\":1707298618594,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-c7e5dd1\",\"version\":\"\"}"
+          ],
+          [
+            "1707298624128377318",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":17122,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:04.128377318Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298624128,\"timestampAfterDecode\":1707298624122,\"timestampAfterLoadResponse\":1707298624127,\"timestampAfterSignatureVerify\":1707298624125,\"timestampRequestStart\":1707298624118,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298624380871942",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":17375,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:04.380871942Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298624380,\"timestampAfterDecode\":1707298624375,\"timestampAfterLoadResponse\":1707298624379,\"timestampAfterSignatureVerify\":1707298624378,\"timestampRequestStart\":1707298624371,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298629299453515",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":22293,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:09.299453515Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298629299,\"timestampAfterDecode\":1707298629293,\"timestampAfterLoadResponse\":1707298629298,\"timestampAfterSignatureVerify\":1707298629296,\"timestampRequestStart\":1707298629269,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-1be5253\",\"version\":\"\"}"
+          ],
+          [
+            "1707298629567920853",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":22564,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:09.567920853Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298629567,\"timestampAfterDecode\":1707298629564,\"timestampAfterLoadResponse\":1707298629567,\"timestampAfterSignatureVerify\":1707298629566,\"timestampRequestStart\":1707298629561,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-1be5253\",\"version\":\"\"}"
+          ],
+          [
+            "1707298629851641153",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372883,\"headSlotEpochPos\":20,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":22846,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:09.851641153Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298629851,\"timestampAfterDecode\":1707298629846,\"timestampAfterLoadResponse\":1707298629850,\"timestampAfterSignatureVerify\":1707298629849,\"timestampRequestStart\":1707298629841,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.6.0-1be5253\",\"version\":\"\"}"
+          ],
+          [
+            "1707298636294113773",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372884,\"headSlotEpochPos\":21,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":29288,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:16.294113773Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298636294,\"timestampAfterDecode\":1707298636288,\"timestampAfterLoadResponse\":1707298636292,\"timestampAfterSignatureVerify\":1707298636291,\"timestampRequestStart\":1707298636284,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ],
+          [
+            "1707298636556004964",
+            "{\"blockHash\":\"0x5a47b0c2193f302d61547c153671455f6b034e6635757ad21f0ced28969b12ac\",\"contentLength\":52879,\"feeRecipient\":\"0xee6d073d0c8cb54b5800af5b3c0479c416e1175d\",\"headSlot\":8372884,\"headSlotEpochPos\":21,\"idArg\":\"\",\"level\":\"warning\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":29551,\"msg\":\"getPayload sent too late\",\"proposerIndex\":922086,\"proposerPubkey\":\"0x955259ca602d709be84c7c34b34d54059dad0523c7c03a9f599dcf4f49caf0fd48848086a011d16047b4d0f3b4fb25e5\",\"service\":\"relay/api\",\"slot\":8372882,\"slotEpochPos\":19,\"slotStartSec\":1707298607,\"time\":\"2024-02-07T09:37:16.556004964Z\",\"timestampAfterAlreadyDeliveredCheck\":1707298636555,\"timestampAfterDecode\":1707298636551,\"timestampAfterLoadResponse\":1707298636554,\"timestampAfterSignatureVerify\":1707298636553,\"timestampRequestStart\":1707298636547,\"ua\":\"mev-boost/v1.6 nim-presto/0.0.3 (amd64/linux)\",\"version\":\"\"}"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "bytesProcessedPerSecond": 193282550,
+        "linesProcessedPerSecond": 773832,
+        "totalBytesProcessed": 47244848,
+        "totalLinesProcessed": 189151,
+        "execTime": 0.244434,
+        "queueTime": 0.000817,
+        "subqueries": 0,
+        "totalEntriesReturned": 25,
+        "splits": 97,
+        "shards": 3
+      },
+      "querier": {
+        "store": {
+          "totalChunksRef": 14,
+          "totalChunksDownloaded": 14,
+          "chunksDownloadTime": 298592003,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 47244848,
+            "decompressedLines": 189151,
+            "compressedBytes": 3120130,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "ingester": {
+        "totalReached": 6,
+        "totalChunksMatched": 0,
+        "totalBatches": 0,
+        "totalLinesSent": 0,
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "cache": {
+        "chunk": {
+          "entriesFound": 9,
+          "entriesRequested": 14,
+          "entriesStored": 5,
+          "bytesReceived": 1662228,
+          "bytesSent": 6675781,
+          "requests": 3,
+          "downloadTime": 4315813
+        },
+        "index": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0
+        },
+        "result": {
+          "entriesFound": 94,
+          "entriesRequested": 95,
+          "entriesStored": 0,
+          "bytesReceived": 10158,
+          "bytesSent": 0,
+          "requests": 95,
+          "downloadTime": 244067519
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use reqwest::Url;
 use serde::Deserialize;
 
-use crate::env::{deserialize_urls, get_app_config, Env};
+use crate::env::{deserialize_network, deserialize_urls, get_app_config, Env, Network};
 
 #[derive(Deserialize)]
 pub struct AppConfig {
@@ -19,11 +19,14 @@ pub struct AppConfig {
     /// Slot range to check for counting missed slots
     #[serde(default = "default_missed_slots_range")]
     pub missed_slots_check_range: i64,
+    #[serde(deserialize_with = "deserialize_network")]
+    pub network: Network,
     pub opsgenie_api_key: String,
     pub port: u16,
     pub relay_database_url: String,
     pub telegram_api_key: String,
-    pub telegram_channel_id: String,
+    pub telegram_alerts_channel_id: String,
+    pub telegram_warnings_channel_id: String,
     #[serde(deserialize_with = "deserialize_urls")]
     pub validation_nodes: Vec<Url>,
 }

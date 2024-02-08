@@ -69,6 +69,18 @@ impl ToNetwork for Env {
     }
 }
 
+pub fn deserialize_network<'de, D>(deserializer: D) -> Result<Network, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    match s.as_ref() {
+        "mainnet" => Ok(Network::Mainnet),
+        "goerli" => Ok(Network::Goerli),
+        _ => Err(Error::custom("network present but not mainnet or goerli")),
+    }
+}
+
 pub trait ToBeaconExplorerUrl {
     fn to_beacon_explorer_url(&self) -> String;
 }

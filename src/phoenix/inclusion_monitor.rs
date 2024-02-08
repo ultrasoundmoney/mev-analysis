@@ -1,20 +1,21 @@
 mod loki_client;
 
 use anyhow::Context;
-pub use loki_client::LokiClient;
-
 use chrono::{DateTime, TimeZone, Utc};
 use indoc::formatdoc;
-use reqwest::StatusCode;
 use sqlx::{PgPool, Row};
-use tracing::{error, info, warn};
+use tracing::{debug, info, warn};
 
-use loki_client::PayloadLogStats;
+pub use loki_client::LokiClient;
+use loki_client::PublishedPayloadStats;
 
 use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::telegram::telegram_escape,
+    phoenix::{
+        inclusion_monitor::loki_client::LatePayloadStats,
+        telegram::{send_telegram_alert, send_telegram_warning, telegram_escape},
+    },
 };
 
 use super::{
@@ -219,97 +220,198 @@ async fn check_is_adjustment_hash(pg_pool: &PgPool, block_hash: &str) -> anyhow:
     .context("failed to check if block hash is adjustment hash")
 }
 
-fn format_delivered_not_found_message(
-    log_stats: Option<PayloadLogStats>,
-    proposer_meta: ProposerLabelMeta,
-    proposer_ip: Option<String>,
-    proposer_location: ProposerLocation,
-    is_missed_adjustment: bool,
-    slot: &i64,
-) -> String {
+async fn report_missing_payload(
+    found_block_hash: Option<String>,
+    loki_client: &LokiClient,
+    mev_pool: &PgPool,
+    payload: &DeliveredPayload,
+    relay_pool: &PgPool,
+) -> anyhow::Result<()> {
+    insert_missed_slot(
+        mev_pool,
+        &payload.slot,
+        &payload.block_hash,
+        found_block_hash.as_ref(),
+    )
+    .await?;
+
     let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
 
-    match log_stats {
-        Some(stats) => {
-            let PayloadLogStats {
+    let slot = payload.slot;
+    let payload_block_hash = &payload.block_hash;
+    let on_chain_block_hash = found_block_hash.unwrap_or_else(|| "-".to_string());
+
+    let mut message = formatdoc!(
+        "
+        delivered block not found
+
+        [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+
+        slot: `{slot}`
+        payload_block_hash: `{payload_block_hash}`
+        on_chain_block_hash: `{on_chain_block_hash}`
+        "
+    );
+
+    // Check if a publish was attempted, if yes, add publish stats.
+    match loki_client.published_stats(payload.slot).await? {
+        Some(payload_stats) => {
+            let PublishedPayloadStats {
                 decoded_at_slot_age_ms,
                 pre_publish_duration_ms,
                 publish_duration_ms,
                 request_download_duration_ms,
-            } = stats;
-
-            let publish_took_too_long = publish_duration_ms > 1000;
-            let request_delivered_late = decoded_at_slot_age_ms >= 3000;
-            let safe_to_ignore = request_delivered_late && !publish_took_too_long;
-
-            let operator = {
-                let label = proposer_meta.label.as_deref().unwrap_or("-");
-                telegram_escape(label)
-            };
-
-            let lido_operator = {
-                let lido_operator = proposer_meta.lido_operator.as_deref().unwrap_or("-");
-                telegram_escape(lido_operator)
-            };
-
-            let grafitti = {
-                let grafitti = proposer_meta.grafitti.as_deref().unwrap_or("-");
-                telegram_escape(grafitti)
-            };
-
-            let proposer_ip = {
-                let ip = proposer_ip.unwrap_or("-".to_string());
-                telegram_escape(&ip)
-            };
-
-            let proposer_country = {
-                let country = proposer_location.country.unwrap_or("-".to_string());
-                telegram_escape(&country)
-            };
-
-            let proposer_city = {
-                let city = proposer_location.city.unwrap_or("-".to_string());
-                telegram_escape(&city)
-            };
-
-            formatdoc!(
+            } = payload_stats;
+            let published_stats_message = formatdoc!(
                 "
-                delivered block not found for slot
+                publish was attempted
 
-                [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
-
-                ```
-                decoded_at_slot_age_ms: {decoded_at_slot_age_ms}
-                is_missed_adjustment: {is_missed_adjustment}
-                pre_publish_duration_ms: {pre_publish_duration_ms}
-                proposer_city: {proposer_city}
-                proposer_country: {proposer_country}
-                proposer_grafitti: {grafitti}
-                proposer_ip: {proposer_ip}
-                proposer_label: {operator}
-                proposer_lido_operator: {lido_operator}
-                publish_duration_ms: {publish_duration_ms}
-                request_download_duration_ms: {request_download_duration_ms}
-                safe_to_ignore: {safe_to_ignore}
-                slot: {slot}
-                ```
+                decoded_at_slot_age_ms: `{decoded_at_slot_age_ms}`
+                pre_publish_duration_ms: `{pre_publish_duration_ms}`
+                publish_duration_ms: `{publish_duration_ms}`
+                request_download_duration_ms: `{request_download_duration_ms}`
                 ",
-            )
+                decoded_at_slot_age_ms = decoded_at_slot_age_ms,
+                pre_publish_duration_ms = pre_publish_duration_ms,
+                publish_duration_ms = publish_duration_ms,
+                request_download_duration_ms = request_download_duration_ms
+            );
+            message.push('\n');
+            message.push_str(&published_stats_message);
         }
         None => {
-            error!("no payload log stats found for slot {}", slot);
+            message.push('\n');
+            message.push_str("no logs indicating publish was attempted");
+        }
+    }
 
-            formatdoc!(
-                "
-                delivered block not found for slot
+    // Add proposer meta.
+    let (proposer_meta, proposer_ip, proposer_location) = tokio::try_join!(
+        proposer_label_meta(mev_pool, &payload.proposer_pubkey),
+        get_proposer_ip(mev_pool, &payload.proposer_pubkey),
+        proposer_location(mev_pool, &payload.proposer_pubkey)
+    )?;
+    let operator = {
+        let label = proposer_meta.label.as_deref().unwrap_or("-");
+        telegram_escape(label)
+    };
 
-                [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+    let lido_operator = {
+        let lido_operator = proposer_meta.lido_operator.as_deref().unwrap_or("-");
+        telegram_escape(lido_operator)
+    };
 
-                ```
-                log based stats not found, check logs for details
-                ```
-                ",
-            )
+    let grafitti = {
+        let grafitti = proposer_meta.grafitti.as_deref().unwrap_or("-");
+        telegram_escape(grafitti)
+    };
+
+    let proposer_ip = {
+        let ip = proposer_ip.unwrap_or("-".to_string());
+        telegram_escape(&ip)
+    };
+
+    let proposer_country = {
+        let country = proposer_location.country.unwrap_or("-".to_string());
+        telegram_escape(&country)
+    };
+
+    let proposer_city = {
+        let city = proposer_location.city.unwrap_or("-".to_string());
+        telegram_escape(&city)
+    };
+    let proposer_meta_message = formatdoc!(
+        "
+        proposer meta
+
+        proposer_city: `{proposer_city}`
+        proposer_country: `{proposer_country}`
+        proposer_grafitti: `{grafitti}`
+        proposer_ip: `{proposer_ip}`
+        proposer_label: `{operator}`
+        proposer_lido_operator: `{lido_operator}`
+        ",
+        proposer_city = proposer_city,
+        proposer_country = proposer_country,
+        grafitti = grafitti,
+        proposer_ip = proposer_ip,
+        operator = operator,
+        lido_operator = lido_operator
+    );
+    message.push('\n');
+    message.push_str(&proposer_meta_message);
+
+    let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
+    message.push('\n');
+    message.push_str(&format!("is_missed_adjustment: `{}`", is_adjustment_hash));
+
+    let publish_errors = loki_client.error_messages(slot).await?;
+    if !publish_errors.is_empty() {
+        message.push('\n');
+        message.push_str("found publish errors\n");
+        for error in publish_errors.iter() {
+            message.push_str(&format!("```{}```\n", error));
+        }
+    }
+
+    let late_call_stats = loki_client.late_call_stats(slot).await?;
+    if let Some(late_call_stats) = &late_call_stats {
+        let LatePayloadStats {
+            decoded_at_slot_age_ms,
+            request_download_duration_ms,
+        } = late_call_stats;
+        let late_call_message = formatdoc!(
+            "
+            found late call warnings
+
+            decoded_at_slot_age_ms: `{decoded_at_slot_age_ms}`
+            request_download_duration_ms: `{request_download_duration_ms}`
+            "
+        );
+        message.push('\n');
+        message.push_str(&late_call_message);
+    }
+
+    if publish_errors.is_empty() && late_call_stats.is_some() {
+        send_telegram_warning(&message).await
+    } else {
+        send_telegram_alert(&message).await
+    }
+}
+
+async fn check_missing_payload(
+    beacon_api: &BeaconApi,
+    loki_client: &LokiClient,
+    mev_pool: &PgPool,
+    payload: &DeliveredPayload,
+    relay_pool: &PgPool,
+) -> anyhow::Result<()> {
+    let block_hash = beacon_api.get_block_hash(&payload.slot).await?;
+
+    match block_hash {
+        Some(block_hash) => {
+            if payload.block_hash == block_hash {
+                info!(
+                    slot = payload.slot,
+                    block_hash = payload.block_hash,
+                    "found matching block hash"
+                );
+                Ok(())
+            } else {
+                warn!(
+                    slot = payload.slot,
+                    block_hash_payload = payload.block_hash,
+                    block_hash_on_chain = block_hash,
+                    "block hash on chain does not match payload"
+                );
+
+                report_missing_payload(Some(block_hash), loki_client, mev_pool, payload, relay_pool)
+                    .await
+            }
+        }
+        None => {
+            warn!("delivered block not found for slot {}", payload.slot);
+            report_missing_payload(None, loki_client, mev_pool, payload, relay_pool).await
         }
     }
 }
@@ -318,7 +420,7 @@ pub async fn run_inclusion_monitor(
     relay_pool: &PgPool,
     mev_pool: &PgPool,
     canonical_horizon: &DateTime<Utc>,
-    log_client: &LokiClient,
+    loki_client: &LokiClient,
 ) -> anyhow::Result<()> {
     let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
 
@@ -338,88 +440,16 @@ pub async fn run_inclusion_monitor(
     );
 
     let payloads = get_delivered_payloads(relay_pool, &checkpoint, canonical_horizon).await?;
-
-    let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
-
     for payload in &payloads {
-        let block_hash = beacon_api.get_block_hash(&payload.slot).await;
-
-        match block_hash {
-            Ok(block_hash) => {
-                if payload.block_hash == block_hash {
-                    info!("found matching block hash for slot {}", payload.slot);
-                } else {
-                    error!("block hash mismatch for slot {}", payload.slot);
-
-                    insert_missed_slot(
-                        mev_pool,
-                        &payload.slot,
-                        &payload.block_hash,
-                        Some(&block_hash),
-                    )
-                    .await?;
-
-                    alert::send_telegram_alert(&format!(
-                            "block hash mismatch for slot [{slot}]({url}/slot/{slot}): relayed {relayed} but found {found}",
-                            slot = payload.slot,
-                            url = explorer_url,
-                            relayed = payload.block_hash,
-                            found = block_hash
-                        ))
-                        .await?;
-                }
-            }
-            Err(err) => {
-                if err.status() == Some(StatusCode::NOT_FOUND) {
-                    warn!("delivered block not found for slot {}", payload.slot);
-
-                    insert_missed_slot(mev_pool, &payload.slot, &payload.block_hash, None).await?;
-
-                    let log_stats = {
-                        match log_client.payload_log_stats(payload.slot).await {
-                            Ok(log_stats) => log_stats,
-                            Err(err) => {
-                                error!(
-                                    "error getting payload logs for slot {}: {}",
-                                    payload.slot, err
-                                );
-                                None
-                            }
-                        }
-                    };
-                    let proposer_meta =
-                        proposer_label_meta(mev_pool, &payload.proposer_pubkey).await?;
-                    let proposer_ip = get_proposer_ip(mev_pool, &payload.proposer_pubkey).await?;
-                    let proposer_location = if let Some(proposer_ip) = &proposer_ip {
-                        proposer_location(mev_pool, proposer_ip).await?
-                    } else {
-                        ProposerLocation::default()
-                    };
-                    let is_adjustment_hash =
-                        check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
-                    let msg = format_delivered_not_found_message(
-                        log_stats,
-                        proposer_meta,
-                        proposer_ip,
-                        proposer_location,
-                        is_adjustment_hash,
-                        &payload.slot,
-                    );
-
-                    alert::send_telegram_alert(&msg).await?;
-                } else {
-                    error!(
-                        "error getting block hash for slot {}: {}",
-                        payload.slot, err
-                    );
-                    break;
-                }
-            }
-        }
+        check_missing_payload(&beacon_api, loki_client, mev_pool, payload, relay_pool).await?;
+        debug!(
+            slot = payload.slot,
+            block_hash = payload.block_hash,
+            "done checking payload"
+        );
     }
 
     let last_slot_delivered = payloads.last().map(|p| p.slot);
-
     if let Some(last_slot) = last_slot_delivered {
         let start = last_slot - APP_CONFIG.missed_slots_check_range;
         let end = last_slot;
@@ -432,7 +462,7 @@ pub async fn run_inclusion_monitor(
                 missed_slot_count, APP_CONFIG.missed_slots_check_range
             );
             warn!("{}", &message);
-            alert::send_alert(&message).await?;
+            alert::send_opsgenie_telegram_alert(&message).await?;
         }
     }
 

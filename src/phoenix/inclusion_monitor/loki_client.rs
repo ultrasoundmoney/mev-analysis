@@ -1,89 +1,81 @@
+mod slot;
+mod stats;
+
 use anyhow::Context;
 use chrono::{DateTime, TimeZone, Utc};
+use itertools::Itertools;
 use reqwest::Url;
 
-/// Statistics on payloads requested. Used to determine if a payload which failed to make it
-/// on-chain should concern us.
-#[derive(Debug)]
-pub struct PayloadLogStats {
-    pub decoded_at_slot_age_ms: i64,
-    pub pre_publish_duration_ms: i64,
-    // The time it took to call our consensus node and have it publish the block.
-    pub publish_duration_ms: i64,
-    pub request_download_duration_ms: i64,
-}
+use slot::Slot;
+pub use stats::{LatePayloadStats, PublishedPayloadStats};
 
-fn extract_date_time(json_map: &serde_json::Value, key: &str) -> anyhow::Result<DateTime<Utc>> {
-    json_map
-        .get(key)
-        .and_then(|timestamp| timestamp.as_str())
-        .and_then(|timestamp| timestamp.parse::<i64>().ok())
-        .and_then(|timestamp| Utc.timestamp_millis_opt(timestamp).single())
-        .with_context(|| {
-            format!(
-                "failed to parse {} as timestamp from payload published log",
-                key
-            )
+type JsonValue = serde_json::Value;
+
+/// Parses loki query response into a list of log lines. Oldest log line is first.
+fn loki_res_into_json_logs(text: &str) -> anyhow::Result<Vec<JsonValue>> {
+    let log_response_json: JsonValue =
+        serde_json::from_str(text).context("failed to parse payload log request body as JSON")?;
+
+    // Loki queries many nodes, each may return a stream of logs. We first discard all metadata
+    // leaving only a list of streams.
+    let streams = log_response_json
+        // The rest is response metadata
+        .get("data")
+        // These are the lines, the rest is metadata about the lines
+        .and_then(|data| data.get("result"))
+        .and_then(|result| result.as_array())
+        .ok_or_else(|| anyhow::anyhow!("failed to parse payload log response"))?;
+
+    // Each stream may contain many log lines. We discard the metadata and keep only the log lines.
+    let log_values = streams
+        .iter()
+        .map(|line| {
+            line.get("values")
+                .and_then(|values| values.as_array())
+                .ok_or_else(|| anyhow::anyhow!("failed to parse payload log response"))
         })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    // Each value is an array of two values: a timestamp and the log line.
+    let log_tuples = log_values
+        .iter()
+        .map(|value| {
+            let raw_timestamp = value
+                .get(0)
+                .and_then(|timestamp| timestamp.as_str())
+                .ok_or_else(|| {
+                    anyhow::anyhow!("failed to parse timestamp from payload log response")
+                })?;
+            let timestamp: DateTime<Utc> = raw_timestamp
+                .parse::<i64>()
+                .map(|timestamp| Utc.timestamp_nanos(timestamp))
+                .context("failed to parse nanosecond timestamp as i64")?;
+            let log_str = value
+                .get(1)
+                .and_then(|log| log.as_str())
+                .ok_or_else(|| anyhow::anyhow!("failed to parse log from payload log response"))?;
+            let log_value = serde_json::from_str(log_str).context("failed to parse log as JSON")?;
+            anyhow::Ok((timestamp, log_value))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let log_lines = log_tuples
+        .into_iter()
+        .sorted_by_key(|(timestamp, _)| *timestamp)
+        .map(|(_, log)| log)
+        .collect::<Vec<_>>();
+
+    Ok(log_lines)
 }
 
-/// Takes the payload logs response and extracts the first log line. We rely on the query being
-/// crafted in such a way that the oldest matching result is the one we're looking for.
-fn parse_payload_published_log(text: &str) -> anyhow::Result<Option<PayloadLogStats>> {
-    let payload_published_log: Option<serde_json::Value> = {
-        let log_response_json: serde_json::Value = serde_json::from_str(text)
-            .context("failed to parse payload log request body as JSON")?;
-
-        // See the tests for an example of the data.
-        log_response_json
-            // The rest is response metadata
-            .get("data")
-            // These are the lines, the rest is metadata about the lines
-            .and_then(|data| data.get("result"))
-            .and_then(|result| result.as_array())
-            .and_then(|lines| lines.iter().next())
-            // Each of these lines is expected to contain parsed JSON values in the `stream` field and
-            // raw values in the `values` field.
-            .and_then(|line| line.get("stream"))
-            .cloned()
-    };
-
-    match payload_published_log {
-        None => Ok(None),
-        Some(payload_published_log) => {
-            let received_at = extract_date_time(&payload_published_log, "timestampRequestStart")?;
-            let decoded_at = extract_date_time(&payload_published_log, "timestampAfterDecode")?;
-            let pre_publish_at =
-                extract_date_time(&payload_published_log, "timestampBeforePublishing")?;
-            let decoded_at_slot_age_ms = payload_published_log["msIntoSlot"]
-                .as_str()
-                .and_then(|s| s.parse::<i64>().ok())
-                .context("failed to parse msIntoSlot as i64")?;
-
-            let pre_publish_duration_ms = pre_publish_at
-                .signed_duration_since(received_at)
-                .num_milliseconds();
-
-            let publish_duration_ms = payload_published_log
-                .get("msNeededForPublishing")
-                .and_then(|timestamp| timestamp.as_str())
-                .and_then(|timestamp| timestamp.parse::<i64>().ok())
-                .context("failed to parse msNeededForPublishing as i64")?;
-
-            let request_download_duration_ms = decoded_at
-                .signed_duration_since(received_at)
-                .num_milliseconds();
-
-            let payload_log_stats = PayloadLogStats {
-                decoded_at_slot_age_ms,
-                pre_publish_duration_ms,
-                publish_duration_ms,
-                request_download_duration_ms,
-            };
-
-            Ok(Some(payload_log_stats))
-        }
-    }
+fn errors_from_logs(logs: &[JsonValue]) -> anyhow::Result<Vec<String>> {
+    logs.iter()
+        .map(|log| log["msg"].as_str().map(|s| s.to_string()))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| anyhow::anyhow!("failed to parse error logs"))
 }
 
 pub struct LokiClient {
@@ -91,6 +83,8 @@ pub struct LokiClient {
     server_url: String,
 }
 
+/// Query loki for stats related to the publishing of payloads.
+/// See the tests for an example of the data.
 impl LokiClient {
     pub fn new(server_url: String) -> Self {
         Self {
@@ -99,9 +93,12 @@ impl LokiClient {
         }
     }
 
-    pub async fn payload_log_stats(&self, slot: i64) -> anyhow::Result<Option<PayloadLogStats>> {
+    pub async fn published_stats(
+        &self,
+        slot: i64,
+    ) -> anyhow::Result<Option<PublishedPayloadStats>> {
         let query = format!(
-            r#"{{app="payload-api"}} |= `"slot":{slot}` |= "block published through beacon node" | json"#
+            r#"{{app="payload-api"}} |= `"slot":{slot}` |= "block published through beacon node""#
         );
         let since = "24h";
 
@@ -118,7 +115,55 @@ impl LokiClient {
         let response = self.client.get(url_with_params).send().await?;
         let body = response.text().await?;
 
-        parse_payload_published_log(&body)
+        let logs = loki_res_into_json_logs(&body)?;
+        stats::published_stats_from_logs(&logs)
+    }
+
+    pub async fn late_call_stats(&self, slot: i64) -> anyhow::Result<Option<LatePayloadStats>> {
+        let query = format!(
+            r#"{{app="payload-api",level="warning"}} |= `"slot":{slot}` |= "getPayload sent too late""#
+        );
+        let since = "24h";
+
+        let url = format!("{}/loki/api/v1/query_range", self.server_url);
+        let url_with_params = Url::parse_with_params(
+            &url,
+            &[
+                ("direction", "forward"),
+                ("query", query.as_str()),
+                ("since", since),
+            ],
+        )?;
+
+        let response = self.client.get(url_with_params).send().await?;
+        let body = response.text().await?;
+
+        let logs = loki_res_into_json_logs(&body)?;
+        stats::late_call_stats_from_logs(&logs)
+    }
+
+    pub async fn error_messages(&self, slot: i64) -> anyhow::Result<Vec<String>> {
+        let query = format!(r#"{{app="payload-api",level="error"}} |= `"slot":{slot}`"#);
+        let slot = Slot(slot as i32);
+        let start = slot.date_time().timestamp_nanos();
+        let end = (slot.date_time() + chrono::Duration::seconds(12)).timestamp_nanos();
+
+        let url = format!("{}/loki/api/v1/query_range", self.server_url);
+        let url_with_params = Url::parse_with_params(
+            &url,
+            &[
+                ("direction", "forward"),
+                ("query", query.as_str()),
+                ("start", start.to_string().as_str()),
+                ("end", end.to_string().as_str()),
+            ],
+        )?;
+
+        let response = self.client.get(url_with_params).send().await?;
+        let body = response.text().await?;
+
+        let logs = loki_res_into_json_logs(&body)?;
+        errors_from_logs(&logs)
     }
 }
 
@@ -129,15 +174,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_log_response_test() {
-        let str = File::open("src/phoenix/inclusion_monitor/test_data/payload_logs_7496729.json")
-            .map(|mut file| {
-                let mut str = String::new();
-                file.read_to_string(&mut str).unwrap();
-                str
-            })
-            .unwrap();
+    fn parse_into_logs_test() {
+        let str =
+            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/late_call_8365873.json")
+                .map(|mut file| {
+                    let mut str = String::new();
+                    file.read_to_string(&mut str).unwrap();
+                    str
+                })
+                .unwrap();
 
-        parse_payload_published_log(&str).unwrap();
+        loki_res_into_json_logs(&str).unwrap();
+    }
+
+    #[test]
+    fn error_messages_test() {
+        let str =
+            File::open("src/phoenix/inclusion_monitor/log_stats/test_data/error_8365565.json")
+                .map(|mut file| {
+                    let mut str = String::new();
+                    file.read_to_string(&mut str).unwrap();
+                    str
+                })
+                .unwrap();
+
+        let logs = loki_res_into_json_logs(&str).unwrap();
+        let messages = errors_from_logs(&logs).unwrap();
+        dbg!(messages);
     }
 }

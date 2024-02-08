@@ -1,5 +1,6 @@
+use anyhow::anyhow;
 use rand::seq::SliceRandom;
-use reqwest::Url;
+use reqwest::{StatusCode, Url};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -76,16 +77,28 @@ impl BeaconApi {
             .map(|body| body.data.index)
     }
 
-    pub async fn get_block_hash(&self, slot: &i64) -> reqwest::Result<String> {
+    pub async fn get_block_hash(&self, slot: &i64) -> anyhow::Result<Option<String>> {
         let url = format!("{}eth/v2/beacon/blocks/{}", self.get_node(), slot);
-        self.client
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<BeaconResponse<BlockResponse>>()
-            .await
-            .map(|body| body.data.message.body.execution_payload.block_hash)
+
+        let res = self.client.get(url).send().await?;
+
+        match res.status() {
+            StatusCode::NOT_FOUND => Ok(None),
+            StatusCode::OK => {
+                let block = res
+                    .json::<BeaconResponse<BlockResponse>>()
+                    .await
+                    .map(|envelope| envelope.data.message)?;
+                let block_hash = block.body.execution_payload.block_hash;
+                Ok(Some(block_hash))
+            }
+            status => Err(anyhow!(
+                "failed to fetch block_hash by slot. slot = {} status = {} url = {}",
+                slot,
+                status,
+                res.url()
+            )),
+        }
     }
 
     pub async fn get_sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {

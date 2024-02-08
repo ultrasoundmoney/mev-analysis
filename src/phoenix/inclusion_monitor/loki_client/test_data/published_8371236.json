@@ -1,0 +1,104 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "app": "payload-api",
+          "container": "payload-api",
+          "filename": "/var/log/pods/default_payload-api-786d67d86b-57vvs_32bfe310-1c46-4a36-b16c-079832df313d/payload-api/0.log",
+          "job": "default/payload-api",
+          "level": "info",
+          "namespace": "default",
+          "node_name": "enzo",
+          "pod": "payload-api-786d67d86b-57vvs",
+          "stream": "stdout"
+        },
+        "values": [
+          [
+            "1707278859566080002",
+            "{\"blockHash\":\"0xafa08b1f68cc8f4efe82ffc873631bee3f89c7e5962d96e561898f6785c658a9\",\"contentLength\":95241,\"feeRecipient\":\"0x2194331af2cf9de9adb36cf09654fad65cafb58b\",\"headSlot\":8371235,\"headSlotEpochPos\":4,\"idArg\":\"\",\"level\":\"info\",\"method\":\"getPayload\",\"mevBoostV\":\"v1.6\",\"msIntoSlot\":3870,\"msNeededForPublishing\":693,\"msg\":\"block published through beacon node\",\"proposerIndex\":469072,\"proposerPubkey\":\"0x8718a19827ac9c8b8b210b0b8d23850789fe105dfd7f3ada4b583d9221cc0cbd63fe8ffbd49778419ccdc8cd80dc5484\",\"service\":\"relay/api\",\"slot\":8371236,\"slotEpochPos\":5,\"slotStartSec\":1707278855,\"time\":\"2024-02-07T04:07:39.566080002Z\",\"timestampAfterAlreadyDeliveredCheck\":1707278858872,\"timestampAfterDecode\":1707278858870,\"timestampAfterLoadResponse\":1707278858872,\"timestampAfterPublishing\":1707278859566,\"timestampAfterSignatureVerify\":1707278858871,\"timestampBeforePublishing\":1707278858873,\"timestampRequestStart\":1707278858646,\"ua\":\"mev-boost/v1.6 Lighthouse/v4.5.0-441fc16\",\"version\":\"\"}"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "bytesProcessedPerSecond": 3038398306,
+        "linesProcessedPerSecond": 11943425,
+        "totalBytesProcessed": 2329348936,
+        "totalLinesProcessed": 9156273,
+        "execTime": 0.766637,
+        "queueTime": 4.584326,
+        "subqueries": 0,
+        "totalEntriesReturned": 1,
+        "splits": 97,
+        "shards": 97
+      },
+      "querier": {
+        "store": {
+          "totalChunksRef": 921,
+          "totalChunksDownloaded": 921,
+          "chunksDownloadTime": 12278286954,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 2329348936,
+            "decompressedLines": 9156273,
+            "compressedBytes": 156510117,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "ingester": {
+        "totalReached": 39,
+        "totalChunksMatched": 0,
+        "totalBatches": 0,
+        "totalLinesSent": 0,
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "cache": {
+        "chunk": {
+          "entriesFound": 536,
+          "entriesRequested": 921,
+          "entriesStored": 385,
+          "bytesReceived": 37933411,
+          "bytesSent": 386900313,
+          "requests": 158,
+          "downloadTime": 1334784070
+        },
+        "index": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0
+        },
+        "result": {
+          "entriesFound": 0,
+          "entriesRequested": 95,
+          "entriesStored": 94,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 189,
+          "downloadTime": 548988831
+        }
+      }
+    }
+  }
+}

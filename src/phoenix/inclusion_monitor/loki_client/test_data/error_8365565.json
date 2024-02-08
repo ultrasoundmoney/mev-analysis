@@ -1,0 +1,127 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "app": "payload-api",
+          "container": "payload-api",
+          "filename": "/var/log/pods/default_payload-api-786d67d86b-57vvs_32bfe310-1c46-4a36-b16c-079832df313d/payload-api/0.log",
+          "job": "default/payload-api",
+          "level": "error",
+          "namespace": "default",
+          "node_name": "enzo",
+          "pod": "payload-api-786d67d86b-57vvs",
+          "stream": "stdout"
+        },
+        "values": [
+          [
+            "1707210805868246774",
+            "{\"error\":\"write tcp 10.42.4.52:9062-\\u003e10.42.4.73:59070: write: broken pipe\",\"level\":\"error\",\"msg\":\"Couldn't write response\",\"service\":\"relay/api\",\"time\":\"2024-02-06T09:13:25.868246774Z\",\"version\":\"\"}"
+          ],
+          [
+            "1707210806429116282",
+            "{\"error\":\"write tcp 10.42.4.52:9062-\\u003e10.42.1.246:59732: write: broken pipe\",\"level\":\"error\",\"msg\":\"Couldn't write response\",\"service\":\"relay/api\",\"time\":\"2024-02-06T09:13:26.429116282Z\",\"version\":\"\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "app": "payload-api",
+          "container": "payload-api",
+          "filename": "/var/log/pods/default_payload-api-786d67d86b-hw846_9ecf7003-155a-4436-ae95-c4dc13c4a125/payload-api/0.log",
+          "job": "default/payload-api",
+          "level": "error",
+          "namespace": "default",
+          "node_name": "kate",
+          "pod": "payload-api-786d67d86b-hw846",
+          "stream": "stdout"
+        },
+        "values": [
+          [
+            "1707210806552740571",
+            "{\"error\":\"write tcp 10.42.2.246:9062-\\u003e10.42.9.5:55058: write: broken pipe\",\"level\":\"error\",\"msg\":\"Couldn't write response\",\"service\":\"relay/api\",\"time\":\"2024-02-06T09:13:26.552740571Z\",\"version\":\"\"}"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "bytesProcessedPerSecond": 37591405,
+        "linesProcessedPerSecond": 50984,
+        "totalBytesProcessed": 352433,
+        "totalLinesProcessed": 478,
+        "execTime": 0.009375,
+        "queueTime": 0.000098,
+        "subqueries": 0,
+        "totalEntriesReturned": 3,
+        "splits": 0,
+        "shards": 1
+      },
+      "querier": {
+        "store": {
+          "totalChunksRef": 2,
+          "totalChunksDownloaded": 2,
+          "chunksDownloadTime": 203760,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 352433,
+            "decompressedLines": 478,
+            "compressedBytes": 62490,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "ingester": {
+        "totalReached": 0,
+        "totalChunksMatched": 0,
+        "totalBatches": 0,
+        "totalLinesSent": 0,
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0
+          }
+        }
+      },
+      "cache": {
+        "chunk": {
+          "entriesFound": 2,
+          "entriesRequested": 2,
+          "entriesStored": 0,
+          "bytesReceived": 63539,
+          "bytesSent": 0,
+          "requests": 1,
+          "downloadTime": 132276
+        },
+        "index": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0
+        },
+        "result": {
+          "entriesFound": 0,
+          "entriesRequested": 1,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 1,
+          "downloadTime": 849300
+        }
+      }
+    }
+  }
+}
