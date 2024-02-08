@@ -238,7 +238,7 @@ async fn report_missing_payload(
 
     let slot = payload.slot;
     let payload_block_hash = &payload.block_hash;
-    let on_chain_block_hash = telegram_escape(found_block_hash.as_deref().unwrap_or("-"));
+    let on_chain_block_hash = telegram_escape(&found_block_hash.as_deref().unwrap_or("-"));
 
     let mut message = formatdoc!(
         "
@@ -246,8 +246,8 @@ async fn report_missing_payload(
 
         beaconcha\\.in: [slot/{slot}]({explorer_url}/slot/{slot})
         slot: `{slot}`
-        payload_block_hash: `{payload_block_hash}`
-        on_chain_block_hash: `{on_chain_block_hash}`
+        payload\\_block\\_hash: `{payload_block_hash}`
+        on\\_chain\\_block\\_hash: `{on_chain_block_hash}`
         "
     );
 
@@ -264,10 +264,10 @@ async fn report_missing_payload(
                 "
                 publish was attempted
 
-                decoded_at_slot_age_ms: `{decoded_at_slot_age_ms}`
-                pre_publish_duration_ms: `{pre_publish_duration_ms}`
-                publish_duration_ms: `{publish_duration_ms}`
-                request_download_duration_ms: `{request_download_duration_ms}`
+                decoded\\_at\\_slot\\_age\\_ms: `{decoded_at_slot_age_ms}`
+                pre\\_publish\\_duration\\_ms: `{pre_publish_duration_ms}`
+                publish\\_duration\\_ms: `{publish_duration_ms}`
+                request\\_download\\_duration\\_ms: `{request_download_duration_ms}`
                 ",
             );
             message.push_str("\n\n");
@@ -318,12 +318,12 @@ async fn report_missing_payload(
         "
         proposer meta
 
-        proposer_city: `{proposer_city}`
-        proposer_country: `{proposer_country}`
-        proposer_grafitti: `{grafitti}`
-        proposer_ip: `{proposer_ip}`
-        proposer_label: `{operator}`
-        proposer_lido_operator: `{lido_operator}`
+        proposer\\_city: `{proposer_city}`
+        proposer\\_country: `{proposer_country}`
+        proposer\\_grafitti: `{grafitti}`
+        proposer\\_ip: `{proposer_ip}`
+        proposer\\_label: `{operator}`
+        proposer\\_lido\\_operator: `{lido_operator}`
         ",
     );
     message.push_str("\n\n");
@@ -334,24 +334,24 @@ async fn report_missing_payload(
     message.push_str(&format!("is_missed_adjustment: `{}`", is_adjustment_hash));
 
     let publish_errors = loki_client.error_messages(slot).await?;
-    // if !publish_errors.is_empty() {
-    //     message.push_str("\n\n");
-    //     message.push_str("found publish errors\n");
-    //     for error in publish_errors.iter() {
-    //         let error_message = {
-    //             let error_message = formatdoc!(
-    //                 "
-    //                 ```
-    //                 {}
-    //                 ```
-    //                 ",
-    //                 error
-    //             );
-    //             telegram_escape(&error_message)
-    //         };
-    //         message.push_str(&error_message);
-    //     }
-    // }
+    if !publish_errors.is_empty() {
+        message.push_str("\n\n");
+        message.push_str("found publish errors\n");
+        for error in publish_errors.iter() {
+            let error_message = {
+                let error_message = formatdoc!(
+                    "
+                    ```
+                    {}
+                    ```
+                    ",
+                    error
+                );
+                telegram_escape(&error_message)
+            };
+            message.push_str(&error_message);
+        }
+    }
 
     let late_call_stats = loki_client.late_call_stats(slot).await?;
     if let Some(late_call_stats) = &late_call_stats {
@@ -363,8 +363,8 @@ async fn report_missing_payload(
             "
             found late call warnings
 
-            decoded_at_slot_age_ms: `{decoded_at_slot_age_ms}`
-            request_download_duration_ms: `{request_download_duration_ms}`
+            decoded\\_at\\_slot\\_age\\_ms: `{decoded_at_slot_age_ms}`
+            request\\_download\\_duration\\_ms: `{request_download_duration_ms}`
             "
         );
         message.push_str("\n\n");
