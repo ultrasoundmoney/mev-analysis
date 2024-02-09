@@ -153,7 +153,7 @@ async fn report_missing_payload(
 
     let mut message = formatdoc!(
         "
-        delivered block not found
+        *delivered block not found*
 
         beaconcha\\.in: [slot/{slot}]({explorer_url}/slot/{slot})
         slot: {slot}

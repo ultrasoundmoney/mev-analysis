@@ -111,7 +111,7 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
                 let slot = demotion.slot;
                 formatdoc!(
                     "
-                    builder demoted
+                    *builder demoted*
 
                     builder_id: `{builder_id}`
                     builder_pubkey: `{builder_pubkey}`
