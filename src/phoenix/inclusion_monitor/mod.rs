@@ -239,7 +239,7 @@ async fn report_missing_payload(
         proposer\\_lido\\_operator: {lido_operator}
         ",
     );
-    message.push_str("\n\n");
+    message.push('\n');
     message.push_str(&proposer_meta_message);
 
     let publish_errors = loki_client.error_messages(slot).await?;
