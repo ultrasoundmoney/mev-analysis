@@ -279,7 +279,7 @@ async fn report_missing_payload(
             request\\_download\\_duration\\_ms: {request_download_duration_ms}
             "
         );
-        message.push('\n');
+        message.push_str("\n\n");
         message.push_str(&late_call_message);
     }
 
