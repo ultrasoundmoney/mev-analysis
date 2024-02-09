@@ -166,8 +166,9 @@ async fn report_missing_payload(
     message.push_str(&format!("is\\_missed\\_adjustment: {}", is_adjustment_hash));
 
     // Check if a publish was attempted, if yes, add publish stats.
-    match loki_client.published_stats(payload.slot).await? {
-        Some(payload_stats) => {
+    let published_stats = loki_client.published_stats(payload.slot).await?;
+    match published_stats {
+        Some(ref payload_stats) => {
             let PublishedPayloadStats {
                 decoded_at_slot_age_ms,
                 pre_publish_duration_ms,
@@ -278,11 +279,11 @@ async fn report_missing_payload(
             request\\_download\\_duration\\_ms: {request_download_duration_ms}
             "
         );
-        message.push_str("\n\n");
+        message.push('\n');
         message.push_str(&late_call_message);
     }
 
-    if publish_errors.is_empty() && late_call_stats.is_some() {
+    if published_stats.is_none() && publish_errors.is_empty() && late_call_stats.is_some() {
         send_telegram_warning(&message).await?;
     } else {
         send_telegram_alert(&message).await?;
