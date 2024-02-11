@@ -155,7 +155,7 @@ async fn report_missing_payload(
         "
         *delivered block not found*
 
-        beaconcha\\.in: [slot/{slot}]({explorer_url}/slot/{slot})
+        [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
         slot: {slot}
         payload\\_block\\_hash: {payload_block_hash}
         on\\_chain\\_block\\_hash: {on_chain_block_hash}
