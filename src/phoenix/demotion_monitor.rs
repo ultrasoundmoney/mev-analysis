@@ -99,33 +99,35 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
         .collect_vec();
 
     if !demotions.is_empty() {
-        let message = demotions
-            .into_iter()
-            .map(|demotion| {
-                let builder_id = {
-                    let builder_id = demotion.builder_id.unwrap_or("unknown".to_string());
-                    telegram_escape(&builder_id)
-                };
-                let builder_pubkey = demotion.builder_pubkey;
-                let error = escape_code_block(&demotion.sim_error);
-                let slot = demotion.slot;
-                formatdoc!(
-                    "
-                    *builder demoted*
+        let message = {
+            let header = "*builder demoted*";
+            let demotion_messages: Vec<String> = demotions
+                .into_iter()
+                .map(|demotion| {
+                    let builder_id = {
+                        let builder_id =
+                            demotion.builder_id.unwrap_or_else(|| "unknown".to_string());
+                        telegram_escape(&builder_id)
+                    };
+                    let builder_pubkey = demotion.builder_pubkey;
+                    let error = escape_code_block(&demotion.sim_error);
+                    let slot = demotion.slot;
+                    formatdoc!(
+                        "
+                        [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
+                        slot: `{slot}`
+                        builder\\_id: `{builder_id}`
+                        builder\\_pubkey: `{builder_pubkey}`
+                        ```
+                        {error}
+                        ```
+                        "
+                    )
+                })
+                .collect();
 
-                    beaconcha\\.in: [{slot}]({explorer_url}/slot/{slot})
-                    slot: `{slot}`
-                    builder\\_id: `{builder_id}`
-                    builder\\_pubkey: `{builder_pubkey}`
-
-                    error:
-                    ```
-                    {error}
-                    ```
-                    "
-                )
-            })
-            .join("\n\n");
+            format!("{}\n\n{}", header, demotion_messages.join("\n\n"))
+        };
 
         info!(?message, "sending telegram alert");
 
