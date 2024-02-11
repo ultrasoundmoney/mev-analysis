@@ -113,10 +113,10 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
                     "
                     *builder demoted*
 
-                    builder_id: `{builder_id}`
-                    builder_pubkey: `{builder_pubkey}`
+                    beaconcha\\.in: [{slot}]({explorer_url}/slot/{slot})
                     slot: `{slot}`
-                    beaconcha.in: [{slot}]({explorer_url}/slot/{slot})
+                    builder\\_id: `{builder_id}`
+                    builder\\_pubkey: `{builder_pubkey}`
 
                     error:
                     ```
