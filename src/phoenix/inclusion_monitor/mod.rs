@@ -284,6 +284,9 @@ async fn report_missing_payload(
         );
         message.push_str("\n\n");
         message.push_str(&late_call_message);
+    } else {
+        message.push_str("\n\n");
+        message.push_str("no late call warnings found");
     }
 
     if published_stats.is_none() && publish_errors.is_empty() && late_call_stats.is_some() {
