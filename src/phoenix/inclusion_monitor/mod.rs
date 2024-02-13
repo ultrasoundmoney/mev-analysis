@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-use self::loki_client::LatePayloadStats;
+use self::{loki_client::LatePayloadStats, proposer_meta::ProposerLocation};
 
 use super::{
     alert,
@@ -194,11 +194,7 @@ async fn report_missing_payload(
     }
 
     // Add proposer meta.
-    let (proposer_meta, proposer_ip, proposer_location) = tokio::try_join!(
-        proposer_label_meta(mev_pool, &payload.proposer_pubkey),
-        get_proposer_ip(mev_pool, &payload.proposer_pubkey),
-        proposer_location(mev_pool, &payload.proposer_pubkey)
-    )?;
+    let proposer_meta = proposer_label_meta(mev_pool, &payload.proposer_pubkey).await?;
     let operator = {
         let label = proposer_meta.label.as_deref().unwrap_or("-");
         telegram_escape(label)
@@ -214,27 +210,34 @@ async fn report_missing_payload(
         telegram_escape(grafitti)
     };
 
-    let proposer_ip = {
+    let proposer_ip = get_proposer_ip(mev_pool, &payload.proposer_pubkey).await?;
+    let proposer_ip_formatted = {
         let ip = proposer_ip.as_deref().unwrap_or("-");
         telegram_escape(ip)
     };
 
+    let proposer_location = {
+        match proposer_ip {
+            Some(proposer_ip) => proposer_location(mev_pool, &proposer_ip).await?,
+            None => ProposerLocation::default(),
+        }
+    };
     let proposer_country = {
         let country = proposer_location.country.as_deref().unwrap_or("-");
         telegram_escape(country)
     };
-
     let proposer_city = {
         let city = proposer_location.city.as_deref().unwrap_or("-");
         telegram_escape(city)
     };
+
     let proposer_meta_message = formatdoc!(
         "
         proposer meta
         proposer\\_city: {proposer_city}
         proposer\\_country: {proposer_country}
         proposer\\_grafitti: {grafitti}
-        proposer\\_ip: {proposer_ip}
+        proposer\\_ip: {proposer_ip_formatted}
         proposer\\_label: {operator}
         proposer\\_lido\\_operator: {lido_operator}
         ",
