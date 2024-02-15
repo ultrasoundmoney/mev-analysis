@@ -85,7 +85,7 @@ const PROMOTABLE_ERRORS: &[&str] = &[
     "simulation failed: incorrect gas limit set"
 ];
 
-fn is_promotable_error(error: &str) -> bool {
+pub fn is_promotable_error(error: &str) -> bool {
     PROMOTABLE_ERRORS
         .iter()
         // Use starts_with to account for additional info in gas limit error
