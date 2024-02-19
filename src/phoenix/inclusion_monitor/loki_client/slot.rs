@@ -10,7 +10,6 @@ lazy_static! {
     static ref GENESIS_TIMESTAMP: DateTime<Utc> = {
         match APP_CONFIG.network {
             Network::Mainnet => "2020-12-01T12:00:23Z".parse().unwrap(),
-            Network::Goerli => "2021-03-23T14:00:00Z".parse().unwrap(),
             Network::Holesky => "2023-09-28T12:00:00Z".parse().unwrap(),
         }
     };

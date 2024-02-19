@@ -43,7 +43,6 @@ impl<'de> Deserialize<'de> for Env {
 #[derive(PartialEq, Deserialize)]
 pub enum Network {
     Mainnet,
-    Goerli,
     Holesky,
 }
 
@@ -51,7 +50,6 @@ impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let str = match &self {
             Network::Mainnet => "mainnet",
-            Network::Goerli => "goerli",
             Network::Holesky => "holesky",
         };
         write!(f, "{}", str)
@@ -65,7 +63,7 @@ pub trait ToNetwork {
 impl ToNetwork for Env {
     fn to_network(&self) -> Network {
         match *self {
-            Env::Stag => Network::Goerli,
+            Env::Stag => Network::Holesky,
             Env::Prod => Network::Mainnet,
         }
     }
@@ -78,7 +76,7 @@ where
     let s: String = Deserialize::deserialize(deserializer)?;
     match s.as_ref() {
         "mainnet" => Ok(Network::Mainnet),
-        "goerli" => Ok(Network::Goerli),
+        "holesky" => Ok(Network::Holesky),
         _ => Err(Error::custom("network present but not mainnet or goerli")),
     }
 }
@@ -90,7 +88,7 @@ pub trait ToBeaconExplorerUrl {
 impl ToBeaconExplorerUrl for Env {
     fn to_beacon_explorer_url(&self) -> String {
         match *self {
-            Env::Stag => "https://goerli.beaconcha.in",
+            Env::Stag => "https://holesky.beaconcha.in",
             Env::Prod => "https://beaconcha.in",
         }
         .to_string()
