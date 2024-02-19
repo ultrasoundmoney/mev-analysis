@@ -98,7 +98,7 @@ impl LokiClient {
         slot: i64,
     ) -> anyhow::Result<Option<PublishedPayloadStats>> {
         let query = format!(
-            r#"{{app="payload-api"}} |= `"slot":{slot}` |= "block published through beacon node""#
+            r#"{{app="payload-api"}} |= `"slot":"{slot}"` |= "block published through beacon node""#
         );
         let since = "24h";
 
@@ -121,7 +121,7 @@ impl LokiClient {
 
     pub async fn late_call_stats(&self, slot: i64) -> anyhow::Result<Option<LatePayloadStats>> {
         let query = format!(
-            r#"{{app="payload-api",level="warning"}} |= `"slot":{slot}` |= "getPayload sent too late""#
+            r#"{{app="payload-api",level="warning"}} |= `"slot":"{slot}"` |= "getPayload sent too late""#
         );
         let since = "24h";
 
@@ -143,7 +143,7 @@ impl LokiClient {
     }
 
     pub async fn error_messages(&self, slot: i64) -> anyhow::Result<Vec<String>> {
-        let query = format!(r#"{{app="payload-api",level="error"}} |= `"slot":{slot}`"#);
+        let query = format!(r#"{{app="payload-api",level="error"}} |= `"slot":"{slot}"`"#);
         let slot = Slot(slot as i32);
         let start = slot.date_time().timestamp_nanos();
         let end = (slot.date_time() + chrono::Duration::seconds(12)).timestamp_nanos();
