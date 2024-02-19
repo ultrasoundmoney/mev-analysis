@@ -44,6 +44,7 @@ impl<'de> Deserialize<'de> for Env {
 pub enum Network {
     Mainnet,
     Goerli,
+    Holesky,
 }
 
 impl fmt::Display for Network {
@@ -51,6 +52,7 @@ impl fmt::Display for Network {
         let str = match &self {
             Network::Mainnet => "mainnet",
             Network::Goerli => "goerli",
+            Network::Holesky => "holesky",
         };
         write!(f, "{}", str)
     }
