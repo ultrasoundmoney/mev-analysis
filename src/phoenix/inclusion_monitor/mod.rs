@@ -163,7 +163,7 @@ async fn report_missing_payload(
     );
 
     let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
-    message.push_str(&format!("is\\_missed\\_adjustment: {}", is_adjustment_hash));
+    message.push_str(&format!("is\\_adjustment: {}", is_adjustment_hash));
 
     // Check if a publish was attempted, if yes, add publish stats.
     let published_stats = loki_client.published_stats(payload.slot).await?;
