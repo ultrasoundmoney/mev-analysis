@@ -251,15 +251,15 @@ async fn report_missing_payload(
         message.push_str("found publish errors");
         for error in publish_errors.iter() {
             let error_message = {
-                let error_message = formatdoc!(
+                let formatted_error = telegram_escape(error);
+                formatdoc!(
                     "
                     ```
                     {}
                     ```
                     ",
-                    error
-                );
-                telegram_escape(&error_message)
+                    formatted_error
+                )
             };
             message.push('\n');
             message.push_str(&error_message);
