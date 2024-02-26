@@ -189,7 +189,7 @@ async fn report_missing_payload(
         }
         None => {
             message.push_str("\n\n");
-            message.push_str("no logs indicating publish was attempted");
+            message.push_str("no logs indicating beacon node publish");
         }
     }
 
