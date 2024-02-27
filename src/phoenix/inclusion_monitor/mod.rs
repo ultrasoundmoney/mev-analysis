@@ -177,7 +177,7 @@ async fn report_missing_payload(
             } = payload_stats;
             let published_stats_message = formatdoc!(
                 "
-                publish was attempted, publish stats
+                log indicating beacon node publish, publish stats
                 decoded\\_at\\_slot\\_age\\_ms: {decoded_at_slot_age_ms}
                 pre\\_publish\\_duration\\_ms: {pre_publish_duration_ms}
                 publish\\_duration\\_ms: {publish_duration_ms}
