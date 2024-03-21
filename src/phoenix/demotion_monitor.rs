@@ -3,13 +3,14 @@ use chrono::{DateTime, TimeZone, Utc};
 use indoc::formatdoc;
 use itertools::Itertools;
 use sqlx::{PgPool, Row};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     env::{ToBeaconExplorerUrl, ToNetwork},
     phoenix::{
+        alerts::{telegram::TelegramSafeAlert, SendAlert},
         promotion_monitor::is_promotable_error,
-        telegram::{self, escape_code_block, telegram_escape},
+        telegram,
     },
 };
 
@@ -108,9 +109,9 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
 
         for demotion in demotions.into_iter() {
             let builder_id = demotion.builder_id.unwrap_or_else(|| "unknown".to_string());
-            let escaped_builder_id = telegram_escape(&builder_id);
+            let escaped_builder_id = telegram::escape_str(&builder_id);
             let builder_pubkey = demotion.builder_pubkey;
-            let error = escape_code_block(&demotion.sim_error);
+            let error = telegram::escape_code_block(&demotion.sim_error);
             let slot = demotion.slot;
             let formatted_message = formatdoc!(
                 "
@@ -132,30 +133,27 @@ pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Res
             }
         }
 
+        let telegram_alerts = telegram::TelegramAlerts::new();
         if !alert_messages.is_empty() {
-            let alert_message = format!("*builder demoted*\n\n{}", alert_messages.join("\n\n"));
+            let alert_message = {
+                let message = format!("*builder demoted*\n\n{}", alert_messages.join("\n\n"));
+                TelegramSafeAlert::from_escaped_string(message)
+            };
             info!(?alert_message, "sending telegram alert");
-
-            if let Err(error) = telegram::send_telegram_alert(&alert_message).await {
-                error!(?error, ?alert_message, "failed to send telegram alert");
-                telegram::send_telegram_alert(
-                    "there were builder demotions, but the telegram alert failed",
-                )
-                .await?;
-            }
+            telegram_alerts.send_alert(alert_message).await
         }
 
         if !warning_messages.is_empty() {
-            let warning_message = format!(
-                "*builder demoted \\(with promotable error\\)*\n\n{}",
-                warning_messages.join("\n\n")
-            );
+            let warning_message = {
+                let message = format!(
+                    "*builder demoted \\(with promotable error\\)*\n\n{}",
+                    warning_messages.join("\n\n")
+                );
+                TelegramSafeAlert::from_escaped_string(message)
+            };
             info!(?warning_message, "sending telegram warning");
 
-            if let Err(error) = telegram::send_telegram_warning(&warning_message).await {
-                error!(?error, ?warning_message, "failed to send telegram warning");
-                telegram::send_telegram_warning("there were builder demotions with promotable errors, but the telegram warning failed").await?;
-            }
+            telegram_alerts.send_warning(warning_message).await
         }
     }
 

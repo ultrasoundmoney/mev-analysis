@@ -1,11 +1,10 @@
-mod alert;
+mod alerts;
 mod checkpoint;
 mod consensus_node;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
 mod promotion_monitor;
-mod telegram;
 mod validation_node;
 
 use std::{
@@ -13,7 +12,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
@@ -30,10 +29,13 @@ use crate::phoenix::{
 };
 
 use self::{
+    alerts::{
+        telegram::{self, TelegramAlerts, TelegramSafeAlert},
+        SendAlert,
+    },
     demotion_monitor::run_demotion_monitor,
     inclusion_monitor::{run_inclusion_monitor, LokiClient},
     promotion_monitor::run_promotion_monitor,
-    telegram::telegram_escape,
 };
 
 lazy_static! {
@@ -64,10 +66,7 @@ impl Alarm {
 
         error!(message, "firing alarm");
 
-        let result = alert::send_opsgenie_telegram_alert(message).await;
-        if let Err(err) = result {
-            error!(?err, "failed to send alert!");
-        }
+        alerts::send_opsgenie_telegram_alert(message).await;
 
         self.last_fired = Some(Utc::now());
     }
@@ -199,10 +198,10 @@ async fn get_db_connection(
             }
             Err(error) => {
                 error!(?error, "failed to connect to database, sending alert");
-                alert::send_opsgenie_telegram_alert(
+                alerts::send_opsgenie_telegram_alert(
                     "phoenix service failed to connect to database",
                 )
-                .await?;
+                .await;
                 return Err(error.into());
             }
         }
@@ -244,6 +243,8 @@ pub async fn monitor_critical_services() -> Result<()> {
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
 
+    let telegram_alerts = TelegramAlerts::new();
+
     let last_checked = Arc::new(Mutex::new(Utc::now()));
 
     let result = tokio::try_join!(
@@ -254,43 +255,24 @@ pub async fn monitor_critical_services() -> Result<()> {
 
     match result {
         Ok(_) => {
-            let message = "phoenix processes exited unexpectedly";
-            telegram::send_telegram_alert(message)
-                .await
-                .context("failed to send alert when phoenix processes exited unexpectedly")?;
+            let message = TelegramSafeAlert::new("phoenix processes exited unexpectedly");
+            telegram_alerts.send_alert(message.clone()).await;
             Err(anyhow!(message))
         }
         Err(err) => {
-            let escaped_err = telegram_escape(err.to_string().as_str());
-            let message = formatdoc!(
+            let shortned_err = err.to_string().split_off(3072);
+            let escaped_err = telegram::escape_str(&shortned_err);
+            let formatted_message = formatdoc!(
                 "
                 phoenix process exited with error
-                ```
+                ```error
                 {escaped_err}
                 ```
                 "
             );
-            // In the unlikely event the escaped error fails to send, we send a fallback message.
-            let send_result = telegram::send_telegram_alert(&message)
-                .await
-                .context("failed to send telegram alert with error");
-            match send_result {
-                Ok(_) => {}
-                Err(send_err) => {
-                    error!(
-                        original_error = ?err,
-                        send_error = ?send_err,
-                        "phoenix process hit error, tried to send error alert, but failed"
-                    );
-                    // No period or exclamation mark here!
-                    telegram::send_telegram_alert(
-                        "phoenix process hit error, tried to send error alert, but failed, check logs",
-                    )
-                    .await
-                    .context("failed to send simple fallback telegram alert")?;
-                }
-            }
-            Err(err)
+            let message = TelegramSafeAlert::from_escaped_string(formatted_message);
+            telegram_alerts.send_alert(message).await;
+            Err(anyhow!(err))
         }
     }
 }

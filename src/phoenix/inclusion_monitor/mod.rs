@@ -14,17 +14,20 @@ use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
     phoenix::{
+        alerts,
         inclusion_monitor::proposer_meta::{
             get_proposer_ip, proposer_label_meta, proposer_location,
         },
-        telegram::{send_telegram_alert, send_telegram_warning, telegram_escape},
     },
 };
 
 use self::{loki_client::LatePayloadStats, proposer_meta::ProposerLocation};
 
 use super::{
-    alert,
+    alerts::{
+        telegram::{self, TelegramSafeAlert},
+        SendAlert,
+    },
     checkpoint::{self, CheckpointId},
     env::APP_CONFIG,
 };
@@ -149,7 +152,7 @@ async fn report_missing_payload(
 
     let slot = payload.slot;
     let payload_block_hash = &payload.block_hash;
-    let on_chain_block_hash = telegram_escape(found_block_hash.as_deref().unwrap_or("-"));
+    let on_chain_block_hash = telegram::escape_str(found_block_hash.as_deref().unwrap_or("-"));
 
     let mut message = formatdoc!(
         "
@@ -197,23 +200,23 @@ async fn report_missing_payload(
     let proposer_meta = proposer_label_meta(mev_pool, &payload.proposer_pubkey).await?;
     let operator = {
         let label = proposer_meta.label.as_deref().unwrap_or("-");
-        telegram_escape(label)
+        telegram::escape_str(label)
     };
 
     let lido_operator = {
         let lido_operator = proposer_meta.lido_operator.as_deref().unwrap_or("-");
-        telegram_escape(lido_operator)
+        telegram::escape_str(lido_operator)
     };
 
     let grafitti = {
         let grafitti = proposer_meta.grafitti.as_deref().unwrap_or("-");
-        telegram_escape(grafitti)
+        telegram::escape_str(grafitti)
     };
 
     let proposer_ip = get_proposer_ip(mev_pool, &payload.proposer_pubkey).await?;
     let proposer_ip_formatted = {
         let ip = proposer_ip.as_deref().unwrap_or("-");
-        telegram_escape(ip)
+        telegram::escape_str(ip)
     };
 
     let proposer_location = {
@@ -224,11 +227,11 @@ async fn report_missing_payload(
     };
     let proposer_country = {
         let country = proposer_location.country.as_deref().unwrap_or("-");
-        telegram_escape(country)
+        telegram::escape_str(country)
     };
     let proposer_city = {
         let city = proposer_location.city.as_deref().unwrap_or("-");
-        telegram_escape(city)
+        telegram::escape_str(city)
     };
 
     let proposer_meta_message = formatdoc!(
@@ -251,7 +254,7 @@ async fn report_missing_payload(
         message.push_str("found publish errors");
         for error in publish_errors.iter() {
             let error_message = {
-                let formatted_error = telegram_escape(error);
+                let formatted_error = telegram::escape_str(error);
                 formatdoc!(
                     "
                     ```
@@ -289,10 +292,12 @@ async fn report_missing_payload(
         message.push_str("no late call warnings found");
     }
 
+    let telegram_alerts = telegram::TelegramAlerts::new();
+    let escaped_message = TelegramSafeAlert::from_escaped_string(message);
     if published_stats.is_none() && publish_errors.is_empty() && late_call_stats.is_some() {
-        send_telegram_warning(&message).await?;
+        telegram_alerts.send_warning(escaped_message).await;
     } else {
-        send_telegram_alert(&message).await?;
+        telegram_alerts.send_alert(escaped_message).await;
     }
 
     Ok(())
@@ -381,7 +386,7 @@ pub async fn run_inclusion_monitor(
                 missed_slot_count, APP_CONFIG.missed_slots_check_range
             );
             warn!("{}", &message);
-            alert::send_opsgenie_telegram_alert(&message).await?;
+            alerts::send_opsgenie_telegram_alert(&message).await;
         }
     }
 
