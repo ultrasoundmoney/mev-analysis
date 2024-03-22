@@ -120,7 +120,7 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
 
     let mut alarm = Alarm::new();
 
-    let mut phoenixes = vec![
+    let mut phoenixes = [
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
