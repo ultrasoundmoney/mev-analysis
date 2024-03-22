@@ -92,11 +92,9 @@ async fn fetch_demotions(relay_pool: &PgPool, mev_pool: &PgPool, now: DateTime<U
     Ok(demotions)
 }
 
-/// Filters out demotions from errors which can safely be ignored.
 fn filter_demotions(demotions: Vec<BuilderDemotion>) -> Vec<BuilderDemotion> {
     demotions
         .into_iter()
-        .unique_by(|d| format!("{}{}{}", d.builder_pubkey, d.slot, d.sim_error))
         .filter(|d| !IGNORED_ERRORS.contains(&d.sim_error.as_str()))
         .collect_vec()
 }
@@ -122,19 +120,24 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
 }
 
 async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()> {
-    let mut alert_messages: Vec<String> = Vec::new();
-    let mut warning_messages: Vec<String> = Vec::new();
+    let filtered_demotions = filter_demotions(demotions);
+    let (warning_demotions, alert_demotions): (Vec<BuilderDemotion>, Vec<BuilderDemotion>) = filtered_demotions
+        .into_iter()
+        .partition(|d| is_promotable_error(&d.sim_error));
 
-    for demotion in demotions {
-        let formatted_message = format_demotion_message(&demotion);
+    let unique_demotions = |demotions: Vec<BuilderDemotion>| {
+        let mut seen = std::collections::HashSet::new();
+        demotions.into_iter().filter(|d| {
+            let key = d.builder_id.clone().unwrap_or_else(|| d.builder_pubkey.clone());
+            seen.insert(key)
+        }).collect::<Vec<_>>()
+    };
 
-        let is_promotable = is_promotable_error(&demotion.sim_error);
-        if is_promotable {
-            warning_messages.push(formatted_message);
-        } else {
-            alert_messages.push(formatted_message);
-        }
-    }
+    let unique_warning_demotions = unique_demotions(warning_demotions);
+    let unique_alert_demotions = unique_demotions(alert_demotions);
+
+    let alert_messages: Vec<String> = unique_alert_demotions.iter().map(format_demotion_message).collect();
+    let warning_messages: Vec<String> = unique_warning_demotions.iter().map(format_demotion_message).collect();
 
     let telegram_alerts = telegram::TelegramAlerts::new();
     if !alert_messages.is_empty() {
@@ -170,8 +173,7 @@ async fn update_checkpoint(mev_pool: &PgPool, now: DateTime<Utc>) -> Result<()> 
 pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
     let now = Utc::now();
     let demotions = fetch_demotions(relay_pool, mev_pool, now).await?;
-    let filtered_demotions = filter_demotions(demotions);
-    generate_and_send_alerts(filtered_demotions).await?;
+    generate_and_send_alerts(demotions).await?;
     update_checkpoint(mev_pool, now).await?;
     Ok(())
 }
