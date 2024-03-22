@@ -48,7 +48,7 @@ pub struct TelegramSafeAlert(String);
 
 const TELEGRAM_MAX_MESSAGE_LENGTH: usize = 4096;
 // Leave a little room for the escape characters and unknowns.
-const TELEGRAM_SAFE_MESSAGE_LENGTH: usize = TELEGRAM_MAX_MESSAGE_LENGTH - 1024;
+const TELEGRAM_SAFE_MESSAGE_LENGTH: usize = TELEGRAM_MAX_MESSAGE_LENGTH - 2048;
 
 impl TelegramSafeAlert {
     pub fn new(input: &str) -> Self {
