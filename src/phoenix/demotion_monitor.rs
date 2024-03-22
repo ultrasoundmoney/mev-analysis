@@ -78,7 +78,11 @@ pub const IGNORED_ERRORS: &[&str] = &[
     "simulation failed: unknown ancestor",
 ];
 
-async fn fetch_demotions(relay_pool: &PgPool, mev_pool: &PgPool, now: DateTime<Utc>) -> Result<Vec<BuilderDemotion>> {
+async fn fetch_demotions(
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+    now: DateTime<Utc>,
+) -> Result<Vec<BuilderDemotion>> {
     let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Demotion).await? {
         Some(c) => c,
         None => {
@@ -121,23 +125,36 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
 
 async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()> {
     let filtered_demotions = filter_demotions(demotions);
-    let (warning_demotions, alert_demotions): (Vec<BuilderDemotion>, Vec<BuilderDemotion>) = filtered_demotions
-        .into_iter()
-        .partition(|d| is_promotable_error(&d.sim_error));
+    let (warning_demotions, alert_demotions): (Vec<BuilderDemotion>, Vec<BuilderDemotion>) =
+        filtered_demotions
+            .into_iter()
+            .partition(|d| is_promotable_error(&d.sim_error));
 
     let unique_demotions = |demotions: Vec<BuilderDemotion>| {
         let mut seen = std::collections::HashSet::new();
-        demotions.into_iter().filter(|d| {
-            let key = d.builder_id.clone().unwrap_or_else(|| d.builder_pubkey.clone());
-            seen.insert(key)
-        }).collect::<Vec<_>>()
+        demotions
+            .into_iter()
+            .filter(|d| {
+                let key = d
+                    .builder_id
+                    .clone()
+                    .unwrap_or_else(|| d.builder_pubkey.clone());
+                seen.insert(key)
+            })
+            .collect::<Vec<_>>()
     };
 
     let unique_warning_demotions = unique_demotions(warning_demotions);
     let unique_alert_demotions = unique_demotions(alert_demotions);
 
-    let alert_messages: Vec<String> = unique_alert_demotions.iter().map(format_demotion_message).collect();
-    let warning_messages: Vec<String> = unique_warning_demotions.iter().map(format_demotion_message).collect();
+    let alert_messages: Vec<String> = unique_alert_demotions
+        .iter()
+        .map(format_demotion_message)
+        .collect();
+    let warning_messages: Vec<String> = unique_warning_demotions
+        .iter()
+        .map(format_demotion_message)
+        .collect();
 
     let telegram_alerts = telegram::TelegramAlerts::new();
     if !alert_messages.is_empty() {
