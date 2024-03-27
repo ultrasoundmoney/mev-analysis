@@ -13,11 +13,8 @@ use loki_client::PublishedPayloadStats;
 use crate::{
     beacon_api::BeaconApi,
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::{
-        alerts,
-        inclusion_monitor::proposer_meta::{
-            get_proposer_ip, proposer_label_meta, proposer_location,
-        },
+    phoenix::inclusion_monitor::proposer_meta::{
+        get_proposer_ip, proposer_label_meta, proposer_location,
     },
 };
 
