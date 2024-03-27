@@ -3,7 +3,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use indoc::formatdoc;
 use itertools::Itertools;
 use sqlx::{PgPool, Row};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     env::{ToBeaconExplorerUrl, ToNetwork},
@@ -91,7 +91,7 @@ async fn fetch_demotions(
             now
         }
     };
-    info!("checking demotions between {} and {}", &checkpoint, &now);
+    debug!("checking demotions between {} and {}", &checkpoint, &now);
     let demotions = get_builder_demotions(relay_pool, &checkpoint, &now).await?;
     Ok(demotions)
 }

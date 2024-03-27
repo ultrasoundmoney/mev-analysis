@@ -315,7 +315,7 @@ async fn check_missing_payload(
     match block_hash {
         Some(block_hash) => {
             if payload.block_hash == block_hash {
-                info!(
+                debug!(
                     slot = payload.slot,
                     block_hash = payload.block_hash,
                     "found matching block hash"
@@ -358,7 +358,7 @@ pub async fn run_inclusion_monitor(
         }
     };
 
-    info!(
+    debug!(
         "checking inclusions between {} and {}",
         &checkpoint, canonical_horizon
     );
@@ -386,7 +386,7 @@ pub async fn run_inclusion_monitor(
                 missed_slot_count, APP_CONFIG.missed_slots_check_range
             );
             warn!("{}", &message);
-            alerts::send_opsgenie_telegram_alert(&message).await;
+            // alerts::send_opsgenie_telegram_alert(&message).await;
         }
     }
 

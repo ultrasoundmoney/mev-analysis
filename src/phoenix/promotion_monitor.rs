@@ -143,7 +143,7 @@ pub async fn run_promotion_monitor(
         }
     };
 
-    info!(
+    debug!(
         "checking promotions between {} and {}",
         &checkpoint, &canonical_horizon
     );
