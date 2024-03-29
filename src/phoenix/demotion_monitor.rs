@@ -71,12 +71,20 @@ pub async fn get_builder_demotions(
 }
 
 /// Demotion errors that shouldn't be broadcast on telegram
-pub const IGNORED_ERRORS: &[&str] = &[
+const IGNORED_ERRORS: &[&str] = &[
     "HTTP status server error (500 Internal Server Error) for url (http://prio-load-balancer/)",
     "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
+    "simulation queue timed out"
 ];
+
+fn is_ignored_error(error: &str) -> bool {
+    IGNORED_ERRORS
+        .iter()
+        // Use starts_with to account for dynamic info in error message
+        .any(|silent_error| error.starts_with(silent_error))
+}
 
 async fn fetch_demotions(
     relay_pool: &PgPool,
@@ -99,7 +107,7 @@ async fn fetch_demotions(
 fn filter_demotions(demotions: Vec<BuilderDemotion>) -> Vec<BuilderDemotion> {
     demotions
         .into_iter()
-        .filter(|d| !IGNORED_ERRORS.contains(&d.sim_error.as_str()))
+        .filter(|d| !is_ignored_error(&d.sim_error))
         .collect_vec()
 }
 
