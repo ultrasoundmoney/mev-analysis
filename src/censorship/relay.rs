@@ -35,6 +35,7 @@ pub enum RelayId {
     Eden,
     Aestus,
     Manifold,
+    Titan,
 }
 
 impl fmt::Display for RelayId {
@@ -48,6 +49,7 @@ impl fmt::Display for RelayId {
             RelayId::Eden => write!(f, "eden"),
             RelayId::Aestus => write!(f, "aestus"),
             RelayId::Manifold => write!(f, "manifold"),
+            RelayId::Titan => write!(f, "titan"),
         }
     }
 }
@@ -68,6 +70,7 @@ impl From<RelayId> for Url {
             RelayId::Eden => Url::parse("https://relay.edennetwork.io").unwrap(),
             RelayId::Aestus => Url::parse("https://mainnet.aestus.live").unwrap(),
             RelayId::Manifold => Url::parse("https://mainnet-relay.securerpc.com").unwrap(),
+            RelayId::Titan => Url::parse("https://titanrelay.xyz").unwrap(),
         }
     }
 }
