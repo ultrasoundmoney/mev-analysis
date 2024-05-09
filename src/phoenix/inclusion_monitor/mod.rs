@@ -11,7 +11,7 @@ pub use loki_client::LokiClient;
 use loki_client::PublishedPayloadStats;
 
 use crate::{
-    beacon_api::BeaconApi,
+    beacon_api::{BeaconApi, ExecutionPayload},
     env::{ToBeaconExplorerUrl, ToNetwork},
     phoenix::inclusion_monitor::proposer_meta::{
         get_proposer_ip, proposer_label_meta, proposer_location,
@@ -32,6 +32,7 @@ use super::{
 #[derive(Debug)]
 struct DeliveredPayload {
     block_hash: String,
+    block_number: i64,
     #[allow(dead_code)]
     inserted_at: DateTime<Utc>,
     proposer_pubkey: String,
@@ -49,6 +50,7 @@ async fn get_delivered_payloads(
             inserted_at,
             slot,
             block_hash,
+            block_number,
             proposer_pubkey
         FROM {}_payload_delivered
         WHERE inserted_at > $1
@@ -67,6 +69,7 @@ async fn get_delivered_payloads(
             rows.iter()
                 .map(|row| DeliveredPayload {
                     block_hash: row.get("block_hash"),
+                    block_number: row.get("block_number"),
                     inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     proposer_pubkey: row.get("proposer_pubkey"),
                     slot: row.get("slot"),
@@ -136,6 +139,7 @@ async fn report_missing_payload(
     mev_pool: &PgPool,
     payload: &DeliveredPayload,
     relay_pool: &PgPool,
+    is_attempted_reorg: bool,
 ) -> anyhow::Result<()> {
     insert_missed_slot(
         mev_pool,
@@ -164,6 +168,8 @@ async fn report_missing_payload(
 
     let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
     message.push_str(&format!("is\\_adjustment: {}", is_adjustment_hash));
+    message.push_str("\n\n");
+    message.push_str(&format!("is\\_attempted\\_reorg: {}", is_attempted_reorg));
 
     // Check if a publish was attempted, if yes, add publish stats.
     let published_stats = loki_client.published_stats(payload.slot).await?;
@@ -291,13 +297,34 @@ async fn report_missing_payload(
 
     let telegram_alerts = telegram::TelegramAlerts::new();
     let escaped_message = TelegramSafeAlert::from_escaped_string(message);
-    if published_stats.is_none() && publish_errors.is_empty() && late_call_stats.is_some() {
+
+    // Publish errors: alert
+    if !publish_errors.is_empty() {
+        telegram_alerts.send_alert(escaped_message).await;
+    }
+    // Late call or attempted reorg: warn
+    else if published_stats.is_none() && late_call_stats.is_some() || is_attempted_reorg {
         telegram_alerts.send_warning(escaped_message).await;
-    } else {
+    }
+    // Otherwise: alert
+    else {
         telegram_alerts.send_alert(escaped_message).await;
     }
 
     Ok(())
+}
+
+/// If the previous slot contains a valid block with the same block_number as the payload
+/// we tried to deliver, then consider it a reorg attempt.
+async fn was_attempted_reorg(
+    beacon_api: &BeaconApi,
+    delivered: &DeliveredPayload,
+) -> anyhow::Result<bool> {
+    let prev_slot = delivered.slot - 1;
+    let prev_payload = beacon_api.get_payload(&prev_slot).await?;
+    Ok(prev_payload
+        .map(|p| p.block_number == delivered.block_number)
+        .unwrap_or(false))
 }
 
 async fn check_missing_payload(
@@ -307,10 +334,10 @@ async fn check_missing_payload(
     payload: &DeliveredPayload,
     relay_pool: &PgPool,
 ) -> anyhow::Result<()> {
-    let block_hash = beacon_api.get_block_hash(&payload.slot).await?;
+    let block = beacon_api.get_payload(&payload.slot).await?;
 
-    match block_hash {
-        Some(block_hash) => {
+    match block {
+        Some(ExecutionPayload { block_hash, .. }) => {
             if payload.block_hash == block_hash {
                 debug!(
                     slot = payload.slot,
@@ -326,13 +353,32 @@ async fn check_missing_payload(
                     "block hash on chain does not match payload"
                 );
 
-                report_missing_payload(Some(block_hash), loki_client, mev_pool, payload, relay_pool)
-                    .await
+                report_missing_payload(
+                    Some(block_hash),
+                    loki_client,
+                    mev_pool,
+                    payload,
+                    relay_pool,
+                    false,
+                )
+                .await
             }
         }
         None => {
-            warn!("delivered block not found for slot {}", payload.slot);
-            report_missing_payload(None, loki_client, mev_pool, payload, relay_pool).await
+            let attempted_reorg = was_attempted_reorg(beacon_api, payload).await?;
+            warn!(
+                attempted_reorg,
+                "delivered block not found for slot {}", payload.slot
+            );
+            report_missing_payload(
+                None,
+                loki_client,
+                mev_pool,
+                payload,
+                relay_pool,
+                attempted_reorg,
+            )
+            .await
         }
     }
 }

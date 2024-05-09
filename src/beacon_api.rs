@@ -20,7 +20,8 @@ pub struct SyncStatus {
 
 #[derive(Deserialize)]
 pub struct ExecutionPayload {
-    block_hash: String,
+    pub block_hash: String,
+    pub block_number: i64,
 }
 
 #[derive(Deserialize)]
@@ -77,7 +78,7 @@ impl BeaconApi {
             .map(|body| body.data.index)
     }
 
-    pub async fn get_block_hash(&self, slot: &i64) -> anyhow::Result<Option<String>> {
+    pub async fn get_payload(&self, slot: &i64) -> anyhow::Result<Option<ExecutionPayload>> {
         let url = format!("{}eth/v2/beacon/blocks/{}", self.get_node(), slot);
 
         let res = self.client.get(url).send().await?;
@@ -89,8 +90,7 @@ impl BeaconApi {
                     .json::<BeaconResponse<BlockResponse>>()
                     .await
                     .map(|envelope| envelope.data.message)?;
-                let block_hash = block.body.execution_payload.block_hash;
-                Ok(Some(block_hash))
+                Ok(Some(block.body.execution_payload))
             }
             status => Err(anyhow!(
                 "failed to fetch block_hash by slot. slot = {} status = {} url = {}",
