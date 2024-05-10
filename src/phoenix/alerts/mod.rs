@@ -11,6 +11,7 @@ use super::env::APP_CONFIG;
 
 /// Ability to communicate an alert to a dev.
 #[trait_variant::make(SendAlert: Send)]
+#[allow(dead_code)]
 pub trait LocalSendAlert {
     async fn send_warning(&self, message: TelegramSafeAlert);
     async fn send_alert(&self, message: TelegramSafeAlert);

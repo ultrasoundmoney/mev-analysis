@@ -59,13 +59,6 @@ struct BuilderIdMapping {
     builder_name: Option<String>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BuilderBlockCount {
-    builder_name: String,
-    block_count: i64,
-}
-
 async fn get_top_builders(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<Vec<Builder>> {
     let counts = fetch_pubkey_block_counts(relay_pool).await?;
     let names = sqlx::query_as!(
