@@ -21,6 +21,7 @@ pub struct SyncStatus {
 #[derive(Deserialize)]
 pub struct ExecutionPayload {
     pub block_hash: String,
+    #[serde(deserialize_with = "parse_i64_from_string")]
     pub block_number: i64,
 }
 
@@ -44,6 +45,14 @@ pub struct BlockResponse {
 pub struct BeaconApi {
     nodes: Vec<Url>,
     client: reqwest::Client,
+}
+
+fn parse_i64_from_string<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s: String = serde::Deserialize::deserialize(deserializer)?;
+    s.parse::<i64>().map_err(serde::de::Error::custom)
 }
 
 impl BeaconApi {
