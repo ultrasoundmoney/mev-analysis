@@ -13,8 +13,11 @@ use loki_client::PublishedPayloadStats;
 use crate::{
     beacon_api::{BeaconApi, ExecutionPayload},
     env::{ToBeaconExplorerUrl, ToNetwork},
-    phoenix::inclusion_monitor::proposer_meta::{
-        get_proposer_ip, proposer_label_meta, proposer_location,
+    phoenix::{
+        alerts,
+        inclusion_monitor::proposer_meta::{
+            get_proposer_ip, proposer_label_meta, proposer_location,
+        },
     },
 };
 
@@ -429,7 +432,7 @@ pub async fn run_inclusion_monitor(
                 missed_slot_count, APP_CONFIG.missed_slots_check_range
             );
             warn!("{}", &message);
-            // alerts::send_opsgenie_telegram_alert(&message).await;
+            alerts::send_opsgenie_telegram_alert(&message).await;
         }
     }
 
