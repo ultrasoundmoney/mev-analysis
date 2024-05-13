@@ -72,7 +72,6 @@ pub async fn get_builder_demotions(
 
 /// Demotion errors that shouldn't be broadcast on telegram
 const IGNORED_ERRORS: &[&str] = &[
-    "HTTP status server error (500 Internal Server Error) for url (http://prio-load-balancer/)",
     "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
