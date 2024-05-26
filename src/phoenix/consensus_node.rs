@@ -21,7 +21,7 @@ impl ConsensusNodeMonitor {
         let mut results = Vec::new();
 
         for url in &APP_CONFIG.consensus_nodes {
-            let status = self.beacon_api.get_sync_status(url).await;
+            let status = self.beacon_api.fetch_sync_status(url).await;
 
             match status {
                 Ok(s) => results.push(!s.is_syncing),

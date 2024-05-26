@@ -159,7 +159,7 @@ pub async fn validator_registrations(
 
     for v in non_cached {
         futs.push(async move {
-            let idx = beacon_api.get_validator_index(&v.pubkey).await.unwrap();
+            let idx = beacon_api.validator_index(&v.pubkey).await.unwrap();
 
             ValidatorWithIndex {
                 inserted_at: v.inserted_at,

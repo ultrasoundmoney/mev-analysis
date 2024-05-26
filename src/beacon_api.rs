@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use rand::seq::SliceRandom;
 use reqwest::{StatusCode, Url};
 use serde::Deserialize;
+use tracing::warn;
 
 #[derive(Deserialize)]
 struct BeaconResponse<T> {
@@ -72,7 +73,7 @@ impl BeaconApi {
         self.nodes.choose(&mut rand::thread_rng()).unwrap()
     }
 
-    pub async fn get_validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
+    pub async fn validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
         let url = format!(
             "{}eth/v1/beacon/states/head/validators/{}",
             self.get_node(),
@@ -87,11 +88,14 @@ impl BeaconApi {
             .map(|body| body.data.index)
     }
 
-    pub async fn get_payload(&self, slot: &i64) -> anyhow::Result<Option<ExecutionPayload>> {
-        let url = format!("{}eth/v2/beacon/blocks/{}", self.get_node(), slot);
-
-        let res = self.client.get(url).send().await?;
-
+    // Method to fetch the payload from a node and a slot
+    async fn fetch_payload(
+        &self,
+        node: &Url,
+        slot: i64,
+    ) -> anyhow::Result<Option<ExecutionPayload>> {
+        let url = format!("{}eth/v2/beacon/blocks/{}", node, slot);
+        let res = self.client.get(&url).send().await?;
         match res.status() {
             StatusCode::NOT_FOUND => Ok(None),
             StatusCode::OK => {
@@ -102,7 +106,7 @@ impl BeaconApi {
                 Ok(Some(block.body.execution_payload))
             }
             status => Err(anyhow!(
-                "failed to fetch block_hash by slot. slot = {} status = {} url = {}",
+                "failed to fetch block by slot. slot = {} status = {} url = {}",
                 slot,
                 status,
                 res.url()
@@ -110,15 +114,33 @@ impl BeaconApi {
         }
     }
 
-    pub async fn get_sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {
+    // Method to fetch the sync status from a node
+    pub async fn fetch_sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {
         let url = format!("{}eth/v1/node/syncing", node_url);
         self.client
-            .get(url)
+            .get(&url)
             .send()
             .await?
             .error_for_status()?
             .json::<BeaconResponse<SyncStatus>>()
             .await
             .map(|body| body.data)
+            .map_err(Into::into)
+    }
+
+    pub async fn fetch_payload_all(&self, slot: i64) -> anyhow::Result<Option<ExecutionPayload>> {
+        for (i, node) in self.nodes.iter().enumerate() {
+            match self.fetch_payload(node, slot).await {
+                Ok(res) => return Ok(res),
+                Err(err) => {
+                    warn!("failed to fetch payload from {}: {:?}", node, err);
+                    if i == self.nodes.len() - 1 {
+                        return Err(err);
+                    }
+                }
+            }
+        }
+
+        unreachable!("last iteration should always return")
     }
 }
