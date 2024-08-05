@@ -36,10 +36,10 @@ impl ConsensusNodeMonitor {
 
         info!("{}/{} consensus nodes synced", synced.len(), results.len());
 
-        if synced.len() > 0 {
-            Ok(Utc::now())
-        } else {
+        if synced.is_empty() {
             Err(anyhow!("all consensus nodes out of sync"))
+        } else {
+            Ok(Utc::now())
         }
     }
 }
