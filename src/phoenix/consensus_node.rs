@@ -36,10 +36,10 @@ impl ConsensusNodeMonitor {
 
         info!("{}/{} consensus nodes synced", synced.len(), results.len());
 
-        if synced.len() == APP_CONFIG.consensus_nodes.len() {
+        if synced.len() > 0 {
             Ok(Utc::now())
         } else {
-            Err(anyhow!("one or more consensus nodes out of sync"))
+            Err(anyhow!("all consensus nodes out of sync"))
         }
     }
 }

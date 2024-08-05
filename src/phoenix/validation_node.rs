@@ -53,10 +53,10 @@ impl ValidationNodeMonitor {
 
         info!("{}/{} validation nodes synced", synced.len(), results.len());
 
-        if synced.len() == APP_CONFIG.validation_nodes.len() {
+        if synced.len() > 0 {
             Ok(Utc::now())
         } else {
-            Err(anyhow!("one or more validation nodes out of sync"))
+            Err(anyhow!("all validation nodes out of sync"))
         }
     }
 }
