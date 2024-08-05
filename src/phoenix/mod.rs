@@ -50,12 +50,15 @@ struct Alarm {
 
 enum AlarmType {
     Telegram,
-    Opsgenie
+    Opsgenie,
 }
 
 impl Alarm {
     fn new() -> Self {
-        Self { last_fired: None, telegram_alerts: TelegramAlerts::new() }
+        Self {
+            last_fired: None,
+            telegram_alerts: TelegramAlerts::new(),
+        }
     }
 
     fn is_throttled(&self) -> bool {
@@ -74,19 +77,27 @@ impl Alarm {
 
         match alarm_type {
             AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
-            AlarmType::Telegram => self.telegram_alerts.send_warning(TelegramSafeAlert::new(message)).await,
+            AlarmType::Telegram => {
+                self.telegram_alerts
+                    .send_warning(TelegramSafeAlert::new(message))
+                    .await
+            }
         }
 
         self.last_fired = Some(Utc::now());
     }
 
-    async fn fire_with_name(&mut self, name: &str, num_unsynced_nodes: usize) {
+    async fn fire_age_over_limit(&mut self, name: &str) {
         let message = format!(
-            "{} hasn't updated for more than {} seconds - last num unsynced nodes: {}",
+            "{} hasn't updated for more than {} seconds",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
-            num_unsynced_nodes
         );
+        self.fire(&message, AlarmType::Opsgenie).await;
+    }
+
+    async fn fire_num_unsynced_nodes(&mut self, name: &str, num_unsynced_nodes: usize) {
+        let message = format!("{} has {} unsynced instances", name, num_unsynced_nodes);
 
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
             self.fire(&message, AlarmType::Opsgenie).await;
@@ -95,7 +106,6 @@ impl Alarm {
             self.fire(&message, AlarmType::Telegram).await;
         }
     }
-
 }
 
 struct Phoenix {
@@ -141,35 +151,30 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
-            num_unsynced_nodes: APP_CONFIG.consensus_nodes.len(),
+            num_unsynced_nodes: 0,
             name: "consensus node",
         },
         Phoenix {
             last_seen: Utc::now(),
-            num_unsynced_nodes: APP_CONFIG.validation_nodes.len(),
+            num_unsynced_nodes: 0,
             monitor: Box::new(ValidationNodeMonitor::new()),
             name: "validation node",
         },
     ];
 
-
     loop {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
-                alarm.fire_with_name(phoenix.name, phoenix.num_unsynced_nodes).await;
+                alarm.fire_age_over_limit(phoenix.name).await;
+            } else {
+                alarm
+                    .fire_num_unsynced_nodes(phoenix.name, phoenix.num_unsynced_nodes)
+                    .await;
             }
 
             let (current, num_unsynced_nodes) = phoenix.monitor.refresh().await;
             phoenix.num_unsynced_nodes = num_unsynced_nodes;
-            if num_unsynced_nodes == 0 {
-                phoenix.set_last_seen(current)
-            } else {
-                error!(
-                    name = phoenix.name,
-                    ?num_unsynced_nodes,
-                    "failed to refresh phoenix monitor"
-                );
-            }
+            phoenix.set_last_seen(current)
         }
 
         // Update the last checked time.
