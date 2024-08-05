@@ -3,9 +3,16 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-use super::{env::APP_CONFIG, PhoenixMonitor};
+use super::{
+    alerts::{
+        telegram::{TelegramAlerts, TelegramSafeAlert},
+        SendAlert,
+    },
+    env::APP_CONFIG,
+    PhoenixMonitor,
+};
 
 #[derive(Deserialize)]
 struct SyncResponse {
@@ -25,12 +32,14 @@ async fn get_sync_status(client: &reqwest::Client, url: String) -> reqwest::Resu
 
 pub struct ValidationNodeMonitor {
     client: reqwest::Client,
+    telegram_alerts: TelegramAlerts,
 }
 
 impl ValidationNodeMonitor {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
+            telegram_alerts: TelegramAlerts::new(),
         }
     }
 
@@ -52,10 +61,16 @@ impl ValidationNodeMonitor {
         let synced: Vec<&bool> = results.iter().filter(|is_synced| **is_synced).collect();
 
         info!("{}/{} validation nodes synced", synced.len(), results.len());
+        let num_out_of_sync = results.len() - synced.len();
 
-        if synced.is_empty() {
+        if num_out_of_sync > 1 {
             Err(anyhow!("all validation nodes out of sync"))
         } else {
+            if num_out_of_sync == 1 {
+                warn!("one validation node is out of sync");
+                let message = TelegramSafeAlert::new("one validation node is out of sync");
+                self.telegram_alerts.send_warning(message).await;
+            }
             Ok(Utc::now())
         }
     }
