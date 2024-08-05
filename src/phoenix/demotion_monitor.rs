@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use indoc::formatdoc;
 use itertools::Itertools;
 use sqlx::{PgPool, Row};
@@ -21,7 +21,6 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
-    pub inserted_at: DateTime<Utc>,
     pub builder_pubkey: String,
     pub builder_id: Option<String>,
     pub slot: i64,
@@ -36,7 +35,6 @@ pub async fn get_builder_demotions(
     let query = format!(
         "
         SELECT
-            bd.inserted_at,
             bd.builder_pubkey,
             bb.builder_id,
             bd.slot,
@@ -59,7 +57,6 @@ pub async fn get_builder_demotions(
         .map(|rows| {
             rows.iter()
                 .map(|row| BuilderDemotion {
-                    inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     builder_pubkey: row.get("builder_pubkey"),
                     builder_id: row.try_get("builder_id").ok(),
                     slot: row.get("slot"),

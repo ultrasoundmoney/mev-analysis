@@ -21,7 +21,6 @@ pub struct DeliveredPayload {
     pub block_hash: String,
     pub builder_pubkey: String,
     pub proposer_pubkey: String,
-    pub proposer_fee_recipient: String,
     pub value: String,
 }
 
