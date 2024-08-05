@@ -43,6 +43,9 @@ lazy_static! {
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
 }
 
+const UNSYNCED_NODES_THRESHOLD_TG_WARNING: usize = 1;
+const UNSYNCED_NODES_THRESHOLD_OG_ALERT: usize = 2;
+
 struct Alarm {
     last_fired: Option<DateTime<Utc>>,
 }
@@ -84,13 +87,14 @@ impl Alarm {
 
 struct Phoenix {
     name: &'static str,
-    last_seen: DateTime<Utc>,
+    last_synced: DateTime<Utc>,
+    num_unsynced_nodes: usize,
     monitor: Box<dyn PhoenixMonitor + Send + Sync>,
 }
 
 impl Phoenix {
     fn is_age_over_limit(&self) -> bool {
-        let age = Utc::now() - self.last_seen;
+        let age = Utc::now() - self.last_synced;
 
         debug!(
             name = self.name,
@@ -101,15 +105,15 @@ impl Phoenix {
         age >= *PHOENIX_MAX_LIFESPAN
     }
 
-    fn set_last_seen(&mut self, last_seen: DateTime<Utc>) {
-        debug!(name = self.name, ?last_seen, "setting last seen");
-        self.last_seen = last_seen;
+    fn set_last_seen(&mut self, last_synced: DateTime<Utc>) {
+        debug!(name = self.name, ?last_synced, "setting last seen");
+        self.last_synced = last_synced;
     }
 }
 
 #[async_trait]
 trait PhoenixMonitor {
-    async fn refresh(&self) -> Result<DateTime<Utc>>;
+    async fn refresh(&self) -> (DateTime<Utc>, usize);
 }
 
 async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
@@ -119,15 +123,18 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     );
 
     let mut alarm = Alarm::new();
+    let telegram_alerts = TelegramAlerts::new();
 
     let mut phoenixes = [
         Phoenix {
-            last_seen: Utc::now(),
+            last_synced: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
+            num_unsynced_nodes: APP_CONFIG.consensus_nodes.len(),
             name: "consensus node",
         },
         Phoenix {
-            last_seen: Utc::now(),
+            last_synced: Utc::now(),
+            num_unsynced_nodes: APP_CONFIG.validation_nodes.len(),
             monitor: Box::new(ValidationNodeMonitor::new()),
             name: "validation node",
         },
@@ -136,19 +143,31 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     loop {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
-                alarm.fire_with_name(phoenix.name).await;
+                let num_unsynced_nodes = phoenix.num_unsynced_nodes;
+                if num_unsynced_nodes >= UNSYNCED_NODES_THRESHOLD_OG_ALERT {
+                    alarm.fire_with_name(phoenix.name).await;
+                }
+                if num_unsynced_nodes >= UNSYNCED_NODES_THRESHOLD_TG_WARNING {
+                    telegram_alerts
+                        .send_warning(TelegramSafeAlert::new(&format!(
+                            "{} instances of {} out of sync",
+                            num_unsynced_nodes, phoenix.name
+                        )))
+                        .await;
+                }
+                phoenix.set_last_seen(Utc::now());
             }
 
-            let current = phoenix.monitor.refresh().await;
-            match current {
-                Ok(current) => phoenix.set_last_seen(current),
-                Err(err) => {
-                    error!(
-                        name = phoenix.name,
-                        ?err,
-                        "failed to refresh phoenix monitor"
-                    );
-                }
+            let (current, num_unsynced_nodes) = phoenix.monitor.refresh().await;
+            phoenix.num_unsynced_nodes = num_unsynced_nodes;
+            if num_unsynced_nodes == 0 {
+                phoenix.set_last_seen(current)
+            } else {
+                error!(
+                    name = phoenix.name,
+                    ?num_unsynced_nodes,
+                    "failed to refresh phoenix monitor"
+                );
             }
         }
 
