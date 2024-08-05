@@ -100,14 +100,14 @@ impl Alarm {
 
 struct Phoenix {
     name: &'static str,
-    last_synced: DateTime<Utc>,
+    last_seen: DateTime<Utc>,
     num_unsynced_nodes: usize,
     monitor: Box<dyn PhoenixMonitor + Send + Sync>,
 }
 
 impl Phoenix {
     fn is_age_over_limit(&self) -> bool {
-        let age = Utc::now() - self.last_synced;
+        let age = Utc::now() - self.last_seen;
 
         debug!(
             name = self.name,
@@ -118,9 +118,9 @@ impl Phoenix {
         age >= *PHOENIX_MAX_LIFESPAN
     }
 
-    fn set_last_seen(&mut self, last_synced: DateTime<Utc>) {
-        debug!(name = self.name, ?last_synced, "setting last seen");
-        self.last_synced = last_synced;
+    fn set_last_seen(&mut self, last_seen: DateTime<Utc>) {
+        debug!(name = self.name, ?last_seen, "setting last seen");
+        self.last_seen = last_seen;
     }
 }
 
@@ -139,13 +139,13 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
 
     let mut phoenixes = [
         Phoenix {
-            last_synced: Utc::now(),
+            last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
             num_unsynced_nodes: APP_CONFIG.consensus_nodes.len(),
             name: "consensus node",
         },
         Phoenix {
-            last_synced: Utc::now(),
+            last_seen: Utc::now(),
             num_unsynced_nodes: APP_CONFIG.validation_nodes.len(),
             monitor: Box::new(ValidationNodeMonitor::new()),
             name: "validation node",
