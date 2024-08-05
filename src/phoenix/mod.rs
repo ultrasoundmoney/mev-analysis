@@ -43,9 +43,6 @@ lazy_static! {
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
 }
 
-const UNSYNCED_NODES_THRESHOLD_TG_WARNING: usize = 1;
-const UNSYNCED_NODES_THRESHOLD_OG_ALERT: usize = 2;
-
 struct Alarm {
     last_fired: Option<DateTime<Utc>>,
 }
@@ -144,10 +141,10 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
                 let num_unsynced_nodes = phoenix.num_unsynced_nodes;
-                if num_unsynced_nodes >= UNSYNCED_NODES_THRESHOLD_OG_ALERT {
+                if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
                     alarm.fire_with_name(phoenix.name).await;
                 }
-                if num_unsynced_nodes >= UNSYNCED_NODES_THRESHOLD_TG_WARNING {
+                if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
                     telegram_alerts
                         .send_warning(TelegramSafeAlert::new(&format!(
                             "{} instances of {} out of sync",
