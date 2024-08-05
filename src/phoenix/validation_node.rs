@@ -64,7 +64,7 @@ impl ValidationNodeMonitor {
         let num_out_of_sync = results.len() - synced.len();
 
         if num_out_of_sync > 1 {
-            Err(anyhow!("all validation nodes out of sync"))
+            Err(anyhow!("multiple validation nodes out of sync"))
         } else {
             if num_out_of_sync == 1 {
                 warn!("one validation node is out of sync");
