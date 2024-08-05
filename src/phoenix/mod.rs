@@ -41,6 +41,7 @@ use self::{
 lazy_static! {
     static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(3);
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
+    static ref MIN_WARNING_WAIT: Duration = Duration::minutes(60);
 }
 
 struct Alarm {
@@ -61,14 +62,18 @@ impl Alarm {
         }
     }
 
-    fn is_throttled(&self) -> bool {
+    fn is_throttled(&self, alarm_type: &AlarmType) -> bool {
         self.last_fired.map_or(false, |last_fired| {
-            Utc::now() - last_fired < *MIN_ALARM_WAIT
+            let min_wait = match alarm_type {
+                AlarmType::Opsgenie => *MIN_ALARM_WAIT,
+                AlarmType::Telegram => *MIN_WARNING_WAIT,
+            };
+            Utc::now() - last_fired < min_wait
         })
     }
 
-    async fn fire(&mut self, message: &str, alarm_type: AlarmType) {
-        if self.is_throttled() {
+    async fn fire(&mut self, message: &str, alarm_type: &AlarmType) {
+        if self.is_throttled(alarm_type) {
             warn!("alarm is throttled, ignoring request to fire alarm");
             return;
         }
@@ -93,17 +98,17 @@ impl Alarm {
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
         );
-        self.fire(&message, AlarmType::Opsgenie).await;
+        self.fire(&message, &AlarmType::Opsgenie).await;
     }
 
     async fn fire_num_unsynced_nodes(&mut self, name: &str, num_unsynced_nodes: usize) {
         let message = format!("{} has {} unsynced instances", name, num_unsynced_nodes);
 
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
-            self.fire(&message, AlarmType::Opsgenie).await;
+            self.fire(&message, &AlarmType::Opsgenie).await;
         }
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
-            self.fire(&message, AlarmType::Telegram).await;
+            self.fire(&message, &AlarmType::Telegram).await;
         }
     }
 }
