@@ -41,50 +41,82 @@ use self::{
 lazy_static! {
     static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(3);
     static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
+    static ref MIN_WARNING_WAIT: Duration = Duration::minutes(60);
 }
 
 struct Alarm {
     last_fired: Option<DateTime<Utc>>,
+    telegram_alerts: TelegramAlerts,
+}
+
+enum AlarmType {
+    Telegram,
+    Opsgenie,
 }
 
 impl Alarm {
     fn new() -> Self {
-        Self { last_fired: None }
+        Self {
+            last_fired: None,
+            telegram_alerts: TelegramAlerts::new(),
+        }
     }
 
-    fn is_throttled(&self) -> bool {
+    fn is_throttled(&self, alarm_type: &AlarmType) -> bool {
         self.last_fired.map_or(false, |last_fired| {
-            Utc::now() - last_fired < *MIN_ALARM_WAIT
+            let min_wait = match alarm_type {
+                AlarmType::Opsgenie => *MIN_ALARM_WAIT,
+                AlarmType::Telegram => *MIN_WARNING_WAIT,
+            };
+            Utc::now() - last_fired < min_wait
         })
     }
 
-    async fn fire(&mut self, message: &str) {
-        if self.is_throttled() {
+    async fn fire(&mut self, message: &str, alarm_type: &AlarmType) {
+        if self.is_throttled(alarm_type) {
             warn!("alarm is throttled, ignoring request to fire alarm");
             return;
         }
 
         error!(message, "firing alarm");
 
-        alerts::send_opsgenie_telegram_alert(message).await;
+        match alarm_type {
+            AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
+            AlarmType::Telegram => {
+                self.telegram_alerts
+                    .send_warning(TelegramSafeAlert::new(message))
+                    .await
+            }
+        }
 
         self.last_fired = Some(Utc::now());
     }
 
-    async fn fire_with_name(&mut self, name: &str) {
+    async fn fire_age_over_limit(&mut self, name: &str) {
         let message = format!(
             "{} hasn't updated for more than {} seconds",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
         );
+        self.fire(&message, &AlarmType::Opsgenie).await;
+    }
 
-        self.fire(&message).await
+    async fn fire_num_unsynced_nodes(&mut self, name: &str, num_unsynced_nodes: usize) {
+        let message = format!("{} has {} unsynced instances", name, num_unsynced_nodes);
+
+        if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
+            self.fire(&message, &AlarmType::Opsgenie).await;
+        }
+        if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
+            self.fire(&message, &AlarmType::Telegram).await;
+        }
     }
 }
 
 struct Phoenix {
     name: &'static str,
     last_seen: DateTime<Utc>,
+    num_unsynced_nodes: usize,
     monitor: Box<dyn PhoenixMonitor + Send + Sync>,
 }
 
@@ -109,7 +141,7 @@ impl Phoenix {
 
 #[async_trait]
 trait PhoenixMonitor {
-    async fn refresh(&self) -> Result<DateTime<Utc>>;
+    async fn refresh(&self) -> (DateTime<Utc>, usize);
 }
 
 async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
@@ -124,10 +156,12 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         Phoenix {
             last_seen: Utc::now(),
             monitor: Box::new(ConsensusNodeMonitor::new()),
+            num_unsynced_nodes: 0,
             name: "consensus node",
         },
         Phoenix {
             last_seen: Utc::now(),
+            num_unsynced_nodes: 0,
             monitor: Box::new(ValidationNodeMonitor::new()),
             name: "validation node",
         },
@@ -136,20 +170,16 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     loop {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
-                alarm.fire_with_name(phoenix.name).await;
+                alarm.fire_age_over_limit(phoenix.name).await;
+            } else {
+                alarm
+                    .fire_num_unsynced_nodes(phoenix.name, phoenix.num_unsynced_nodes)
+                    .await;
             }
 
-            let current = phoenix.monitor.refresh().await;
-            match current {
-                Ok(current) => phoenix.set_last_seen(current),
-                Err(err) => {
-                    error!(
-                        name = phoenix.name,
-                        ?err,
-                        "failed to refresh phoenix monitor"
-                    );
-                }
-            }
+            let (current, num_unsynced_nodes) = phoenix.monitor.refresh().await;
+            phoenix.num_unsynced_nodes = num_unsynced_nodes;
+            phoenix.set_last_seen(current)
         }
 
         // Update the last checked time.

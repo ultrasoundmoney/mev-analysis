@@ -29,6 +29,18 @@ pub struct AppConfig {
     pub telegram_warnings_channel_id: String,
     #[serde(deserialize_with = "deserialize_urls")]
     pub validation_nodes: Vec<Url>,
+    #[serde(default = "default_unsynced_nodes_threshold_tg_warning")]
+    pub unsynced_nodes_threshold_tg_warning: usize,
+    #[serde(default = "default_unsynced_nodes_threshold_og_alert")]
+    pub unsynced_nodes_threshold_og_alert: usize,
+}
+
+fn default_unsynced_nodes_threshold_og_alert() -> usize {
+    2
+}
+
+fn default_unsynced_nodes_threshold_tg_warning() -> usize {
+    1
 }
 
 fn default_wait() -> i64 {
