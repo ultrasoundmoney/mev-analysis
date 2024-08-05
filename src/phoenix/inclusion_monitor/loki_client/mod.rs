@@ -145,8 +145,13 @@ impl LokiClient {
     pub async fn error_messages(&self, slot: i64) -> anyhow::Result<Vec<String>> {
         let query = format!(r#"{{app="payload-api",level="error"}} |= `"slot":"{slot}"`"#);
         let slot = Slot(slot as i32);
-        let start = slot.date_time().timestamp_nanos();
-        let end = (slot.date_time() + chrono::Duration::seconds(12)).timestamp_nanos();
+        let start = slot
+            .date_time()
+            .timestamp_nanos_opt()
+            .ok_or_else(|| anyhow::anyhow!("Start Time out of range for nanosecond timestamp"))?;
+        let end = (slot.date_time() + chrono::Duration::seconds(12))
+            .timestamp_nanos_opt()
+            .ok_or_else(|| anyhow::anyhow!("End Time out of range for nanosecond timestamp"))?;
 
         let url = format!("{}/loki/api/v1/query_range", self.server_url);
         let url_with_params = Url::parse_with_params(

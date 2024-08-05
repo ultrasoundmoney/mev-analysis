@@ -1,19 +1,28 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-use super::{env::APP_CONFIG, PhoenixMonitor};
+use super::{
+    alerts::{
+        telegram::{TelegramAlerts, TelegramSafeAlert},
+        SendAlert,
+    },
+    env::APP_CONFIG,
+    PhoenixMonitor,
+};
 use crate::beacon_api::BeaconApi;
 
 pub struct ConsensusNodeMonitor {
     beacon_api: BeaconApi,
+    telegram_alerts: TelegramAlerts,
 }
 
 impl ConsensusNodeMonitor {
     pub fn new() -> Self {
         Self {
             beacon_api: BeaconApi::new(&APP_CONFIG.consensus_nodes),
+            telegram_alerts: TelegramAlerts::new(),
         }
     }
 
@@ -35,11 +44,17 @@ impl ConsensusNodeMonitor {
         let synced: Vec<&bool> = results.iter().filter(|is_synced| **is_synced).collect();
 
         info!("{}/{} consensus nodes synced", synced.len(), results.len());
+        let num_out_of_sync = results.len() - synced.len();
 
-        if synced.len() == APP_CONFIG.consensus_nodes.len() {
-            Ok(Utc::now())
+        if num_out_of_sync > 1 {
+            Err(anyhow!("multiple consensus nodes out of sync"))
         } else {
-            Err(anyhow!("one or more consensus nodes out of sync"))
+            if num_out_of_sync == 1 {
+                warn!("one consensus node is out of sync");
+                let message = TelegramSafeAlert::new("one consensus node is out of sync");
+                self.telegram_alerts.send_warning(message).await;
+            }
+            Ok(Utc::now())
         }
     }
 }

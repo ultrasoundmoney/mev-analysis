@@ -12,7 +12,6 @@ struct DeliveredPayloadResponse {
     block_hash: String,
     builder_pubkey: String,
     proposer_pubkey: String,
-    proposer_fee_recipient: String,
     value: String,
 }
 
@@ -49,7 +48,6 @@ impl RelayApi for RelayId {
                              block_hash,
                              builder_pubkey,
                              proposer_pubkey,
-                             proposer_fee_recipient,
                              value,
                          }| DeliveredPayload {
                             relay_id: self.clone(),
@@ -58,7 +56,6 @@ impl RelayApi for RelayId {
                             block_hash,
                             builder_pubkey,
                             proposer_pubkey,
-                            proposer_fee_recipient,
                             value,
                         },
                     )
