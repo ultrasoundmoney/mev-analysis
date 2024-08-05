@@ -45,11 +45,17 @@ lazy_static! {
 
 struct Alarm {
     last_fired: Option<DateTime<Utc>>,
+    telegram_alerts: TelegramAlerts,
+}
+
+enum AlarmType {
+    Telegram,
+    Opsgenie
 }
 
 impl Alarm {
     fn new() -> Self {
-        Self { last_fired: None }
+        Self { last_fired: None, telegram_alerts: TelegramAlerts::new() }
     }
 
     fn is_throttled(&self) -> bool {
@@ -58,7 +64,7 @@ impl Alarm {
         })
     }
 
-    async fn fire(&mut self, message: &str) {
+    async fn fire(&mut self, message: &str, alarm_type: AlarmType) {
         if self.is_throttled() {
             warn!("alarm is throttled, ignoring request to fire alarm");
             return;
@@ -66,20 +72,30 @@ impl Alarm {
 
         error!(message, "firing alarm");
 
-        alerts::send_opsgenie_telegram_alert(message).await;
+        match alarm_type {
+            AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
+            AlarmType::Telegram => self.telegram_alerts.send_warning(TelegramSafeAlert::new(message)).await,
+        }
 
         self.last_fired = Some(Utc::now());
     }
 
-    async fn fire_with_name(&mut self, name: &str) {
+    async fn fire_with_name(&mut self, name: &str, num_unsynced_nodes: usize) {
         let message = format!(
-            "{} hasn't updated for more than {} seconds",
+            "{} hasn't updated for more than {} seconds - last num unsynced nodes: {}",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
+            num_unsynced_nodes
         );
 
-        self.fire(&message).await
+        if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
+            self.fire(&message, AlarmType::Opsgenie).await;
+        }
+        if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
+            self.fire(&message, AlarmType::Telegram).await;
+        }
     }
+
 }
 
 struct Phoenix {
@@ -120,7 +136,6 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
     );
 
     let mut alarm = Alarm::new();
-    let telegram_alerts = TelegramAlerts::new();
 
     let mut phoenixes = [
         Phoenix {
@@ -137,22 +152,11 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         },
     ];
 
+
     loop {
         for phoenix in phoenixes.iter_mut() {
             if phoenix.is_age_over_limit() {
-                let num_unsynced_nodes = phoenix.num_unsynced_nodes;
-                if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
-                    alarm.fire_with_name(phoenix.name).await;
-                }
-                if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
-                    telegram_alerts
-                        .send_warning(TelegramSafeAlert::new(&format!(
-                            "{} instances of {} out of sync",
-                            num_unsynced_nodes, phoenix.name
-                        )))
-                        .await;
-                }
-                phoenix.set_last_seen(Utc::now());
+                alarm.fire_with_name(phoenix.name, phoenix.num_unsynced_nodes).await;
             }
 
             let (current, num_unsynced_nodes) = phoenix.monitor.refresh().await;
