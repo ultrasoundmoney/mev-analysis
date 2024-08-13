@@ -12,7 +12,7 @@ use loki_client::PublishedPayloadStats;
 
 use crate::{
     beacon_api::{BeaconApi, ExecutionPayload},
-    env::{ToBeaconExplorerUrl, ToNetwork},
+    env::ToBeaconExplorerUrl,
     phoenix::{
         alerts,
         inclusion_monitor::proposer_meta::{
@@ -47,23 +47,20 @@ async fn get_delivered_payloads(
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
 ) -> anyhow::Result<Vec<DeliveredPayload>> {
-    let query = format!(
-        "
+    let query = "
         SELECT
             inserted_at,
             slot,
             block_hash,
             block_number,
             proposer_pubkey
-        FROM {}_payload_delivered
+        FROM payload_delivered
         WHERE inserted_at > $1
         AND inserted_at <= $2
         ORDER BY inserted_at ASC
-        ",
-        &APP_CONFIG.env.to_network().to_string(),
-    );
+        ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .bind(start)
         .bind(end)
         .fetch_all(relay_pool)
@@ -124,7 +121,7 @@ async fn check_is_adjustment_hash(pg_pool: &PgPool, block_hash: &str) -> anyhow:
         "
         SELECT EXISTS (
             SELECT 1
-            FROM turbo_adjustment_trace
+            FROM adjustment_trace
             WHERE adjusted_block_hash = $1
         )
         ",

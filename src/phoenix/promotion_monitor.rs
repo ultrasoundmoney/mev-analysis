@@ -4,12 +4,9 @@ use itertools::Itertools;
 use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
-use crate::env::ToNetwork;
-
 use super::{
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
-    env::APP_CONFIG,
 };
 
 async fn get_missed_slots(mev_pool: &PgPool, start: &DateTime<Utc>) -> Result<Vec<i64>> {
@@ -30,20 +27,17 @@ async fn promote_builder_ids(
     relay_pool: &PgPool,
     builder_ids: &Vec<String>,
 ) -> Result<Vec<(String, String)>> {
-    let query = format!(
-        "
-        UPDATE {}_blockbuilder
+    let query = "
+        UPDATE builder
         SET is_optimistic = true
         WHERE
             builder_id = ANY($1)
         AND collateral > 0
         AND is_optimistic = false
         RETURNING builder_id, builder_pubkey
-        ",
-        APP_CONFIG.env.to_network()
-    );
+        ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .bind(builder_ids)
         .fetch_all(relay_pool)
         .await

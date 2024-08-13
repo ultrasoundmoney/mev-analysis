@@ -6,7 +6,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info};
 
 use crate::{
-    env::{ToBeaconExplorerUrl, ToNetwork},
+    env::ToBeaconExplorerUrl,
     phoenix::{
         alerts::{telegram::TelegramSafeAlert, SendAlert},
         promotion_monitor::is_promotable_error,
@@ -32,24 +32,21 @@ pub async fn get_builder_demotions(
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
 ) -> Result<Vec<BuilderDemotion>> {
-    let query = format!(
-        "
+    let query = "
         SELECT
             bd.builder_pubkey,
             bb.builder_id,
             bd.slot,
             bd.sim_error
-        FROM {network}_builder_demotions bd
-        INNER JOIN {network}_blockbuilder bb
+        FROM builder_demotions bd
+        INNER JOIN builder bb
           ON bd.builder_pubkey = bb.builder_pubkey
         WHERE bd.inserted_at > $1
           AND bd.inserted_at <= $2
         ORDER BY bd.inserted_at ASC
-     ",
-        network = &APP_CONFIG.env.to_network().to_string()
-    );
+     ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .bind(start)
         .bind(end)
         .fetch_all(relay_pool)
