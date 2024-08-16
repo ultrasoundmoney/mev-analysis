@@ -35,6 +35,13 @@ pub struct AppConfig {
     pub unsynced_nodes_threshold_og_alert: usize,
     #[serde(default = "default_max_auction_analysis_slot_lag")]
     pub max_auction_analysis_slot_lag: u32,
+    #[serde(default = "default_max_header_delay_updates_slot_lag")]
+    pub max_header_delay_updates_slot_lag: u32,
+}
+
+fn default_max_header_delay_updates_slot_lag() -> u32 {
+    // Should be configured considering the configured schedule for the update cron job
+    60
 }
 
 fn default_max_auction_analysis_slot_lag() -> u32 {
