@@ -37,6 +37,14 @@ pub struct AppConfig {
     pub max_auction_analysis_slot_lag: u32,
     #[serde(default = "default_max_header_delay_updates_slot_lag")]
     pub max_header_delay_updates_slot_lag: u32,
+    #[serde(default = "default_max_lookback_updates_slot_lag")]
+    pub max_lookback_updates_slot_lag: u32,
+}
+
+fn default_max_lookback_updates_slot_lag() -> u32 {
+    // Note that this is more heuristic: since theoretically there could just be no updates because
+    // of the way the update algorithm works
+    600
 }
 
 fn default_max_header_delay_updates_slot_lag() -> u32 {
