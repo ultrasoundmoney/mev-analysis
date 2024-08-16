@@ -1,4 +1,5 @@
 mod alerts;
+mod auction_analysis_monitor;
 mod checkpoint;
 mod consensus_node;
 mod demotion_monitor;
@@ -8,7 +9,9 @@ mod promotion_monitor;
 mod validation_node;
 
 use std::{
-    collections::HashMap, net::SocketAddr, sync::{Arc, Mutex}
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
 };
 
 use anyhow::{anyhow, Result};
@@ -32,6 +35,7 @@ use self::{
         telegram::{self, TelegramAlerts, TelegramSafeAlert},
         SendAlert,
     },
+    auction_analysis_monitor::run_auction_analysis_monitor,
     demotion_monitor::run_demotion_monitor,
     inclusion_monitor::{run_inclusion_monitor, LokiClient},
     promotion_monitor::run_promotion_monitor,
@@ -99,16 +103,15 @@ impl Alarm {
 }
 
 struct NodeAlarm {
-    alarm: Alarm
+    alarm: Alarm,
 }
 
 impl NodeAlarm {
     fn new() -> Self {
         Self {
-            alarm: Alarm::new()
+            alarm: Alarm::new(),
         }
     }
-
 
     async fn fire_age_over_limit(&mut self, name: &str) {
         let message = format!(
@@ -129,9 +132,7 @@ impl NodeAlarm {
             self.alarm.fire(&message, &AlarmType::Telegram).await;
         }
     }
-    
 }
-
 
 struct Phoenix {
     name: &'static str,
@@ -276,12 +277,14 @@ async fn run_ops_monitors() -> Result<()> {
     )
     .await?;
     let loki_client = LokiClient::new(APP_CONFIG.loki_url.clone());
+    let mut auction_analysis_alarm = Alarm::new();
 
     loop {
         let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
         run_demotion_monitor(&relay_pool, &mev_pool).await?;
         run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon, &loki_client).await?;
         run_promotion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
+        run_auction_analysis_monitor(&mev_pool, &mut auction_analysis_alarm).await?;
         tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
     }
 }
