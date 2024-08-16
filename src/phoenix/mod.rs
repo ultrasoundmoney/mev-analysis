@@ -8,8 +8,7 @@ mod promotion_monitor;
 mod validation_node;
 
 use std::{
-    net::SocketAddr,
-    sync::{Arc, Mutex},
+    collections::HashMap, net::SocketAddr, sync::{Arc, Mutex}
 };
 
 use anyhow::{anyhow, Result};
@@ -44,31 +43,37 @@ lazy_static! {
     static ref MIN_WARNING_WAIT: Duration = Duration::minutes(60);
 }
 
-struct Alarm {
-    last_fired: Option<DateTime<Utc>>,
-    telegram_alerts: TelegramAlerts,
-}
-
+#[derive(Clone, Eq, Hash, PartialEq)]
 enum AlarmType {
     Telegram,
     Opsgenie,
 }
 
+impl AlarmType {
+    fn min_wait(&self) -> Duration {
+        match self {
+            AlarmType::Opsgenie => *MIN_ALARM_WAIT,
+            AlarmType::Telegram => *MIN_WARNING_WAIT,
+        }
+    }
+}
+
+struct Alarm {
+    last_fired: HashMap<AlarmType, DateTime<Utc>>,
+    telegram_alerts: TelegramAlerts,
+}
+
 impl Alarm {
     fn new() -> Self {
         Self {
-            last_fired: None,
+            last_fired: HashMap::new(),
             telegram_alerts: TelegramAlerts::new(),
         }
     }
 
     fn is_throttled(&self, alarm_type: &AlarmType) -> bool {
-        self.last_fired.map_or(false, |last_fired| {
-            let min_wait = match alarm_type {
-                AlarmType::Opsgenie => *MIN_ALARM_WAIT,
-                AlarmType::Telegram => *MIN_WARNING_WAIT,
-            };
-            Utc::now() - last_fired < min_wait
+        self.last_fired.get(alarm_type).map_or(false, |last_fired| {
+            Utc::now() - last_fired < alarm_type.min_wait()
         })
     }
 
@@ -89,8 +94,21 @@ impl Alarm {
             }
         }
 
-        self.last_fired = Some(Utc::now());
+        self.last_fired.insert(alarm_type.clone(), Utc::now());
     }
+}
+
+struct NodeAlarm {
+    alarm: Alarm
+}
+
+impl NodeAlarm {
+    fn new() -> Self {
+        Self {
+            alarm: Alarm::new()
+        }
+    }
+
 
     async fn fire_age_over_limit(&mut self, name: &str) {
         let message = format!(
@@ -98,20 +116,22 @@ impl Alarm {
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
         );
-        self.fire(&message, &AlarmType::Opsgenie).await;
+        self.alarm.fire(&message, &AlarmType::Opsgenie).await;
     }
 
     async fn fire_num_unsynced_nodes(&mut self, name: &str, num_unsynced_nodes: usize) {
         let message = format!("{} has {} unsynced instances", name, num_unsynced_nodes);
 
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
-            self.fire(&message, &AlarmType::Opsgenie).await;
+            self.alarm.fire(&message, &AlarmType::Opsgenie).await;
         }
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_tg_warning {
-            self.fire(&message, &AlarmType::Telegram).await;
+            self.alarm.fire(&message, &AlarmType::Telegram).await;
         }
     }
+    
 }
+
 
 struct Phoenix {
     name: &'static str,
@@ -150,7 +170,7 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
         PHOENIX_MAX_LIFESPAN.num_seconds()
     );
 
-    let mut alarm = Alarm::new();
+    let mut alarm = NodeAlarm::new();
 
     let mut phoenixes = [
         Phoenix {
