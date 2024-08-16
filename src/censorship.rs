@@ -1,19 +1,14 @@
-mod archive_node;
-mod chain;
 mod db;
 mod env;
-mod mempool;
 mod relay;
 
 use anyhow::Result;
 use axum::{http::StatusCode, routing::get, Router};
-use chrono::{Duration, SubsecRound, Utc};
+use chrono::{Duration, Utc};
 use enum_iterator::all;
 use futures::future;
-use gcp_bigquery_client::Client;
 use itertools::Itertools;
 use sqlx::{Connection, PgConnection};
-use std::cmp;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process;
@@ -21,46 +16,11 @@ use tracing::{error, info, warn};
 
 use crate::log;
 
-use self::archive_node::ArchiveNode;
 use self::db::{CensorshipDB, PostgresCensorshipDB};
 use self::env::APP_CONFIG;
 use self::relay::{DeliveredPayload, RelayApi};
-use self::{
-    archive_node::InfuraClient,
-    chain::ChainStore,
-    mempool::{MempoolStore, ZeroMev},
-};
 
 pub use self::relay::RelayId;
-
-pub async fn start_chain_data_ingest() -> Result<()> {
-    log::init();
-
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
-    sqlx::migrate!().run(&mut db_conn).await?;
-    db_conn.close().await?;
-
-    let db = PostgresCensorshipDB::new().await?;
-    let mempool_store = ZeroMev::new().await;
-    let chain_store =
-        Client::from_service_account_key_file(&APP_CONFIG.bigquery_service_account).await?;
-    let archive_node = InfuraClient::new();
-
-    tokio::spawn(mount_health_route());
-
-    let result = ingest_chain_data(&db, &chain_store, &mempool_store, &archive_node).await;
-
-    match result {
-        Ok(_) => {
-            error!("chain data ingestion completed unexpectedly without an error");
-            process::exit(1);
-        }
-        Err(err) => {
-            error!("chain data ingestion failed: {}", err);
-            process::exit(1);
-        }
-    }
-}
 
 pub async fn start_block_production_ingest() -> Result<()> {
     log::init();
@@ -88,100 +48,6 @@ pub async fn start_block_production_ingest() -> Result<()> {
             process::exit(1);
         }
     }
-}
-
-async fn ingest_chain_data(
-    db: &impl CensorshipDB,
-    chain_store: &impl ChainStore,
-    mempool_store: &impl MempoolStore,
-    archive_node: &impl ArchiveNode,
-) -> Result<()> {
-    let fetch_interval = APP_CONFIG.chain_data_interval;
-
-    loop {
-        let checkpoint = db
-            .get_chain_checkpoint()
-            .await?
-            .unwrap_or(APP_CONFIG.backfill_until);
-
-        let begin = Utc::now();
-        let is_backfilling = begin - checkpoint > fetch_interval;
-
-        let start_time = checkpoint;
-        // Stay at least 10 minutes behind current time to make sure the data is available in BigQuery
-        let end_time = cmp::min(
-            start_time + APP_CONFIG.chain_data_batch_size,
-            (begin - Duration::minutes(10)).round_subsecs(0),
-        );
-
-        info!(
-            "starting chain data ingestion from {} until {}, interval: {} minutes",
-            start_time,
-            end_time,
-            fetch_interval.num_minutes()
-        );
-
-        let (blocks, txs) = tokio::try_join!(
-            chain_store.fetch_blocks(&start_time, &end_time),
-            chain_store.fetch_txs(&start_time, &end_time)
-        )?;
-
-        let block_count = blocks.len();
-        let tx_count = txs.len();
-
-        info!("received {} blocks and {} txs", &block_count, &tx_count);
-
-        let start_block = blocks.first().expect("no blocks received").block_number;
-        let end_block = blocks.last().expect("no blocks received").block_number;
-        let timestamped_txs = mempool_store
-            .fetch_tx_timestamps(txs, start_block, end_block)
-            .await?;
-
-        db.put_chain_data(blocks, timestamped_txs).await?;
-
-        info!(
-            "persisted chain data in {} seconds",
-            (Utc::now() - begin).num_seconds()
-        );
-
-        if !is_backfilling {
-            refresh_derived_data(db).await?;
-            run_low_balance_check(db, archive_node).await?;
-            info!(
-                "reached current time, sleeping for {} minutes",
-                APP_CONFIG.chain_data_interval.num_minutes()
-            );
-            tokio::time::sleep(fetch_interval.to_std().unwrap()).await;
-        }
-    }
-}
-/*
-  Check historical balance of addresses that experienced delayed transactions,
-  and tag them as "low balance" if they didn't have enough balance to cover the transaction.
-*/
-async fn run_low_balance_check(
-    db: &impl CensorshipDB,
-    archive_node: &impl ArchiveNode,
-) -> Result<()> {
-    let checks = db.get_tx_low_balance_checks().await?;
-
-    info!(
-        "running low balance check for {} transactions",
-        &checks.len()
-    );
-
-    for check in &checks {
-        let low_balance = archive_node.check_low_balance(check).await?;
-        db.update_tx_low_balance_status(&check.transaction_hash, &low_balance)
-            .await?;
-    }
-
-    info!(
-        "completed low balance check for {} transactions",
-        &checks.len()
-    );
-
-    Ok(())
 }
 
 /*
@@ -330,30 +196,6 @@ pub async fn patch_block_production_interval(start_slot: i64, end_slot: i64) -> 
         )
         .await?;
     }
-
-    Ok(())
-}
-
-async fn refresh_derived_data(db: &impl CensorshipDB) -> Result<()> {
-    let start = Utc::now();
-
-    info!("refreshing derived data...");
-
-    db.populate_tx_metadata().await?;
-
-    info!(
-        "populated transaction metadata in {} seconds",
-        (Utc::now() - start).num_seconds()
-    );
-
-    let start_matviews = Utc::now();
-
-    db.refresh_matviews().await?;
-
-    info!(
-        "refreshed materialized views in {} seconds",
-        (Utc::now() - start_matviews).num_seconds()
-    );
 
     Ok(())
 }

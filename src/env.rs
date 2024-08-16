@@ -1,4 +1,3 @@
-use chrono::Duration;
 use reqwest::Url;
 use serde::{
     de::{DeserializeOwned, Error},
@@ -103,14 +102,6 @@ where
     s.split(',')
         .map(|s| Url::parse(s).map_err(Error::custom))
         .collect()
-}
-
-pub fn deserialize_duration_minutes<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let num: i64 = Deserialize::deserialize(deserializer)?;
-    Ok(Duration::minutes(num))
 }
 
 pub fn get_app_config<T: DeserializeOwned>() -> T {
