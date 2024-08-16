@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                builder_pubkey,\n                builder_name,\n                uncensored_blocks,\n                total_blocks\n            FROM\n                builder_blocks_30d\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "builder_pubkey",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "builder_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "uncensored_blocks",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_blocks",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "02a6ff6e2f997a5a57b5b35c416a45ce7917d4110a4a17bf24c637c7338ed9dd"
+}

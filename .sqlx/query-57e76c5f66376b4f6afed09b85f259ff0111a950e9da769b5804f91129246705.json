@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO monitor_checkpoints (monitor_id, timestamp)\n        VALUES ($1, $2)\n        ON CONFLICT (monitor_id) DO UPDATE SET timestamp = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57e76c5f66376b4f6afed09b85f259ff0111a950e9da769b5804f91129246705"
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                bid as builder_id,\n                COALESCE(censoring_pubkeys, 0) AS censoring_pubkeys,\n                COALESCE(total_pubkeys, 0) AS total_pubkeys,\n                COALESCE(number_of_blocks, 0) AS block_count\n            FROM\n                builders_30d\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "builder_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "censoring_pubkeys",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_pubkeys",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "block_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "e36963367ad97d3cca55b306281fc25569d33b705814c343f5883fbea25c9923"
+}

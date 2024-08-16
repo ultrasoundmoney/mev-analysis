@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            pubkey,\n            builder_name\n        FROM\n            builder_pubkeys\n        WHERE\n            pubkey = ANY($1)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pubkey",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "builder_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "02dc1734de68f766241196b5a33bc99cefb4379e1a9b4a099ea705b30e7bfbe0"
+}

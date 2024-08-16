@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)\n        VALUES ($1, $2, $3)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9c0d78883385fc3abb9112bb7aaa75badbada1b3374bfaa7fecb877e541bd089"
+}

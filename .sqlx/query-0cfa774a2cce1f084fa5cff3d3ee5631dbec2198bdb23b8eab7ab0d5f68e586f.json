@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT slot_number\n            FROM block_production\n            ORDER BY slot_number ASC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slot_number",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0cfa774a2cce1f084fa5cff3d3ee5631dbec2198bdb23b8eab7ab0d5f68e586f"
+}

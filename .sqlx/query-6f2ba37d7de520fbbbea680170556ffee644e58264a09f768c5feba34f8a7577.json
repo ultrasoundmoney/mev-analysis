@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                relay_id,\n                total_blocks,\n                uncensored_blocks\n            FROM\n                relay_censorship_30d\n\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "relay_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_blocks",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "uncensored_blocks",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6f2ba37d7de520fbbbea680170556ffee644e58264a09f768c5feba34f8a7577"
+}
