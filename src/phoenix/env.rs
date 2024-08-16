@@ -33,6 +33,12 @@ pub struct AppConfig {
     pub unsynced_nodes_threshold_tg_warning: usize,
     #[serde(default = "default_unsynced_nodes_threshold_og_alert")]
     pub unsynced_nodes_threshold_og_alert: usize,
+    #[serde(default = "default_max_auction_analysis_slot_lag")]
+    pub max_auction_analysis_slot_lag: u32,
+}
+
+fn default_max_auction_analysis_slot_lag() -> u32 {
+    50
 }
 
 fn default_unsynced_nodes_threshold_og_alert() -> usize {
