@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                t_type AS delay_type,\n                avg_delay::float,\n                avg_block_delay::float,\n                n AS tx_count\n            FROM inclusion_delay_7d\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "delay_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "avg_delay",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "avg_block_delay",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "tx_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "b5cc8291238aa73eeecd4cff45538eac2a6b324ca30a3aa189fa448fe23060de"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            operator_id,\n            validator_count,\n            relays\n        FROM\n            operators_all\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "validator_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "relays",
+        "type_info": "TextArray"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8b70af619d8edd7797abcbf57e6105b60cd9f74fb87c4a68ce7e33b7a1eaf01c"
+}

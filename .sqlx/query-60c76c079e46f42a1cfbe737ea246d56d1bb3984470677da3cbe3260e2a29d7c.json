@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                UNNEST(relays) AS relay_id,\n                COUNT(*) AS block_count,\n                SUM(value / array_length(relays, 1)) / 10^18 AS total_value,\n                AVG(value / array_length(relays, 1)) / 10^18 AS avg_value\n            FROM\n                block_production\n            WHERE\n                inserted_at >= NOW() - $1::interval\n            GROUP BY\n                relay_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "relay_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "block_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_value",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "avg_value",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "60c76c079e46f42a1cfbe737ea246d56d1bb3984470677da3cbe3260e2a29d7c"
+}

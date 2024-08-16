@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n  transactions_data.transaction_hash,\n  transactions_data.block_number,\n  transactions_data.mined,\n  transactions_data.delay::float,\n  transactions_data.blacklist,\n  transactions_data.blocksdelay as block_delay\n  FROM\n    transactions_data\n WHERE\n   (\n     transactions_data.lowbasefee + transactions_data.lowtip + transactions_data.congested + transactions_data.low_balance\n   )\n   = 0\n   AND transactions_data.blocksdelay > 0\n   AND transactions_data.blacklist != '{NULL}'\n   AND transactions_data.mined > (CURRENT_DATE - $1::interval)\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "transaction_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "block_number",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "mined",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "delay",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "blacklist",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 5,
+        "name": "block_delay",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "a875ca754e6eb830a0e407caf166dc9d5917fe2ea3600ede1781d891a2fef169"
+}

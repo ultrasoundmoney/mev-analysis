@@ -22,12 +22,11 @@ redis = { version = "0.22.1", features = ["aio", "tokio-comp"] }
 reqwest = { version = "0.11", features = ["json", "gzip"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.6.2", features = [
+sqlx = { version = "0.8.0", features = [
   "chrono",
   "postgres",
   "runtime-tokio-native-tls",
   "bigdecimal",
-  "offline",
 ] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1.12"

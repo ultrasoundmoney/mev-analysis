@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n   *\nFROM\n   (\n      SELECT\n         transactions_data.transaction_hash,\n         transactions_data.mined,\n         transactions_data.delay::float,\n         transactions_data.block_number,\n         transactions_data.blocksdelay as block_delay,\n         CASE\n            WHEN blacklist = '{NULL}' THEN '{}'::text[]\n            ELSE blacklist\n         END AS blacklist,\n         CASE\n            WHEN transactions_data.low_balance = 1 THEN 'likely_insufficient_balance'\n            WHEN transactions_data.lowbasefee = 1 THEN 'lowbasefee'\n            WHEN transactions_data.lowtip = 1 THEN 'lowtip'\n            WHEN transactions_data.congested = 1 THEN 'congested'\n            WHEN transactions_data.blacklist != '{NULL}' THEN 'ofac'\n            ELSE 'unknown'\n         END AS reason\n      FROM\n         transactions_data\n      WHERE\n         transactions_data.mined > (CURRENT_DATE - $1::interval)\n         AND transactions_data.blocksdelay > 1\n   ) sq\nWHERE\n   reason = 'ofac'\n   OR reason = 'unknown'\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "transaction_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "mined",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "delay",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "block_number",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "block_delay",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "blacklist",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 6,
+        "name": "reason",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "1621984623036a1f8fc5be4f23153f975a134660297e4ec48c3f828d85ea4cfa"
+}

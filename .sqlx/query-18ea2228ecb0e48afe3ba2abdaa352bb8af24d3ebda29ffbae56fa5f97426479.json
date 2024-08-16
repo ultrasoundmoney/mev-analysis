@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                COALESCE(censored_tx_count, 0) AS censored_tx_count,\n                COALESCE(censored_avg_delay, 0) AS censored_avg_delay,\n                COALESCE(uncensored_tx_count, 0) AS uncensored_tx_count,\n                COALESCE(uncensored_avg_delay, 0) AS uncensored_avg_delay\n            FROM\n                censorship_delay_7d\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "censored_tx_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "censored_avg_delay",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "uncensored_tx_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "uncensored_avg_delay",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "18ea2228ecb0e48afe3ba2abdaa352bb8af24d3ebda29ffbae56fa5f97426479"
+}
