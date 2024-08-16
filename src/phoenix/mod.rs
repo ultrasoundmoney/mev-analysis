@@ -6,6 +6,7 @@ mod delay_update_monitor;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
+mod lookback_update_monitor;
 mod promotion_monitor;
 mod util;
 mod validation_node;
@@ -41,6 +42,7 @@ use self::{
     delay_update_monitor::run_header_delay_updates_monitor,
     demotion_monitor::run_demotion_monitor,
     inclusion_monitor::{run_inclusion_monitor, LokiClient},
+    lookback_update_monitor::run_lookback_updates_monitor,
     promotion_monitor::run_promotion_monitor,
 };
 
@@ -280,7 +282,11 @@ async fn run_ops_monitors() -> Result<()> {
     )
     .await?;
     let loki_client = LokiClient::new(APP_CONFIG.loki_url.clone());
+
+    // Separate alarm instances mean throtteling will be applied separately
     let mut auction_analysis_alarm = Alarm::new();
+    let mut header_delay_updates_alarm = Alarm::new();
+    let mut run_lookback_updates_monitor_alarm = Alarm::new();
 
     loop {
         let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
@@ -288,7 +294,8 @@ async fn run_ops_monitors() -> Result<()> {
         run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon, &loki_client).await?;
         run_promotion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
         run_auction_analysis_monitor(&mev_pool, &mut auction_analysis_alarm).await?;
-        run_header_delay_updates_monitor(&mev_pool, &mut auction_analysis_alarm).await?;
+        run_header_delay_updates_monitor(&mev_pool, &mut header_delay_updates_alarm).await?;
+        run_lookback_updates_monitor(&mev_pool, &mut run_lookback_updates_monitor_alarm).await?;
         tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
     }
 }
