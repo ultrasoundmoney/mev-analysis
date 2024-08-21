@@ -3,9 +3,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use serde::Serialize;
 use sqlx::Row;
 
-use crate::env::ToNetwork;
-
-use super::{internal_error, ApiResponse, AppState, APP_CONFIG};
+use super::{internal_error, ApiResponse, AppState};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,17 +27,14 @@ pub struct PayloadStatsBody {
 }
 
 pub async fn delivered_payloads(State(state): State<AppState>) -> ApiResponse<PayloadsBody> {
-    let query = format!(
-        "
+    let query = "
         select inserted_at, block_number, (value / 10^18) as value
-        from {}_payload_delivered
+        from payload_delivered
         order by inserted_at desc
         limit 30
-        ",
-        &APP_CONFIG.env.to_network().to_string()
-    );
+    ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {
@@ -58,17 +53,14 @@ pub async fn delivered_payloads(State(state): State<AppState>) -> ApiResponse<Pa
 }
 
 pub async fn payload_stats(State(state): State<AppState>) -> ApiResponse<PayloadStatsBody> {
-    let query = format!(
-        "
-         select count(*) as count,
-                sum(value) / 10^18 as value,
-                (select min(inserted_at) from {network}_payload_delivered) as first_payload_at
-         from {network}_payload_delivered
-        ",
-        network = &APP_CONFIG.env.to_network().to_string(),
-    );
+    let query = "
+        select count(*) as count,
+        sum(value) / 10^18 as value,
+        (select min(inserted_at) from payload_delivered) as first_payload_at
+        from payload_delivered
+    ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .fetch_one(&state.relay_db_pool)
         .await
         .map(|row| {
@@ -82,19 +74,16 @@ pub async fn payload_stats(State(state): State<AppState>) -> ApiResponse<Payload
 }
 
 pub async fn top_payloads(State(state): State<AppState>) -> ApiResponse<PayloadsBody> {
-    let query = format!(
-        "
+    let query = "
         select inserted_at,
-                block_number,
-                (value / 10^18) as value
-        from {}_payload_delivered
+        block_number,
+        (value / 10^18) as value
+        from payload_delivered
         order by value desc
         limit 10
-        ",
-        &APP_CONFIG.env.to_network().to_string()
-    );
+    ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {

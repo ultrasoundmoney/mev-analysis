@@ -21,13 +21,12 @@ pub struct ValidatorStatsBody {
 }
 
 async fn get_registered_validator_count(relay_pool: &PgPool) -> Result<i64> {
-    sqlx::query(&format!(
+    sqlx::query(
         "
-         select count(*) as validator_count
-         from (select distinct pubkey from {}_validator_registration) as sq
+        select count(*) as validator_count
+        from (select distinct pubkey from validator_registration) as sq
         ",
-        &APP_CONFIG.env.to_network().to_string()
-    ))
+    )
     .fetch_one(relay_pool)
     .await
     .map(|row| row.get::<i64, _>("validator_count"))
@@ -56,16 +55,13 @@ pub async fn check_validator_registration(
     State(state): State<AppState>,
     Path(pubkey): Path<String>,
 ) -> ApiResponse<RegistrationStatusBody> {
-    let query = format!(
-        "
-         select exists (
-            select pubkey from {}_validator_registration where pubkey = $1
-         )
-        ",
-        &APP_CONFIG.env.to_network().to_string()
-    );
+    let query = "
+        select exists (
+        select pubkey from validator_registration where pubkey = $1
+        )
+    ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .bind(pubkey)
         .fetch_one(&state.relay_db_pool)
         .await

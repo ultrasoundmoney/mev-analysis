@@ -4,9 +4,7 @@ use serde::Serialize;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 
-use crate::env::ToNetwork;
-
-use super::{env::APP_CONFIG, internal_error, ApiResponse, AppState};
+use super::{internal_error, ApiResponse, AppState};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -27,20 +25,17 @@ pub struct PubkeyBlockCount {
 }
 
 async fn fetch_pubkey_block_counts(relay_pool: &PgPool) -> Result<Vec<PubkeyBlockCount>> {
-    let query = format!(
-        "
+    let query = "
         SELECT
             builder_pubkey AS pubkey,
             COUNT(*) AS block_count
         FROM
-            {}_payload_delivered
+            payload_delivered
         GROUP BY
             builder_pubkey
-        ",
-        &APP_CONFIG.env.to_network().to_string()
-    );
+        ";
 
-    sqlx::query(&query)
+    sqlx::query(query)
         .fetch_all(relay_pool)
         .await
         .map(|rows| {
