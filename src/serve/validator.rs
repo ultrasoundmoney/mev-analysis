@@ -8,9 +8,7 @@ use futures::future::join_all;
 use serde::Serialize;
 use sqlx::{PgPool, Row};
 
-use crate::env::ToNetwork;
-
-use super::{env::APP_CONFIG, internal_error, AppState};
+use super::{internal_error, AppState};
 use super::{relay_redis, ApiResponse};
 
 #[derive(Serialize, Clone)]
