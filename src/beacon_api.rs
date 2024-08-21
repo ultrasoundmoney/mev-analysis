@@ -52,7 +52,7 @@ where
 
 #[derive(Clone)]
 pub struct BeaconApi {
-    nodes: Vec<Url>,
+    node_urls: Vec<Url>,
     client: reqwest::Client,
 }
 
@@ -60,7 +60,7 @@ impl BeaconApi {
     pub fn new(nodes: &[Url]) -> Self {
         if !nodes.is_empty() {
             Self {
-                nodes: nodes.to_vec(),
+                node_urls: nodes.to_vec(),
                 client: reqwest::Client::new(),
             }
         } else {
@@ -70,7 +70,7 @@ impl BeaconApi {
 
     // poor mans load balancer, get random node from list
     fn get_node(&self) -> &Url {
-        self.nodes.choose(&mut rand::thread_rng()).unwrap()
+        self.node_urls.choose(&mut rand::thread_rng()).unwrap()
     }
 
     pub async fn validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
@@ -129,12 +129,12 @@ impl BeaconApi {
     }
 
     pub async fn fetch_payload_all(&self, slot: i64) -> anyhow::Result<Option<ExecutionPayload>> {
-        for (i, node) in self.nodes.iter().enumerate() {
+        for (i, node) in self.node_urls.iter().enumerate() {
             match self.fetch_payload(node, slot).await {
                 Ok(res) => return Ok(res),
                 Err(err) => {
                     warn!("failed to fetch payload from {}: {:?}", node, err);
-                    if i == self.nodes.len() - 1 {
+                    if i == self.node_urls.len() - 1 {
                         return Err(err);
                     }
                 }
