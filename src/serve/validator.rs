@@ -57,7 +57,7 @@ pub async fn check_validator_registration(
 ) -> ApiResponse<RegistrationStatusBody> {
     let query = "
         select exists (
-        select pubkey from validator_registration where pubkey = $1
+            select pubkey from validator_registration where pubkey = $1
         )
     ";
 
@@ -95,22 +95,18 @@ pub struct ValidatorRegistrationsBody {
 pub async fn validator_registrations(
     State(state): State<AppState>,
 ) -> Json<ValidatorRegistrationsBody> {
-    let query = format!(
-        "
-           select inserted_at, pubkey
-            from (
-                select min(inserted_at) as inserted_at, pubkey
-                from {}_validator_registration
-                group by pubkey
-            ) sq
-            order by inserted_at desc
-            limit 30
+    let query = "
+        select inserted_at, pubkey
+        from (
+            select min(inserted_at) as inserted_at, pubkey
+            from validator_registration
+            group by pubkey
+        ) sq
+        order by inserted_at desc
+        limit 30
+    ";
 
-        ",
-        &APP_CONFIG.env.to_network().to_string()
-    );
-
-    let registrations: Vec<ValidatorRegistration> = sqlx::query(&query)
+    let registrations: Vec<ValidatorRegistration> = sqlx::query(query)
         .fetch_all(&state.relay_db_pool)
         .await
         .map(|rows| {
