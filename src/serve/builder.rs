@@ -103,7 +103,7 @@ async fn get_top_builders(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<Vec<
 }
 
 pub async fn top_builders(State(state): State<AppState>) -> ApiResponse<BuildersBody> {
-    get_top_builders(&state.relay_db_pool, &state.mev_db_pool)
+    get_top_builders(&state.global_db_pool, &state.mev_db_pool)
         .await
         .map(|builders| Json(BuildersBody { builders }))
         .map_err(internal_error)

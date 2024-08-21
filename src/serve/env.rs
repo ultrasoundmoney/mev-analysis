@@ -9,7 +9,7 @@ pub struct AppConfig {
     pub env: Env,
     pub port: u16,
     pub database_url: String,
-    pub relay_database_url: String,
+    pub global_database_url: String,
     pub redis_uri: String,
     #[serde(deserialize_with = "deserialize_urls")]
     pub consensus_nodes: Vec<Url>,

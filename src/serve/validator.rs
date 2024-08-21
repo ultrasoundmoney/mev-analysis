@@ -36,7 +36,7 @@ async fn get_registered_validator_count(relay_pool: &PgPool) -> Result<i64> {
 pub async fn validator_stats(State(state): State<AppState>) -> ApiResponse<ValidatorStatsBody> {
     let (known_validator_count, validator_count) = tokio::try_join!(
         relay_redis::get_known_validator_count(&state.redis_client),
-        get_registered_validator_count(&state.relay_db_pool)
+        get_registered_validator_count(&state.global_db_pool)
     )
     .map_err(internal_error)?;
 
@@ -63,7 +63,7 @@ pub async fn check_validator_registration(
 
     sqlx::query(query)
         .bind(pubkey)
-        .fetch_one(&state.relay_db_pool)
+        .fetch_one(&state.global_db_pool)
         .await
         .map(|row| {
             Json(RegistrationStatusBody {
@@ -107,7 +107,7 @@ pub async fn validator_registrations(
     ";
 
     let registrations: Vec<ValidatorRegistration> = sqlx::query(query)
-        .fetch_all(&state.relay_db_pool)
+        .fetch_all(&state.global_db_pool)
         .await
         .map(|rows| {
             rows.iter()

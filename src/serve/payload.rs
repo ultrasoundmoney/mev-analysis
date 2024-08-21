@@ -35,7 +35,7 @@ pub async fn delivered_payloads(State(state): State<AppState>) -> ApiResponse<Pa
     ";
 
     sqlx::query(query)
-        .fetch_all(&state.relay_db_pool)
+        .fetch_all(&state.global_db_pool)
         .await
         .map(|rows| {
             let payloads = rows
@@ -61,7 +61,7 @@ pub async fn payload_stats(State(state): State<AppState>) -> ApiResponse<Payload
     ";
 
     sqlx::query(query)
-        .fetch_one(&state.relay_db_pool)
+        .fetch_one(&state.global_db_pool)
         .await
         .map(|row| {
             Json(PayloadStatsBody {
@@ -84,7 +84,7 @@ pub async fn top_payloads(State(state): State<AppState>) -> ApiResponse<Payloads
     ";
 
     sqlx::query(query)
-        .fetch_all(&state.relay_db_pool)
+        .fetch_all(&state.global_db_pool)
         .await
         .map(|rows| {
             let payloads = rows

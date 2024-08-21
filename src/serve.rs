@@ -33,7 +33,7 @@ use env::APP_CONFIG;
 #[derive(Clone)]
 pub struct AppState {
     mev_db_pool: PgPool,
-    relay_db_pool: PgPool,
+    global_db_pool: PgPool,
     redis_client: redis::Client,
     beacon_api: BeaconApi,
     validator_index_cache: Arc<Mutex<HashMap<String, String>>>,
@@ -55,10 +55,10 @@ pub async fn start_server() -> Result<()> {
         .await
         .expect("can't connect to mev database");
 
-    let relay_db_pool = PgPoolOptions::new()
+    let global_db_pool = PgPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(&APP_CONFIG.relay_database_url)
+        .connect(&APP_CONFIG.global_database_url)
         .await
         .expect("can't connect to relay database");
 
@@ -74,7 +74,7 @@ pub async fn start_server() -> Result<()> {
 
     let shared_state = AppState {
         mev_db_pool,
-        relay_db_pool,
+        global_db_pool,
         redis_client,
         beacon_api,
         validator_index_cache,
@@ -135,7 +135,7 @@ pub async fn start_server() -> Result<()> {
 
 async fn health(State(state): State<AppState>) -> StatusCode {
     let mev_conn = state.mev_db_pool.acquire().await;
-    let relay_conn = state.relay_db_pool.acquire().await;
+    let relay_conn = state.global_db_pool.acquire().await;
     let redis_conn = state.redis_client.get_async_connection().await;
     match (mev_conn, relay_conn, redis_conn) {
         (Ok(_), Ok(_), Ok(_)) => StatusCode::OK,
