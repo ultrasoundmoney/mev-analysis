@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use rand::seq::SliceRandom;
 use reqwest::{StatusCode, Url};
 use serde::Deserialize;
+use tracing::debug;
 
 #[derive(Deserialize)]
 struct BeaconResponse<T> {
@@ -103,8 +104,12 @@ impl BeaconApi {
             // 1. Slot doesn't have a block.
             // 2. Slot is in the future and doesn't have a block yet.
             // 3. Slot is before the beacon node backfill limit.
-            StatusCode::NOT_FOUND => Ok(None),
+            StatusCode::NOT_FOUND => {
+                debug!("no block for slot {} on node {}", slot, node);
+                Ok(None)
+            }
             StatusCode::OK => {
+                debug!("found block for slot {} on node {}", slot, node);
                 let block = res
                     .json::<BeaconResponse<BlockResponse>>()
                     .await
@@ -135,7 +140,10 @@ impl BeaconApi {
         // Attempt to return the first Ok(Some) if any.
         for result in &results {
             match result {
-                Ok(Some(payload)) => return Ok(Some(payload.clone())),
+                Ok(Some(payload)) => {
+                    debug!("at least one node has a block for slot {}", slot);
+                    return Ok(Some(payload.clone()));
+                }
                 Ok(None) => continue,
                 Err(_) => continue,
             }
@@ -144,17 +152,24 @@ impl BeaconApi {
         // Attempt to return the first Ok(None) if any.
         for result in &results {
             match result {
-                Ok(None) => return Ok(None),
+                Ok(None) => {
+                    debug!("no node has a block for slot {}", slot);
+                    return Ok(None);
+                }
                 Ok(Some(_)) => continue,
                 Err(_) => continue,
             }
         }
 
         // Return the first error if all Ok(None) and Ok(Some) are exhausted.
+        debug!(
+            "failed to successfully fetch block for slot {} on all nodes",
+            slot
+        );
         results
             .into_iter()
             .next()
-            .expect("expect results to be all errors")
+            .expect("expect to results to not be empty")
     }
 
     // Method to fetch the sync status from a node
