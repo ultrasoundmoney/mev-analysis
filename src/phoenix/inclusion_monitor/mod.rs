@@ -321,7 +321,7 @@ async fn was_attempted_reorg(
     delivered: &DeliveredPayload,
 ) -> anyhow::Result<bool> {
     let prev_slot = delivered.slot - 1;
-    let prev_payload = beacon_api.fetch_payload_all(prev_slot).await?;
+    let prev_payload = beacon_api.block_by_slot_any(prev_slot).await?;
     Ok(prev_payload
         .map(|p| p.block_number == delivered.block_number)
         .unwrap_or(false))
@@ -334,7 +334,7 @@ async fn check_missing_payload(
     payload: &DeliveredPayload,
     relay_pool: &PgPool,
 ) -> anyhow::Result<()> {
-    let block = beacon_api.fetch_payload_all(payload.slot).await?;
+    let block = beacon_api.block_by_slot_any(payload.slot).await?;
 
     match block {
         Some(ExecutionPayload { block_hash, .. }) => {

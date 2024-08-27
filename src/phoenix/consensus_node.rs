@@ -19,9 +19,8 @@ impl ConsensusNodeMonitor {
     async fn num_unsynced_nodes(&self) -> usize {
         let mut results = Vec::new();
 
-        for url in &APP_CONFIG.consensus_nodes {
-            let status = self.beacon_api.fetch_sync_status(url).await;
-
+        let statuses = self.beacon_api.sync_status_all().await;
+        for status in statuses {
             match status {
                 Ok(s) => results.push(!s.is_syncing),
                 Err(err) => {
