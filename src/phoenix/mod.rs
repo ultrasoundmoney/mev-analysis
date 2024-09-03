@@ -311,32 +311,49 @@ pub async fn monitor_critical_services() -> Result<()> {
 
     let last_checked = Arc::new(Mutex::new(Utc::now()));
 
-    let result = tokio::try_join!(
-        mount_health_route(),
-        run_alarm_loop(last_checked),
-        run_ops_monitors()
-    );
-
-    match result {
-        Ok(_) => {
-            let message = TelegramSafeAlert::new("phoenix processes exited unexpectedly");
-            telegram_alerts.send_alert(message.clone()).await;
-            Err(anyhow!(message))
-        }
-        Err(err) => {
-            let shortned_err = err.to_string().split_off(3072);
-            let escaped_err = telegram::escape_str(&shortned_err);
-            let formatted_message = formatdoc!(
-                "
-                phoenix process exited with error
-                ```error
-                {escaped_err}
-                ```
-                "
-            );
-            let message = TelegramSafeAlert::from_escaped_string(formatted_message);
-            telegram_alerts.send_alert(message).await;
-            Err(anyhow!(err))
+    // Skip global checks and only check nodes
+    if APP_CONFIG.ff_node_check_only {
+        let result = tokio::try_join!(mount_health_route(), run_alarm_loop(last_checked));
+        match result {
+            Ok(_) => handle_unexpected_exit(telegram_alerts).await,
+            Err(err) => handle_unexpected_error(telegram_alerts, err).await,
         }
     }
+    // Run all checks
+    else {
+        let result = tokio::try_join!(
+            mount_health_route(),
+            run_alarm_loop(last_checked),
+            run_ops_monitors()
+        );
+        match result {
+            Ok(_) => handle_unexpected_exit(telegram_alerts).await,
+            Err(err) => handle_unexpected_error(telegram_alerts, err).await,
+        }
+    }
+}
+
+async fn handle_unexpected_exit(telegram_alerts: TelegramAlerts) -> Result<()> {
+    let message = TelegramSafeAlert::new("phoenix processes exited unexpectedly");
+    telegram_alerts.send_alert(message.clone()).await;
+    Err(anyhow!(message))
+}
+
+async fn handle_unexpected_error(
+    telegram_alerts: TelegramAlerts,
+    err: anyhow::Error,
+) -> Result<()> {
+    let shortned_err = err.to_string().split_off(3072);
+    let escaped_err = telegram::escape_str(&shortned_err);
+    let formatted_message = formatdoc!(
+        "
+        phoenix process exited with error
+        ```error
+        {escaped_err}
+        ```
+        "
+    );
+    let message = TelegramSafeAlert::from_escaped_string(formatted_message);
+    telegram_alerts.send_alert(message).await;
+    Err(anyhow!(err))
 }

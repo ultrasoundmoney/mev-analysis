@@ -12,6 +12,9 @@ pub struct AppConfig {
     pub consensus_nodes: Vec<Url>,
     pub database_url: String,
     pub env: Env,
+    /// Skip global checks in `run_ops_monitors` and only check for beacon/sim node status.
+    #[serde(default)]
+    pub ff_node_check_only: bool,
     pub loki_url: String,
     /// Minimum number of missed slots per check interval to trigger an alert
     #[serde(default = "default_missed_slots_alert_threshold")]
