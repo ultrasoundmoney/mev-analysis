@@ -1,9 +1,13 @@
+use std::{fmt, str};
+
 use lazy_static::lazy_static;
 use reqwest::Url;
 use serde::Deserialize;
+use serde_with::{serde_as, DisplayFromStr};
 
 use crate::env::{deserialize_network, deserialize_urls, get_app_config, Env, Network};
 
+#[serde_as]
 #[derive(Deserialize)]
 pub struct AppConfig {
     #[serde(default = "default_wait")]
@@ -15,6 +19,8 @@ pub struct AppConfig {
     /// Skip global checks in `run_ops_monitors` and only check for beacon/sim node status.
     #[serde(default)]
     pub ff_node_check_only: bool,
+    #[serde_as(as = "DisplayFromStr")]
+    pub geo: Geo,
     pub loki_url: String,
     /// Minimum number of missed slots per check interval to trigger an alert
     #[serde(default = "default_missed_slots_alert_threshold")]
@@ -77,6 +83,34 @@ fn default_missed_slots_range() -> i64 {
 
 fn default_missed_slots_alert_threshold() -> i64 {
     3
+}
+
+/// Auction geography
+#[allow(clippy::upper_case_acronyms)]
+pub enum Geo {
+    RBX,
+    VIN,
+}
+
+impl fmt::Display for Geo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let str = match &self {
+            Geo::RBX => "rbx",
+            Geo::VIN => "vin",
+        };
+        write!(f, "{}", str)
+    }
+}
+
+impl str::FromStr for Geo {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "rbx" => Ok(Geo::RBX),
+            "vin" => Ok(Geo::VIN),
+            _ => Err(format!("invalid auction geo: {}", s)),
+        }
+    }
 }
 
 lazy_static! {

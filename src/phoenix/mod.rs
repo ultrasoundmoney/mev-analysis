@@ -120,15 +120,19 @@ impl NodeAlarm {
 
     async fn fire_age_over_limit(&mut self, name: &str) {
         let message = format!(
-            "{} hasn't updated for more than {} seconds",
+            "{} hasn't updated for more than {} seconds on {}",
             name,
             PHOENIX_MAX_LIFESPAN.num_seconds(),
+            APP_CONFIG.geo
         );
         self.alarm.fire(&message, &AlarmType::Opsgenie).await;
     }
 
     async fn fire_num_unsynced_nodes(&mut self, name: &str, num_unsynced_nodes: usize) {
-        let message = format!("{} has {} unsynced instances", name, num_unsynced_nodes);
+        let message = format!(
+            "{} has {} unsynced instances on {}",
+            name, num_unsynced_nodes, APP_CONFIG.geo
+        );
 
         if num_unsynced_nodes >= APP_CONFIG.unsynced_nodes_threshold_og_alert {
             self.alarm.fire(&message, &AlarmType::Opsgenie).await;
