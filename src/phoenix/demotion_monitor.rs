@@ -21,6 +21,7 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
+    pub geo: String,
     pub builder_pubkey: String,
     pub builder_id: Option<String>,
     pub slot: i64,
@@ -34,6 +35,7 @@ pub async fn get_builder_demotions(
 ) -> Result<Vec<BuilderDemotion>> {
     let query = "
         SELECT
+            bd.geo,
             bd.builder_pubkey,
             bb.builder_id,
             bd.slot,
@@ -54,6 +56,7 @@ pub async fn get_builder_demotions(
         .map(|rows| {
             rows.iter()
                 .map(|row| BuilderDemotion {
+                    geo: row.get("geo"),
                     builder_pubkey: row.get("builder_pubkey"),
                     builder_id: row.try_get("builder_id").ok(),
                     slot: row.get("slot"),
@@ -110,11 +113,13 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     let escaped_builder_id = telegram::escape_str(builder_id);
     let builder_pubkey = &demotion.builder_pubkey;
     let error = telegram::escape_code_block(&demotion.sim_error);
-    let slot = demotion.slot;
+    let slot = &demotion.slot;
+    let geo = &demotion.geo;
     formatdoc!(
         "
         [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
         slot: `{slot}`
+        geo: `{geo}`
         builder\\_id: `{escaped_builder_id}`
         builder\\_pubkey: `{builder_pubkey}`
         ```
