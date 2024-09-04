@@ -87,8 +87,12 @@ fn default_missed_slots_alert_threshold() -> i64 {
 
 /// Auction geography
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Clone, sqlx::Type)]
+#[sqlx(type_name = "geo")]
 pub enum Geo {
+    #[sqlx(rename = "rbx")]
     RBX,
+    #[sqlx(rename = "vin")]
     VIN,
 }
 

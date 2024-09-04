@@ -29,7 +29,7 @@ use super::{
         SendAlert,
     },
     checkpoint::{self, CheckpointId},
-    env::APP_CONFIG,
+    env::{Geo, APP_CONFIG},
 };
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ struct DeliveredPayload {
     inserted_at: DateTime<Utc>,
     proposer_pubkey: String,
     slot: i64,
-    geo: String,
+    geo: Geo,
 }
 
 async fn get_delivered_payloads(
@@ -48,7 +48,7 @@ async fn get_delivered_payloads(
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
 ) -> anyhow::Result<Vec<DeliveredPayload>> {
-    let query = "
+    let query = r#"
         SELECT
             inserted_at,
             slot,
@@ -60,7 +60,7 @@ async fn get_delivered_payloads(
         WHERE inserted_at > $1
         AND inserted_at <= $2
         ORDER BY inserted_at ASC
-        ";
+        "#;
 
     sqlx::query(query)
         .bind(start)

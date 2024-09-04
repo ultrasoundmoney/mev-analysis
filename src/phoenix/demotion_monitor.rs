@@ -16,12 +16,12 @@ use crate::{
 
 use super::{
     checkpoint::{self, CheckpointId},
-    env::APP_CONFIG,
+    env::{Geo, APP_CONFIG},
 };
 
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
-    pub geo: String,
+    pub geo: Geo,
     pub builder_pubkey: String,
     pub builder_id: Option<String>,
     pub slot: i64,
@@ -33,7 +33,7 @@ pub async fn get_builder_demotions(
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
 ) -> Result<Vec<BuilderDemotion>> {
-    let query = "
+    let query = r#"
         SELECT
             bd.geo,
             bd.builder_pubkey,
@@ -46,7 +46,7 @@ pub async fn get_builder_demotions(
         WHERE bd.inserted_at > $1
           AND bd.inserted_at <= $2
         ORDER BY bd.inserted_at ASC
-     ";
+     "#;
 
     sqlx::query(query)
         .bind(start)

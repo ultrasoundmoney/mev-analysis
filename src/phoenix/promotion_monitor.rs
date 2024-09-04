@@ -160,19 +160,21 @@ pub async fn run_promotion_monitor(
 
 #[cfg(test)]
 mod tests {
+    use crate::phoenix::env::Geo;
+
     use super::*;
     #[test]
     fn test_get_eligible_builders_all_eligible() {
         let demotions = vec![
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
                 builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
@@ -189,14 +191,14 @@ mod tests {
     fn test_get_eligible_builders_none_eligible() {
         let demotions = vec![
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 1,
                 builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
@@ -214,21 +216,21 @@ mod tests {
     fn test_get_eligible_builders_some_eligible() {
         let demotions = vec![
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
                 builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
                 builder_id: Some("builder2".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 3,
@@ -246,21 +248,21 @@ mod tests {
     fn test_same_slot_both_valid_and_invalid() {
         let demotions = vec![
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
                 builder_id: Some("builder2".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
                 builder_id: Some("builder1".to_string()),
             },
             BuilderDemotion {
-                geo: "rbx".to_string(),
+                geo: Geo::RBX,
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
