@@ -40,6 +40,7 @@ struct DeliveredPayload {
     inserted_at: DateTime<Utc>,
     proposer_pubkey: String,
     slot: i64,
+    geo: String,
 }
 
 async fn get_delivered_payloads(
@@ -51,6 +52,7 @@ async fn get_delivered_payloads(
         SELECT
             inserted_at,
             slot,
+            geo,
             block_hash,
             block_number,
             proposer_pubkey
@@ -73,6 +75,7 @@ async fn get_delivered_payloads(
                     inserted_at: Utc.from_utc_datetime(&row.get("inserted_at")),
                     proposer_pubkey: row.get("proposer_pubkey"),
                     slot: row.get("slot"),
+                    geo: row.get("geo"),
                 })
                 .collect()
         })
@@ -152,6 +155,7 @@ async fn report_missing_payload(
     let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
 
     let slot = payload.slot;
+    let geo = &payload.geo;
     let payload_block_hash = &payload.block_hash;
     let on_chain_block_hash = telegram::escape_str(found_block_hash.as_deref().unwrap_or("-"));
 
@@ -161,6 +165,7 @@ async fn report_missing_payload(
 
         [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
         slot: {slot}
+        geo: {geo}
         payload\\_block\\_hash: {payload_block_hash}
         on\\_chain\\_block\\_hash: {on_chain_block_hash}
         "
