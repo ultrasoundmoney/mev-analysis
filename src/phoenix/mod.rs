@@ -17,6 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use alerts::telegram::TELEGRAM_SAFE_MESSAGE_LENGTH;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
@@ -347,7 +348,11 @@ async fn handle_unexpected_error(
     telegram_alerts: TelegramAlerts,
     err: anyhow::Error,
 ) -> Result<()> {
-    let shortned_err = err.to_string().split_off(3072);
+    let shortned_err = err
+        .to_string()
+        .chars()
+        .take(TELEGRAM_SAFE_MESSAGE_LENGTH)
+        .collect::<String>();
     let escaped_err = telegram::escape_str(&shortned_err);
     let formatted_message = formatdoc!(
         "
