@@ -5,8 +5,6 @@ use reqwest::StatusCode;
 
 use crate::phoenix::env::APP_CONFIG;
 
-use super::SendAlert;
-
 // Used to escape characters in telegram messages.
 // https://core.telegram.org/bots/api#markdownv2-style
 pub fn escape_str(input: &str) -> String {
@@ -154,12 +152,17 @@ impl TelegramAlerts {
         }
     }
 
-    async fn send_telegram_warning(&self, message: &TelegramSafeAlert) -> anyhow::Result<()> {
-        self.send_telegram_message(NotificationType::Warning, &message.0)
-            .await
+    pub async fn send_warning(&self, message: &TelegramSafeAlert) {
+        let result = self
+            .send_telegram_message(NotificationType::Warning, &message.0)
+            .await;
+
+        if let Err(err) = result {
+            tracing::error!(?err, "failed to send telegram warning");
+        }
     }
 
-    async fn send_telegram_alert(&self, message: &TelegramSafeAlert) -> anyhow::Result<()> {
+    async fn send_alert(&self, message: &TelegramSafeAlert) -> anyhow::Result<()> {
         self.send_telegram_message(NotificationType::Alert, &message.0)
             .await
     }
@@ -167,7 +170,7 @@ impl TelegramAlerts {
     /// Allows to send a telegram alert, with retry, and a simple fallback in case the passed message
     /// fails to be delivered. Telegram has very sensitive rules about escaping. We may also at times
     /// be rate limited.
-    async fn send_telegram_alert_with_fallback(&self, message: TelegramSafeAlert) {
+    pub async fn send_alert_with_fallback(&self, message: &TelegramSafeAlert) {
         for index in 0..3 {
             let message = if index == 2 {
                 // Last attempt. This message intentionally does not contain *any* special
@@ -182,7 +185,7 @@ impl TelegramAlerts {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
             };
 
-            let send_result = self.send_telegram_alert(&message).await;
+            let send_result = self.send_alert(&message).await;
 
             match send_result {
                 Ok(_) => {
@@ -198,18 +201,6 @@ impl TelegramAlerts {
                     );
                 }
             }
-        }
-    }
-}
-
-impl SendAlert for TelegramAlerts {
-    async fn send_alert(&self, message: TelegramSafeAlert) {
-        self.send_telegram_alert_with_fallback(message).await;
-    }
-    async fn send_warning(&self, message: TelegramSafeAlert) {
-        let result = self.send_telegram_warning(&message).await;
-        if let Err(err) = result {
-            tracing::error!(?err, "failed to send telegram warning");
         }
     }
 }

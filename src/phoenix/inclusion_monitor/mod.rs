@@ -24,10 +24,7 @@ use crate::{
 use self::{loki_client::LatePayloadStats, proposer_meta::ProposerLocation};
 
 use super::{
-    alerts::{
-        telegram::{self, TelegramSafeAlert},
-        SendAlert,
-    },
+    alerts::telegram::{self, TelegramSafeAlert},
     checkpoint::{self, CheckpointId},
     env::{Geo, APP_CONFIG},
 };
@@ -305,15 +302,19 @@ async fn report_missing_payload(
 
     // Publish errors: alert
     if !publish_errors.is_empty() {
-        telegram_alerts.send_alert(escaped_message).await;
+        telegram_alerts
+            .send_alert_with_fallback(&escaped_message)
+            .await;
     }
     // Late call or attempted reorg: warn
     else if published_stats.is_none() && late_call_stats.is_some() || is_attempted_reorg {
-        telegram_alerts.send_warning(escaped_message).await;
+        telegram_alerts.send_warning(&escaped_message).await;
     }
     // Otherwise: alert
     else {
-        telegram_alerts.send_alert(escaped_message).await;
+        telegram_alerts
+            .send_alert_with_fallback(&escaped_message)
+            .await;
     }
 
     Ok(())

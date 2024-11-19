@@ -34,10 +34,7 @@ use crate::phoenix::{
 };
 
 use self::{
-    alerts::{
-        telegram::{self, TelegramAlerts, TelegramSafeAlert},
-        SendAlert,
-    },
+    alerts::telegram::{self, TelegramAlerts, TelegramSafeAlert},
     auction_analysis_monitor::run_auction_analysis_monitor,
     delay_update_monitor::run_header_delay_updates_monitor,
     demotion_monitor::run_demotion_monitor,
@@ -96,7 +93,7 @@ impl Alarm {
             AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
             AlarmType::Telegram => {
                 self.telegram_alerts
-                    .send_warning(TelegramSafeAlert::new(message))
+                    .send_warning(&TelegramSafeAlert::new(message))
                     .await
             }
         }
@@ -337,7 +334,7 @@ pub async fn monitor_critical_services() -> Result<()> {
 
 async fn handle_unexpected_exit(telegram_alerts: TelegramAlerts) -> Result<()> {
     let message = TelegramSafeAlert::new("phoenix processes exited unexpectedly");
-    telegram_alerts.send_alert(message.clone()).await;
+    telegram_alerts.send_alert_with_fallback(&message).await;
     Err(anyhow!(message))
 }
 
@@ -360,6 +357,6 @@ async fn handle_unexpected_error(
         "
     );
     let message = TelegramSafeAlert::from_escaped_string(formatted_message);
-    telegram_alerts.send_alert(message).await;
+    telegram_alerts.send_alert_with_fallback(&message).await;
     Err(anyhow!(err))
 }
