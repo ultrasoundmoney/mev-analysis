@@ -1,4 +1,5 @@
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
+
 use serde::Deserialize;
 
 use crate::env::get_app_config;
@@ -10,6 +11,4 @@ pub struct AppConfig {
     pub backfill_until_slot: i64,
 }
 
-lazy_static! {
-    pub static ref APP_CONFIG: AppConfig = get_app_config();
-}
+pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(get_app_config);

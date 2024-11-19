@@ -1,6 +1,5 @@
-use std::{fmt, str};
+use std::{fmt, str, sync::LazyLock};
 
-use lazy_static::lazy_static;
 use reqwest::Url;
 use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
@@ -117,6 +116,4 @@ impl str::FromStr for Geo {
     }
 }
 
-lazy_static! {
-    pub static ref APP_CONFIG: AppConfig = get_app_config();
-}
+pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(get_app_config);

@@ -24,7 +24,6 @@ use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
 use indoc::formatdoc;
-use lazy_static::lazy_static;
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
 use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, warn};
@@ -47,11 +46,9 @@ use self::{
     promotion_monitor::run_promotion_monitor,
 };
 
-lazy_static! {
-    static ref PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(3);
-    static ref MIN_ALARM_WAIT: Duration = Duration::minutes(4);
-    static ref MIN_WARNING_WAIT: Duration = Duration::minutes(60);
-}
+const PHOENIX_MAX_LIFESPAN: Duration = Duration::minutes(3);
+const MIN_ALARM_WAIT: Duration = Duration::minutes(4);
+const MIN_WARNING_WAIT: Duration = Duration::minutes(60);
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 enum AlarmType {
@@ -62,8 +59,8 @@ enum AlarmType {
 impl AlarmType {
     fn min_wait(&self) -> Duration {
         match self {
-            AlarmType::Opsgenie => *MIN_ALARM_WAIT,
-            AlarmType::Telegram => *MIN_WARNING_WAIT,
+            AlarmType::Opsgenie => MIN_ALARM_WAIT,
+            AlarmType::Telegram => MIN_WARNING_WAIT,
         }
     }
 }
@@ -161,7 +158,7 @@ impl Phoenix {
             limit = PHOENIX_MAX_LIFESPAN.num_seconds(),
             "checking age"
         );
-        age >= *PHOENIX_MAX_LIFESPAN
+        age >= PHOENIX_MAX_LIFESPAN
     }
 
     fn set_last_seen(&mut self, last_seen: DateTime<Utc>) {

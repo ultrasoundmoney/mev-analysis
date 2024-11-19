@@ -1614,7 +1614,6 @@ dependencies = [
  "hex",
  "indoc",
  "itertools 0.10.5",
- "lazy_static",
  "rand",
  "redis",
  "reqwest",

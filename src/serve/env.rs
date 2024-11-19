@@ -1,4 +1,5 @@
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
+
 use reqwest::Url;
 use serde::Deserialize;
 
@@ -15,6 +16,4 @@ pub struct AppConfig {
     pub consensus_nodes: Vec<Url>,
 }
 
-lazy_static! {
-    pub static ref APP_CONFIG: AppConfig = get_app_config();
-}
+pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(get_app_config);
