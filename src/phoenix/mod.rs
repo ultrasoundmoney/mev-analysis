@@ -17,7 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use alerts::telegram::TELEGRAM_SAFE_MESSAGE_LENGTH;
+use alerts::telegram::{Channel, TELEGRAM_SAFE_MESSAGE_LENGTH};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use axum::{http::StatusCode, routing::get, Router};
@@ -93,7 +93,7 @@ impl Alarm {
             AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
             AlarmType::Telegram => {
                 self.telegram_alerts
-                    .send_warning(&TelegramSafeAlert::new(message))
+                    .send_message(&TelegramSafeAlert::new(message), Channel::Warnings)
                     .await
             }
         }
@@ -334,7 +334,9 @@ pub async fn monitor_critical_services() -> Result<()> {
 
 async fn handle_unexpected_exit(telegram_alerts: TelegramAlerts) -> Result<()> {
     let message = TelegramSafeAlert::new("phoenix processes exited unexpectedly");
-    telegram_alerts.send_alert_with_fallback(&message).await;
+    telegram_alerts
+        .send_message(&message, Channel::Alerts)
+        .await;
     Err(anyhow!(message))
 }
 
@@ -357,6 +359,8 @@ async fn handle_unexpected_error(
         "
     );
     let message = TelegramSafeAlert::from_escaped_string(formatted_message);
-    telegram_alerts.send_alert_with_fallback(&message).await;
+    telegram_alerts
+        .send_message(&message, Channel::Alerts)
+        .await;
     Err(anyhow!(err))
 }

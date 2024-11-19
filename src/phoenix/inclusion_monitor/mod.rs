@@ -24,7 +24,7 @@ use crate::{
 use self::{loki_client::LatePayloadStats, proposer_meta::ProposerLocation};
 
 use super::{
-    alerts::telegram::{self, TelegramSafeAlert},
+    alerts::telegram::{self, Channel, TelegramSafeAlert},
     checkpoint::{self, CheckpointId},
     env::{Geo, APP_CONFIG},
 };
@@ -297,25 +297,20 @@ async fn report_missing_payload(
         message.push_str("no late call warnings found");
     }
 
+    // Late call or attempted reorg, these are much less concerning.
+    if published_stats.is_none() && late_call_stats.is_some() || is_attempted_reorg {
+        message.push_str("\n\n");
+        message.push_str(
+            "'no publish attempted and late call' or 'attempted reorg' these are less concerning",
+        );
+    }
+
     let telegram_alerts = telegram::TelegramAlerts::new();
     let escaped_message = TelegramSafeAlert::from_escaped_string(message);
 
-    // Publish errors: alert
-    if !publish_errors.is_empty() {
-        telegram_alerts
-            .send_alert_with_fallback(&escaped_message)
-            .await;
-    }
-    // Late call or attempted reorg: warn
-    else if published_stats.is_none() && late_call_stats.is_some() || is_attempted_reorg {
-        telegram_alerts.send_warning(&escaped_message).await;
-    }
-    // Otherwise: alert
-    else {
-        telegram_alerts
-            .send_alert_with_fallback(&escaped_message)
-            .await;
-    }
+    telegram_alerts
+        .send_message(&escaped_message, Channel::BlockNotFound)
+        .await;
 
     Ok(())
 }

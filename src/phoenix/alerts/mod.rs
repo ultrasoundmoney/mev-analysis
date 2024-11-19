@@ -1,6 +1,7 @@
 mod opsgenie;
 pub mod telegram;
 
+use telegram::Channel;
 use tracing::{debug, error};
 
 use crate::env::Network;
@@ -14,15 +15,17 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
     let telegram_alerts = telegram::TelegramAlerts::new();
 
     telegram_alerts
-        .send_alert_with_fallback(&TelegramSafeAlert::new(message))
+        .send_message(&TelegramSafeAlert::new(message), Channel::Alerts)
         .await;
 
+    // Only send actual OpsGenie alerts on Mainnet.
     if APP_CONFIG.network == Network::Mainnet {
         let result_send_opsgenie_alert = opsgenie::send_opsgenie_alert(message).await;
         match result_send_opsgenie_alert {
             Ok(_) => {
                 debug!(message, "sent OpsGenie alert");
             }
+            // If sending the OpsGenie alert fails, log the error and send a telegram message.
             Err(err) => {
                 error!(?err, "failed to send OpsGenie alert");
 
@@ -31,7 +34,9 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
                     let message = format!("failed to send OpsGenie alert: {}", escaped_err);
                     TelegramSafeAlert::from_escaped_string(message)
                 };
-                telegram_alerts.send_alert_with_fallback(&message).await;
+                telegram_alerts
+                    .send_message(&message, Channel::Alerts)
+                    .await;
             }
         }
     }

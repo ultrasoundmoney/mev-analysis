@@ -77,16 +77,21 @@ impl fmt::Display for TelegramSafeAlert {
     }
 }
 
-enum NotificationType {
-    Warning,
-    Alert,
+#[derive(Debug, Clone, Copy)]
+pub enum Channel {
+    Alerts,
+    BlockNotFound,
+    Demotions,
+    Warnings,
 }
 
-impl fmt::Display for NotificationType {
+impl fmt::Display for Channel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NotificationType::Warning => write!(f, "warning"),
-            NotificationType::Alert => write!(f, "alert"),
+            Channel::Alerts => write!(f, "alerts"),
+            Channel::BlockNotFound => write!(f, "block not found"),
+            Channel::Demotions => write!(f, "demotions"),
+            Channel::Warnings => write!(f, "warnings"),
         }
     }
 }
@@ -109,14 +114,12 @@ impl TelegramAlerts {
         }
     }
 
-    async fn send_telegram_message(
-        &self,
-        notification_type: NotificationType,
-        message: &str,
-    ) -> Result<()> {
+    async fn send_message_request(&self, notification_type: Channel, message: &str) -> Result<()> {
         let channel_id = match notification_type {
-            NotificationType::Warning => APP_CONFIG.telegram_warnings_channel_id.as_str(),
-            NotificationType::Alert => APP_CONFIG.telegram_alerts_channel_id.as_str(),
+            Channel::Alerts => APP_CONFIG.telegram_alerts_channel_id.as_str(),
+            Channel::BlockNotFound => APP_CONFIG.telegram_block_not_found_channel_id.as_str(),
+            Channel::Demotions => APP_CONFIG.telegram_demotions_channel_id.as_str(),
+            Channel::Warnings => APP_CONFIG.telegram_warnings_channel_id.as_str(),
         };
 
         let url = format!(
@@ -152,40 +155,14 @@ impl TelegramAlerts {
         }
     }
 
-    pub async fn send_warning(&self, message: &TelegramSafeAlert) {
-        let result = self
-            .send_telegram_message(NotificationType::Warning, &message.0)
-            .await;
-
-        if let Err(err) = result {
-            tracing::error!(?err, "failed to send telegram warning");
-        }
-    }
-
-    async fn send_alert(&self, message: &TelegramSafeAlert) -> anyhow::Result<()> {
-        self.send_telegram_message(NotificationType::Alert, &message.0)
-            .await
-    }
-
-    /// Allows to send a telegram alert, with retry, and a simple fallback in case the passed message
-    /// fails to be delivered. Telegram has very sensitive rules about escaping. We may also at times
-    /// be rate limited.
-    pub async fn send_alert_with_fallback(&self, message: &TelegramSafeAlert) {
+    /// Send a telegram message with various precautions.
+    ///
+    /// Messages are expected to be quite important like alerts. Messages will be retried.
+    /// If retries fail, a simple fallback message will be sent.
+    pub async fn send_message(&self, message: &TelegramSafeAlert, channel: Channel) {
+        // Retry twice, with a delay in between.
         for index in 0..3 {
-            let message = if index == 2 {
-                // Last attempt. This message intentionally does not contain *any* special
-                // characters as many require escaping, and is within the character limit.
-                TelegramSafeAlert::new("failed to send telegram alert please check logs")
-            } else {
-                message.clone()
-            };
-
-            // We may be timing out, if this is not our first attempt, wait a bit.
-            if index != 0 {
-                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-            };
-
-            let send_result = self.send_alert(&message).await;
+            let send_result = self.send_message_request(channel, &message.0).await;
 
             match send_result {
                 Ok(_) => {
@@ -199,8 +176,16 @@ impl TelegramAlerts {
                         %err,
                         "failed to send telegram alert"
                     );
+
+                    // We did not succeed, wait then move on to the next attempt.
+                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                 }
             }
         }
+
+        // Last attempt. This message intentionally does not contain *any* special
+        // characters as many require escaping, and is within the character limit.
+        let message = TelegramSafeAlert::new("failed to send telegram alert please check logs");
+        self.send_message_request(channel, &message.0).await.ok();
     }
 }

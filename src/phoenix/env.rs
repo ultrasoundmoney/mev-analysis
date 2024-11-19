@@ -33,6 +33,8 @@ pub struct AppConfig {
     pub relay_database_url: String,
     pub telegram_api_key: String,
     pub telegram_alerts_channel_id: String,
+    pub telegram_block_not_found_channel_id: String,
+    pub telegram_demotions_channel_id: String,
     pub telegram_warnings_channel_id: String,
     #[serde(deserialize_with = "deserialize_urls")]
     pub validation_nodes: Vec<Url>,

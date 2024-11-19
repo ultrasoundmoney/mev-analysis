@@ -8,7 +8,9 @@ use tracing::{debug, info};
 use crate::{
     env::ToBeaconExplorerUrl,
     phoenix::{
-        alerts::telegram::TelegramSafeAlert, promotion_monitor::is_promotable_error, telegram,
+        alerts::telegram::{Channel, TelegramSafeAlert},
+        promotion_monitor::is_promotable_error,
+        telegram,
     },
 };
 
@@ -168,7 +170,7 @@ async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()>
         };
         info!(?alert_message, "sending telegram alert");
         telegram_alerts
-            .send_alert_with_fallback(&alert_message)
+            .send_message(&alert_message, Channel::Demotions)
             .await
     }
 
@@ -182,7 +184,9 @@ async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()>
         };
         info!(?warning_message, "sending telegram warning");
 
-        telegram_alerts.send_warning(&warning_message).await
+        telegram_alerts
+            .send_message(&warning_message, Channel::Warnings)
+            .await
     }
 
     Ok(())
