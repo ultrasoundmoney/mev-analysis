@@ -152,7 +152,7 @@ async fn report_missing_payload(
     )
     .await?;
 
-    let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
+    let explorer_url = APP_CONFIG.network.to_beacon_explorer_url();
 
     let slot = payload.slot;
     let geo = &payload.geo;

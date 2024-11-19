@@ -94,6 +94,16 @@ impl ToBeaconExplorerUrl for Env {
     }
 }
 
+impl ToBeaconExplorerUrl for Network {
+    fn to_beacon_explorer_url(&self) -> String {
+        match *self {
+            Network::Mainnet => "https://beaconcha.in",
+            Network::Holesky => "https://holesky.beaconcha.in",
+        }
+        .to_string()
+    }
+}
+
 pub fn deserialize_urls<'de, D>(deserializer: D) -> Result<Vec<Url>, D::Error>
 where
     D: Deserializer<'de>,

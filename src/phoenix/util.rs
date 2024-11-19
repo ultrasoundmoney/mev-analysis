@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use super::env::APP_CONFIG;
-use crate::env::{Network, ToNetwork};
+use crate::env::Network;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 

@@ -108,7 +108,7 @@ fn filter_demotions(demotions: Vec<BuilderDemotion>) -> Vec<BuilderDemotion> {
 }
 
 fn format_demotion_message(demotion: &BuilderDemotion) -> String {
-    let explorer_url = APP_CONFIG.env.to_beacon_explorer_url();
+    let explorer_url = APP_CONFIG.network.to_beacon_explorer_url();
     let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
     let escaped_builder_id = telegram::escape_str(builder_id);
     let builder_pubkey = &demotion.builder_pubkey;

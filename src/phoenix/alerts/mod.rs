@@ -3,7 +3,7 @@ pub mod telegram;
 
 use tracing::{debug, error};
 
-use crate::env::Env;
+use crate::env::Network;
 
 pub use self::telegram::TelegramSafeAlert;
 
@@ -22,7 +22,7 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
 
     SendAlert::send_alert(&telegram_alerts, TelegramSafeAlert::new(message)).await;
 
-    if APP_CONFIG.env == Env::Prod {
+    if APP_CONFIG.network == Network::Mainnet {
         let result_send_opsgenie_alert = opsgenie::send_opsgenie_alert(message).await;
         match result_send_opsgenie_alert {
             Ok(_) => {

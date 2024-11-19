@@ -4,7 +4,7 @@ use reqwest::Url;
 use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::env::{deserialize_network, deserialize_urls, get_app_config, Env, Network};
+use crate::env::{deserialize_network, deserialize_urls, get_app_config, Network};
 
 #[serde_as]
 #[derive(Deserialize)]
@@ -14,7 +14,6 @@ pub struct AppConfig {
     #[serde(deserialize_with = "deserialize_urls")]
     pub consensus_nodes: Vec<Url>,
     pub database_url: String,
-    pub env: Env,
     /// Skip global checks in `run_ops_monitors` and only check for beacon/sim node status.
     #[serde(default)]
     pub ff_node_check_only: bool,
