@@ -282,7 +282,7 @@ async fn run_ops_monitors() -> Result<()> {
     .await?;
     let loki_client = LokiClient::new(APP_CONFIG.loki_url.clone());
 
-    // Separate alarm instances mean throtteling will be applied separately
+    // Separate alarm instances mean throttling will be applied separately
     let mut auction_analysis_alarm = Alarm::new();
     let mut header_delay_updates_alarm = Alarm::new();
     let mut run_lookback_updates_monitor_alarm = Alarm::new();
