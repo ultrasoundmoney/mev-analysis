@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 use super::{env::APP_CONFIG, PhoenixMonitor};
 
@@ -50,7 +50,7 @@ impl ValidationNodeMonitor {
 
         let synced: Vec<&bool> = results.iter().filter(|is_synced| **is_synced).collect();
 
-        info!("{}/{} validation nodes synced", synced.len(), results.len());
+        debug!("{}/{} validation nodes synced", synced.len(), results.len());
         results.len() - synced.len()
     }
 }

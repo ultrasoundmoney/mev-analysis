@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use tracing::{error, info};
+use tracing::{debug, error};
 
 use super::{env::APP_CONFIG, PhoenixMonitor};
 use crate::beacon_api::BeaconApi;
@@ -31,7 +31,7 @@ impl ConsensusNodeMonitor {
         }
 
         let synced: Vec<&bool> = results.iter().filter(|is_synced| **is_synced).collect();
-        info!("{}/{} consensus nodes synced", synced.len(), results.len());
+        debug!("{}/{} consensus nodes synced", synced.len(), results.len());
         results.len() - synced.len()
     }
 }
