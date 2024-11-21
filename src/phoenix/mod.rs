@@ -280,6 +280,8 @@ async fn run_ops_monitors() -> Result<()> {
     let mut run_lookback_updates_monitor_alarm = Alarm::new();
 
     loop {
+        // We only check for failures up to this point, some outcomes may still hang in the balance
+        // for more recent slots.
         let canonical_horizon = Utc::now() - Duration::minutes(APP_CONFIG.canonical_wait_minutes);
         run_demotion_monitor(&relay_pool, &mev_pool).await?;
         run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon, &loki_client).await?;
@@ -287,6 +289,10 @@ async fn run_ops_monitors() -> Result<()> {
         run_auction_analysis_monitor(&mev_pool, &mut auction_analysis_alarm).await?;
         run_header_delay_updates_monitor(&mev_pool, &mut header_delay_updates_alarm).await?;
         run_lookback_updates_monitor(&mev_pool, &mut run_lookback_updates_monitor_alarm).await?;
+        info!(
+            %canonical_horizon,
+            "ops monitors completed, sleeping for 1 minute"
+        );
         tokio::time::sleep(Duration::minutes(1).to_std().unwrap()).await;
     }
 }
