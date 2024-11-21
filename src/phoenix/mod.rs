@@ -230,7 +230,7 @@ async fn mount_health_route() -> Result<()> {
 }
 
 /// Get a database connection, retrying until we can connect. Send an alert if we can't.
-async fn get_db_connection(
+async fn connect_db(
     db_url: &str,
     retry_interval: &Duration,
     max_retry_duration: &Duration,
@@ -239,7 +239,7 @@ async fn get_db_connection(
     loop {
         match PgPoolOptions::new()
             .max_connections(3)
-            .acquire_timeout(std::time::Duration::from_secs(3))
+            .acquire_timeout(std::time::Duration::from_secs(9))
             .connect(db_url)
             .await
         {
@@ -267,14 +267,14 @@ async fn run_ops_monitors() -> Result<()> {
     let max_retry_duration = Duration::minutes(2);
     let retry_interval = Duration::seconds(10);
 
-    let relay_pool = get_db_connection(
+    let relay_pool = connect_db(
         &APP_CONFIG.relay_database_url,
         &retry_interval,
         &max_retry_duration,
     )
     .await?;
 
-    let mev_pool = get_db_connection(
+    let mev_pool = connect_db(
         &APP_CONFIG.database_url,
         &retry_interval,
         &max_retry_duration,
