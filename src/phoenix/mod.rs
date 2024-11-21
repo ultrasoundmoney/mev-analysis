@@ -11,11 +11,7 @@ mod promotion_monitor;
 mod util;
 mod validation_node;
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, net::SocketAddr};
 
 use alerts::telegram::{Channel, TELEGRAM_SAFE_MESSAGE_LENGTH};
 use anyhow::{anyhow, Result};
@@ -169,7 +165,7 @@ trait PhoenixMonitor {
     async fn refresh(&self) -> (DateTime<Utc>, usize);
 }
 
-async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
+async fn run_alarm_loop() -> Result<()> {
     info!(
         "releasing phoenix, dies after {} seconds",
         PHOENIX_MAX_LIFESPAN.num_seconds()
@@ -207,11 +203,7 @@ async fn run_alarm_loop(last_checked: Arc<Mutex<DateTime<Utc>>>) -> Result<()> {
             phoenix.set_last_seen(current)
         }
 
-        // Update the last checked time.
-        {
-            let mut last_checked = last_checked.lock().unwrap();
-            *last_checked = Utc::now();
-        }
+        info!("alarm loop completed, sleeping for 10 seconds");
 
         sleep(Duration::seconds(10).to_std().unwrap()).await;
     }
@@ -308,11 +300,9 @@ pub async fn monitor_critical_services() -> Result<()> {
 
     let telegram_alerts = TelegramAlerts::new();
 
-    let last_checked = Arc::new(Mutex::new(Utc::now()));
-
     // Skip global checks and only check nodes
     if APP_CONFIG.ff_node_check_only {
-        let result = tokio::try_join!(mount_health_route(), run_alarm_loop(last_checked));
+        let result = tokio::try_join!(mount_health_route(), run_alarm_loop());
         match result {
             Ok(_) => handle_unexpected_exit(telegram_alerts).await,
             Err(err) => handle_unexpected_error(telegram_alerts, err).await,
@@ -320,11 +310,7 @@ pub async fn monitor_critical_services() -> Result<()> {
     }
     // Run all checks
     else {
-        let result = tokio::try_join!(
-            mount_health_route(),
-            run_alarm_loop(last_checked),
-            run_ops_monitors()
-        );
+        let result = tokio::try_join!(mount_health_route(), run_alarm_loop(), run_ops_monitors());
         match result {
             Ok(_) => handle_unexpected_exit(telegram_alerts).await,
             Err(err) => handle_unexpected_error(telegram_alerts, err).await,
