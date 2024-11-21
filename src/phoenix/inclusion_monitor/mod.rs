@@ -301,7 +301,7 @@ async fn report_missing_payload(
     if published_stats.is_none() && late_call_stats.is_some() || is_attempted_reorg {
         message.push_str("\n\n");
         message.push_str(
-            "'no publish attempted and late call' or 'attempted reorg' these are less concerning",
+            "for this block 'no publish attempted and late call' or 'attempted reorg' these misses are less concerning",
         );
     }
 
