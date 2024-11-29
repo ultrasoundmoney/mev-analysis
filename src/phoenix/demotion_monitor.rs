@@ -112,7 +112,8 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
     let escaped_builder_id = telegram::escape_str(builder_id);
     let builder_pubkey = &demotion.builder_pubkey;
-    let error = telegram::escape_code_block(&demotion.sim_error);
+    // it seems escape_code_block is not safe enough here.
+    let error = telegram::escape_str(&demotion.sim_error);
     let slot = &demotion.slot;
     let geo = &demotion.geo;
     formatdoc!(
