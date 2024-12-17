@@ -14,12 +14,13 @@ pub async fn proposer_label_meta(
 ) -> anyhow::Result<ProposerLabelMeta> {
     sqlx::query_as::<_, ProposerLabelMeta>(
         "
-        SELECT
-            label,
+        SELECT 
+            COALESCE(pl.label, va.label) as label,
             lido_operator,
-            last_graffiti AS grafitti
-        FROM validators
-        WHERE pubkey = $1
+            last_graffiti
+        FROM validators va
+        LEFT JOIN proposer_labels_with_imputed_data_view pl on va.pubkey = pl.pubkey
+        WHERE va.pubkey = $1
         ",
     )
     .bind(proposer_pubkey)
