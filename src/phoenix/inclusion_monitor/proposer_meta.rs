@@ -17,7 +17,7 @@ pub async fn proposer_label_meta(
         SELECT 
             COALESCE(pl.label, va.label) as label,
             lido_operator,
-            last_graffiti as graffiti
+            last_graffiti as grafitti
         FROM validators va
         LEFT JOIN proposer_labels_with_imputed_data_view pl on va.pubkey = pl.pubkey
         WHERE va.pubkey = $1
