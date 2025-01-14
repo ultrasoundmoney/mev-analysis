@@ -72,9 +72,9 @@ impl Alarm {
     }
 
     fn is_throttled(&self, alarm_type: &AlarmType) -> bool {
-        self.last_fired.get(alarm_type).map_or(false, |last_fired| {
-            Utc::now() - last_fired < alarm_type.min_wait()
-        })
+        self.last_fired
+            .get(alarm_type)
+            .is_some_and(|last_fired| Utc::now() - last_fired < alarm_type.min_wait())
     }
 
     async fn fire(&mut self, message: &str, alarm_type: &AlarmType) {
