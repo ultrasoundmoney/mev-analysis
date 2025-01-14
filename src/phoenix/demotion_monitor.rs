@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use indoc::formatdoc;
 use itertools::Itertools;
+use rand::{distributions::Alphanumeric, Rng};
 use sqlx::{PgPool, Row};
 use tracing::{debug, info};
 
@@ -130,7 +131,52 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     )
 }
 
-async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()> {
+async fn gen_promotion_token(pool: &PgPool, builder_id: &str) -> Result<String> {
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
+    let mut token: String;
+
+    loop {
+        token = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(16)
+            .map(char::from)
+            .collect();
+
+        let token_exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM promotion_tokens WHERE token = $1)",
+        )
+        .bind(&token)
+        .fetch_one(pool)
+        .await?;
+
+        if !token_exists {
+            break;
+        }
+    }
+
+    sqlx::query(
+        "
+        INSERT INTO promotion_tokens (
+            builder_id,
+            token,
+            expires_at
+        )
+        VALUES ($1, $2, $3)
+        ",
+    )
+    .bind(builder_id)
+    .bind(&token)
+    .bind(expires_at)
+    .execute(pool)
+    .await?;
+
+    Ok(token)
+}
+
+async fn generate_and_send_alerts(
+    demotions: Vec<BuilderDemotion>,
+    global_db_pool: &PgPool,
+) -> Result<()> {
     let filtered_demotions = filter_demotions(demotions);
     let (warning_demotions, alert_demotions): (Vec<BuilderDemotion>, Vec<BuilderDemotion>) =
         filtered_demotions
@@ -154,26 +200,34 @@ async fn generate_and_send_alerts(demotions: Vec<BuilderDemotion>) -> Result<()>
     let unique_warning_demotions = unique_demotions(warning_demotions);
     let unique_alert_demotions = unique_demotions(alert_demotions);
 
-    let alert_messages: Vec<String> = unique_alert_demotions
-        .iter()
-        .map(format_demotion_message)
-        .collect();
+    let telegram_alerts = telegram::TelegramAlerts::new();
+    if !unique_alert_demotions.is_empty() {
+        for demotion in unique_alert_demotions {
+            let alert_message = format_demotion_message(&demotion);
+            let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
+            match gen_promotion_token(global_db_pool, builder_id).await {
+                Ok(token) => {
+                    let button_url = format!(
+                        "https://relay-analytics.ultrasound.money/ultrasound/v1/admin/promote?token={}",
+                        token
+                    );
+                    let alert_message = TelegramSafeAlert::from_escaped_string(alert_message);
+                    info!(?alert_message, "sending telegram alert");
+                    telegram_alerts
+                        .send_demotion_with_button(&alert_message, &button_url)
+                        .await;
+                }
+                Err(err) => {
+                    tracing::error!(%err, "failed to generate and store promotion token");
+                }
+            }
+        }
+    }
+
     let warning_messages: Vec<String> = unique_warning_demotions
         .iter()
         .map(format_demotion_message)
         .collect();
-
-    let telegram_alerts = telegram::TelegramAlerts::new();
-    if !alert_messages.is_empty() {
-        let alert_message = {
-            let message = format!("*builder demoted*\n\n{}", alert_messages.join("\n\n"));
-            TelegramSafeAlert::from_escaped_string(message)
-        };
-        info!(?alert_message, "sending telegram alert");
-        telegram_alerts
-            .send_message(&alert_message, Channel::Demotions)
-            .await
-    }
 
     if !warning_messages.is_empty() {
         let warning_message = {
@@ -201,7 +255,7 @@ async fn update_checkpoint(mev_pool: &PgPool, now: DateTime<Utc>) -> Result<()> 
 pub async fn run_demotion_monitor(relay_pool: &PgPool, mev_pool: &PgPool) -> Result<()> {
     let now = Utc::now();
     let demotions = fetch_demotions(relay_pool, mev_pool, now).await?;
-    generate_and_send_alerts(demotions).await?;
+    generate_and_send_alerts(demotions, relay_pool).await?;
     update_checkpoint(mev_pool, now).await?;
     Ok(())
 }

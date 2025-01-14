@@ -61,7 +61,7 @@ impl fmt::Display for TelegramSafeAlert {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Channel {
     Alerts,
     BlockNotFound,
@@ -98,7 +98,12 @@ impl TelegramAlerts {
         }
     }
 
-    async fn send_message_request(&self, notification_type: Channel, message: &str) -> Result<()> {
+    async fn send_message_request(
+        &self,
+        notification_type: Channel,
+        message: &str,
+        button_url: Option<&str>,
+    ) -> Result<()> {
         let channel_id = match notification_type {
             Channel::Alerts => APP_CONFIG.telegram_alerts_channel_id.as_str(),
             Channel::BlockNotFound => APP_CONFIG.telegram_block_not_found_channel_id.as_str(),
@@ -111,17 +116,23 @@ impl TelegramAlerts {
             APP_CONFIG.telegram_api_key
         );
 
-        let response = self
-            .client
-            .get(&url)
-            .query(&[
-                ("chat_id", channel_id),
-                ("text", message),
-                ("parse_mode", "MarkdownV2"),
-                ("disable_web_page_preview", "true"),
-            ])
-            .send()
-            .await?;
+        let mut json_body = serde_json::json!({
+            "chat_id": channel_id,
+            "text": message,
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true,
+        });
+
+        // Add button only for demotion alerts with a provided button URL
+        if notification_type == Channel::Demotions {
+            if let Some(url) = button_url {
+                json_body["reply_markup"] = serde_json::json!({
+                    "inline_keyboard": [[{"text": "repromote", "url": url}]]
+                });
+            }
+        }
+
+        let response = self.client.post(&url).json(&json_body).send().await?;
 
         match response.status() {
             StatusCode::OK => {
@@ -143,10 +154,17 @@ impl TelegramAlerts {
     ///
     /// Messages are expected to be quite important like alerts. Messages will be retried.
     /// If retries fail, a simple fallback message will be sent.
-    pub async fn send_message(&self, message: &TelegramSafeAlert, channel: Channel) {
+    async fn send_message_with_retry(
+        &self,
+        message: &TelegramSafeAlert,
+        channel: Channel,
+        button_url: Option<&str>,
+    ) {
         // Retry twice, with a delay in between.
         for index in 0..3 {
-            let send_result = self.send_message_request(channel, &message.0).await;
+            let send_result = self
+                .send_message_request(channel, &message.0, button_url)
+                .await;
 
             match send_result {
                 Ok(_) => {
@@ -170,6 +188,19 @@ impl TelegramAlerts {
         // Last attempt. This message intentionally does not contain *any* special
         // characters as many require escaping, and is within the character limit.
         let message = TelegramSafeAlert::new("failed to send telegram alert please check logs");
-        self.send_message_request(channel, &message.0).await.ok();
+        self.send_message_request(channel, &message.0, None)
+            .await
+            .ok();
+    }
+
+    /// Send a simple telegram message to any channel.
+    pub async fn send_message(&self, message: &TelegramSafeAlert, channel: Channel) {
+        self.send_message_with_retry(message, channel, None).await;
+    }
+
+    /// Send a demotion message with a button to the Demotions channel.
+    pub async fn send_demotion_with_button(&self, message: &TelegramSafeAlert, button_url: &str) {
+        self.send_message_with_retry(message, Channel::Demotions, Some(button_url))
+            .await;
     }
 }
