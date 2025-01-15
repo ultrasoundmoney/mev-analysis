@@ -3,7 +3,7 @@ use serde::{
     de::{DeserializeOwned, Error},
     Deserialize, Deserializer,
 };
-use std::fmt;
+use std::{collections::HashSet, fmt};
 use tracing::error;
 
 #[derive(PartialEq)]
@@ -112,6 +112,15 @@ where
     s.split(',')
         .map(|s| Url::parse(s).map_err(Error::custom))
         .collect()
+}
+
+/// Deserialize HashSet from comma separated string
+pub fn deserialize_hash_set<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    Ok(s.split(',').map(|s| s.trim().to_string()).collect())
 }
 
 pub fn get_app_config<T: DeserializeOwned>() -> T {

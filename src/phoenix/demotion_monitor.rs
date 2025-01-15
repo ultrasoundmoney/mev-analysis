@@ -10,7 +10,7 @@ use crate::{
     env::ToBeaconExplorerUrl,
     phoenix::{
         alerts::telegram::{Channel, TelegramSafeAlert},
-        promotion_monitor::is_promotable_error,
+        promotion_monitor::is_safe_promotable_error,
         telegram,
     },
 };
@@ -181,7 +181,7 @@ async fn generate_and_send_alerts(
     let (warning_demotions, alert_demotions): (Vec<BuilderDemotion>, Vec<BuilderDemotion>) =
         filtered_demotions
             .into_iter()
-            .partition(|d| is_promotable_error(&d.sim_error));
+            .partition(|d| is_safe_promotable_error(&d.sim_error));
 
     let unique_demotions = |demotions: Vec<BuilderDemotion>| {
         let mut seen = std::collections::HashSet::new();

@@ -1,10 +1,12 @@
-use std::{fmt, str, sync::LazyLock};
+use std::{collections::HashSet, fmt, str, sync::LazyLock};
 
 use reqwest::Url;
 use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::env::{deserialize_network, deserialize_urls, get_app_config, Network};
+use crate::env::{
+    deserialize_hash_set, deserialize_network, deserialize_urls, get_app_config, Network,
+};
 
 #[serde_as]
 #[derive(Deserialize)]
@@ -48,6 +50,12 @@ pub struct AppConfig {
     pub max_header_delay_updates_slot_lag: u32,
     #[serde(default = "default_max_lookback_updates_slot_lag")]
     pub max_lookback_updates_slot_lag: u32,
+    /// List of builder ids that we allow some extra leniency in demotions
+    #[serde(default, deserialize_with = "deserialize_hash_set")]
+    pub trusted_builder_ids: HashSet<String>,
+    /// Errors that trusted builders get auto promoted from unless there's a missed slot
+    #[serde(default, deserialize_with = "deserialize_hash_set")]
+    pub trusted_builder_promotable_errors: HashSet<String>,
 }
 
 fn default_max_lookback_updates_slot_lag() -> u32 {
