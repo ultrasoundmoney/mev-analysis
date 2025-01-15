@@ -118,3 +118,12 @@ impl str::FromStr for Geo {
 }
 
 pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(get_app_config);
+
+impl AppConfig {
+    pub fn relay_analytics_url(&self) -> &str {
+        match self.network {
+            Network::Mainnet => "https://relay-analytics.ultrasound.money",
+            Network::Holesky => "https://relay-analytics-holesky.ultrasound.money",
+        }
+    }
+}

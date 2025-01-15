@@ -208,7 +208,8 @@ async fn generate_and_send_alerts(
             match gen_promotion_token(global_db_pool, builder_id).await {
                 Ok(token) => {
                     let button_url = format!(
-                        "https://relay-analytics.ultrasound.money/ultrasound/v1/admin/promote?token={}",
+                        "{}/ultrasound/v1/data/admin/promote?token={}",
+                        APP_CONFIG.relay_analytics_url(),
                         token
                     );
                     let alert_message = TelegramSafeAlert::from_escaped_string(alert_message);
