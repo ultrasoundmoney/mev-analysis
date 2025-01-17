@@ -23,6 +23,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
     pub geo: Geo,
+    pub block_hash: String,
     pub builder_pubkey: String,
     pub builder_id: Option<String>,
     pub slot: i64,
@@ -37,6 +38,7 @@ pub async fn get_builder_demotions(
     let query = r#"
         SELECT
             bd.geo,
+            bd.block_hash,
             bd.builder_pubkey,
             bb.builder_id,
             bd.slot,
@@ -58,6 +60,7 @@ pub async fn get_builder_demotions(
             rows.iter()
                 .map(|row| BuilderDemotion {
                     geo: row.get("geo"),
+                    block_hash: row.get("block_hash"),
                     builder_pubkey: row.get("builder_pubkey"),
                     builder_id: row.try_get("builder_id").ok(),
                     slot: row.get("slot"),
@@ -113,10 +116,10 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
     let escaped_builder_id = telegram::escape_str(builder_id);
     let builder_pubkey = &demotion.builder_pubkey;
-    // it seems escape_code_block is not safe enough here.
     let error = telegram::escape_str(&demotion.sim_error);
     let slot = &demotion.slot;
     let geo = &demotion.geo;
+    let block_hash = &demotion.block_hash;
     formatdoc!(
         "
         [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
@@ -124,6 +127,7 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
         geo: `{geo}`
         builder\\_id: `{escaped_builder_id}`
         builder\\_pubkey: `{builder_pubkey}`
+        block\\_hash: `{block_hash}`
         ```
         {error}
         ```

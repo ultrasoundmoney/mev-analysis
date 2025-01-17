@@ -199,6 +199,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
@@ -206,6 +207,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash2".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
@@ -228,6 +230,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 1,
@@ -235,6 +238,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash2".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
@@ -258,6 +262,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
@@ -265,6 +270,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash2".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
@@ -272,6 +278,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash3".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 3,
@@ -295,6 +302,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "invalid error".to_string(),
                 slot: 2,
@@ -302,6 +310,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "json error: request timeout hit before processing".to_string(),
                 slot: 1,
@@ -309,6 +318,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: unknown ancestor".to_string(),
                 slot: 2,
@@ -332,6 +342,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 2,
@@ -339,6 +350,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 1,
@@ -346,6 +358,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 2,
@@ -379,6 +392,7 @@ mod tests {
         let demotions = vec![
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 2,
@@ -386,6 +400,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey1".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 1,
@@ -393,6 +408,7 @@ mod tests {
             },
             BuilderDemotion {
                 geo: Geo::RBX,
+                block_hash: "block_hash1".to_string(),
                 builder_pubkey: "pubkey2".to_string(),
                 sim_error: "simulation failed: invalid merkle root".to_string(),
                 slot: 2,
