@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use indoc::formatdoc;
@@ -20,7 +22,12 @@ use super::{
     env::{Geo, APP_CONFIG},
 };
 
-const DIRECT_MESSAGE_BUILDER_IDS: &[&str] = &["titan", "beaverbuild", "beaverbuild-staging"];
+static DIRECT_MESSAGE_BUILDER_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    telegram::BUILDER_ID_CHANNEL_ID_MAP
+        .keys()
+        .cloned()
+        .collect_vec()
+});
 
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
@@ -212,6 +219,8 @@ async fn generate_and_send_alerts(
     if !unique_alert_demotions.is_empty() {
         for demotion in unique_alert_demotions {
             let alert_message = format_demotion_message(&demotion);
+            let alert_message = TelegramMessage::from_escaped_string(alert_message);
+
             let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
             match gen_promotion_token(global_db_pool, builder_id).await {
                 Ok(token) => {
@@ -220,12 +229,12 @@ async fn generate_and_send_alerts(
                         APP_CONFIG.relay_analytics_url(),
                         token
                     );
-                    let alert_message = TelegramMessage::from_escaped_string(alert_message);
                     info!(?alert_message, "sending telegram alert");
                     telegram_alerts
                         .send_demotion_with_button(&alert_message, &button_url)
                         .await;
-                    if DIRECT_MESSAGE_BUILDER_IDS.contains(&builder_id) {
+
+                    if DIRECT_MESSAGE_BUILDER_IDS.contains(&builder_id.to_string()) {
                         telegram_alerts
                             .send_message_to_builder(&alert_message, builder_id, Some(&button_url))
                             .await;
