@@ -6,16 +6,16 @@ use tracing::{debug, error};
 
 use crate::env::Network;
 
-pub use self::telegram::TelegramSafeAlert;
+pub use self::telegram::TelegramMessage;
 
 use super::env::APP_CONFIG;
 
 /// Sends a telegram alert message, and if the network is Mainnet, also sends an OpsGenie alert.
 pub async fn send_opsgenie_telegram_alert(message: &str) {
-    let telegram_alerts = telegram::TelegramAlerts::new();
+    let telegram_alerts = telegram::TelegramBot::new();
 
     telegram_alerts
-        .send_message(&TelegramSafeAlert::new(message), Channel::Alerts)
+        .send_message(&TelegramMessage::new(message), Channel::Alerts)
         .await;
 
     // Only send actual OpsGenie alerts on Mainnet.
@@ -32,7 +32,7 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
                 let escaped_err = telegram::escape_str(&err.to_string());
                 let message = {
                     let message = format!("failed to send OpsGenie alert: {}", escaped_err);
-                    TelegramSafeAlert::from_escaped_string(message)
+                    TelegramMessage::from_escaped_string(message)
                 };
                 telegram_alerts
                     .send_message(&message, Channel::Alerts)

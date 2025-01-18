@@ -24,7 +24,7 @@ use crate::{
 use self::{loki_client::LatePayloadStats, proposer_meta::ProposerLocation};
 
 use super::{
-    alerts::telegram::{self, Channel, TelegramSafeAlert},
+    alerts::telegram::{self, Channel, TelegramMessage},
     checkpoint::{self, CheckpointId},
     env::{Geo, APP_CONFIG},
 };
@@ -305,8 +305,8 @@ async fn report_missing_payload(
         );
     }
 
-    let telegram_alerts = telegram::TelegramAlerts::new();
-    let escaped_message = TelegramSafeAlert::from_escaped_string(message);
+    let telegram_alerts = telegram::TelegramBot::new();
+    let escaped_message = TelegramMessage::from_escaped_string(message);
 
     telegram_alerts
         .send_message(&escaped_message, Channel::BlockNotFound)

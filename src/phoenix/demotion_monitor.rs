@@ -9,7 +9,7 @@ use tracing::{debug, info};
 use crate::{
     env::ToBeaconExplorerUrl,
     phoenix::{
-        alerts::telegram::{Channel, TelegramSafeAlert},
+        alerts::telegram::{Channel, TelegramMessage},
         promotion_monitor::is_promotable_error,
         telegram,
     },
@@ -204,7 +204,7 @@ async fn generate_and_send_alerts(
     let unique_warning_demotions = unique_demotions(warning_demotions);
     let unique_alert_demotions = unique_demotions(alert_demotions);
 
-    let telegram_alerts = telegram::TelegramAlerts::new();
+    let telegram_alerts = telegram::TelegramBot::new();
     if !unique_alert_demotions.is_empty() {
         for demotion in unique_alert_demotions {
             let alert_message = format_demotion_message(&demotion);
@@ -216,7 +216,7 @@ async fn generate_and_send_alerts(
                         APP_CONFIG.relay_analytics_url(),
                         token
                     );
-                    let alert_message = TelegramSafeAlert::from_escaped_string(alert_message);
+                    let alert_message = TelegramMessage::from_escaped_string(alert_message);
                     info!(?alert_message, "sending telegram alert");
                     telegram_alerts
                         .send_demotion_with_button(&alert_message, &button_url)
@@ -240,7 +240,7 @@ async fn generate_and_send_alerts(
                 "*builder demoted \\(with promotable error\\)*\n\n{}",
                 warning_messages.join("\n\n")
             );
-            TelegramSafeAlert::from_escaped_string(message)
+            TelegramMessage::from_escaped_string(message)
         };
         info!(?warning_message, "sending telegram warning");
 

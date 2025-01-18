@@ -7,7 +7,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
 use super::{
-    alerts::telegram::{TelegramAlerts, TelegramSafeAlert},
+    alerts::telegram::{TelegramBot, TelegramMessage},
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
     env::APP_CONFIG,
@@ -143,7 +143,7 @@ fn check_eligibility(
 async fn send_telegram_alerts(
     trusted_builders: &HashSet<String>,
     trusted_promotable_errors: &HashSet<String>,
-    telegram_alerts: &TelegramAlerts,
+    telegram_alerts: &TelegramBot,
     builder_id: &String,
     demotions: &[BuilderDemotion],
 ) {
@@ -160,7 +160,7 @@ async fn send_telegram_alerts(
             builder_id
         );
         telegram_alerts
-            .send_message_to_builder(&TelegramSafeAlert::new(&message), builder_id)
+            .send_message_to_builder(&TelegramMessage::new(&message), builder_id)
             .await;
     }
 }
@@ -197,7 +197,7 @@ pub async fn run_promotion_monitor(
     let grouped_demotions = demotions_with_ids.into_iter().into_group_map();
 
     let mut eligible_builders = Vec::new();
-    let telegram_alerts = TelegramAlerts::new();
+    let telegram_alerts = TelegramBot::new();
     let trusted_builders = &APP_CONFIG.trusted_builder_ids;
     let trusted_promotable_errors = &APP_CONFIG.trusted_builder_promotable_errors;
 

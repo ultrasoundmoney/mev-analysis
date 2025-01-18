@@ -40,13 +40,13 @@ pub fn escape_str(input: &str) -> String {
 /// Respect escaping as described in: https://core.telegram.org/bots/api#markdownv2-style
 /// Respect character limit of 4096.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TelegramSafeAlert(String);
+pub struct TelegramMessage(String);
 
 const TELEGRAM_MAX_MESSAGE_LENGTH: usize = 4096;
 // Leave a little room for the escape characters and unknowns.
 pub const TELEGRAM_SAFE_MESSAGE_LENGTH: usize = TELEGRAM_MAX_MESSAGE_LENGTH - 2048;
 
-impl TelegramSafeAlert {
+impl TelegramMessage {
     pub fn new(input: &str) -> Self {
         let escaped = escape_str(input);
         Self::from_escaped_string(escaped)
@@ -69,7 +69,7 @@ impl TelegramSafeAlert {
     }
 }
 
-impl fmt::Display for TelegramSafeAlert {
+impl fmt::Display for TelegramMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -97,17 +97,17 @@ impl fmt::Display for Channel {
 }
 
 #[derive(Clone)]
-pub struct TelegramAlerts {
+pub struct TelegramBot {
     client: reqwest::Client,
 }
 
-impl Default for TelegramAlerts {
+impl Default for TelegramBot {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TelegramAlerts {
+impl TelegramBot {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -173,7 +173,7 @@ impl TelegramAlerts {
     /// If retries fail, a simple fallback message will be sent.
     async fn send_message_with_retry(
         &self,
-        message: &TelegramSafeAlert,
+        message: &TelegramMessage,
         channel: Channel,
         button_url: Option<&str>,
     ) {
@@ -204,18 +204,18 @@ impl TelegramAlerts {
 
         // Last attempt. This message intentionally does not contain *any* special
         // characters as many require escaping, and is within the character limit.
-        let message = TelegramSafeAlert::new("failed to send telegram alert please check logs");
+        let message = TelegramMessage::new("failed to send telegram alert please check logs");
         self.send_message_request(&channel, &message.0, None)
             .await
             .ok();
     }
 
     /// Send a simple telegram message to any channel.
-    pub async fn send_message(&self, message: &TelegramSafeAlert, channel: Channel) {
+    pub async fn send_message(&self, message: &TelegramMessage, channel: Channel) {
         self.send_message_with_retry(message, channel, None).await;
     }
 
-    pub async fn send_message_to_builder(&self, message: &TelegramSafeAlert, builder_id: &str) {
+    pub async fn send_message_to_builder(&self, message: &TelegramMessage, builder_id: &str) {
         match BUILDER_ID_CHANNEL_ID_MAP.get(builder_id) {
             Some(channel_id) => {
                 self.send_message_with_retry(message, Channel::Id(channel_id.clone()), None)
@@ -224,7 +224,7 @@ impl TelegramAlerts {
             None => {
                 error!("failed to find channel_id for builder_id: {}", builder_id);
                 let fallback_message =
-                    TelegramSafeAlert::new("failed to find channel_id, please check logs");
+                    TelegramMessage::new("failed to find channel_id, please check logs");
                 self.send_message_with_retry(&fallback_message, Channel::Alerts, None)
                     .await;
             }
@@ -232,7 +232,7 @@ impl TelegramAlerts {
     }
 
     /// Send a demotion message with a button to the Demotions channel.
-    pub async fn send_demotion_with_button(&self, message: &TelegramSafeAlert, button_url: &str) {
+    pub async fn send_demotion_with_button(&self, message: &TelegramMessage, button_url: &str) {
         self.send_message_with_retry(message, Channel::Demotions, Some(button_url))
             .await;
     }
