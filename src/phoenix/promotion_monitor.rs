@@ -261,6 +261,7 @@ mod tests {
                 eligible_builders.push(builder_id.clone());
             }
         }
+        eligible_builders.sort();
         eligible_builders
     }
 
