@@ -198,6 +198,8 @@ async fn generate_and_send_alerts(
                     .builder_id
                     .clone()
                     .unwrap_or_else(|| d.builder_pubkey.clone());
+                // .insert returns true only if the key is not already in the set.
+                // effectively, this means we only keep the first demotion for each builder.
                 seen.insert(key)
             })
             .collect::<Vec<_>>()
