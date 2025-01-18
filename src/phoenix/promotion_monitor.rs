@@ -7,6 +7,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
 use super::{
+    alerts::telegram::{TelegramAlerts, TelegramSafeAlert},
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
     env::APP_CONFIG,
@@ -83,70 +84,85 @@ const PROMOTABLE_ERRORS: &[&str] = &[
     "simulation queue timed out"
 ];
 
-pub fn is_safe_promotable_error(error: &str) -> bool {
+pub fn is_promotable_error(error: &str) -> bool {
     PROMOTABLE_ERRORS
         .iter()
         // Use starts_with to account for additional info in gas limit error
         .any(|promotable_error| error.starts_with(promotable_error))
 }
 
-fn is_promotable_error(
+fn is_promotable_trusted_builder_error(
     trusted_builders: &HashSet<String>,
     trusted_promotable_errors: &HashSet<String>,
     builder_id: &String,
     error: &str,
 ) -> bool {
-    is_safe_promotable_error(error)
-        || trusted_builders.contains(builder_id)
-            && trusted_promotable_errors
-                .iter()
-                .any(|s| error.starts_with(s))
+    trusted_builders.contains(builder_id)
+        && trusted_promotable_errors
+            .iter()
+            // Use starts_with to account for additional info in gas limit error
+            .any(|e| error.starts_with(e))
 }
 
-fn get_eligible_builders(
-    trusted_builders: &HashSet<String>,
-    trusted_errors: &HashSet<String>,
+fn filter_known_builder_demotions(
     demotions: Vec<BuilderDemotion>,
-    missed_slots: Vec<i64>,
-) -> Vec<String> {
-    debug!(
-        "get_eligible_builders: demotions: {:?}, missed_slots {:?}",
-        &demotions, &missed_slots
-    );
+) -> Vec<(String, BuilderDemotion)> {
     demotions
         .into_iter()
-        .sorted_by_key(|d| d.builder_id.clone())
-        .group_by(|d| d.builder_id.clone())
-        .into_iter()
-        .filter_map(|(builder_id, group)| match builder_id {
-            None => {
-                warn!(
-                    "{} pubkeys without builder_id, unable to promote",
-                    &group.count()
-                );
+        .filter_map(|d| {
+            if let Some(builder_id) = d.builder_id.clone() {
+                Some((builder_id, d))
+            } else {
+                warn!("demotion without builder_id: {:?}", d);
                 None
-            }
-            Some(builder_id) => {
-                let demotions = group.collect_vec();
-                debug!("grouped demotions for {}: {:?}", &builder_id, &demotions);
-                let no_missed_slots = demotions.iter().all(|d| !missed_slots.contains(&d.slot));
-                let only_eligible_errors = demotions.iter().all(|d| {
-                    is_promotable_error(
-                        trusted_builders,
-                        trusted_errors,
-                        &builder_id,
-                        d.sim_error.as_str(),
-                    )
-                });
-
-                if no_missed_slots && only_eligible_errors {
-                    Some(builder_id)
-                } else {
-                    None
-                }
             }
         })
         .collect()
+}
+
+fn check_eligibility(
+    trusted_builders: &HashSet<String>,
+    trusted_promotable_errors: &HashSet<String>,
+    builder_id: &String,
+    demotions: &[BuilderDemotion],
+    missed_slots: &[i64],
+) -> bool {
+    let no_missed_slots = demotions.iter().all(|d| !missed_slots.contains(&d.slot));
+    let all_eligible_errors = demotions.iter().all(|d| {
+        is_promotable_error(&d.sim_error)
+            || is_promotable_trusted_builder_error(
+                trusted_builders,
+                trusted_promotable_errors,
+                builder_id,
+                &d.sim_error,
+            )
+    });
+    no_missed_slots && all_eligible_errors
+}
+
+async fn send_telegram_alerts(
+    trusted_builders: &HashSet<String>,
+    trusted_promotable_errors: &HashSet<String>,
+    telegram_alerts: &TelegramAlerts,
+    builder_id: &String,
+    demotions: &[BuilderDemotion],
+) {
+    if demotions.iter().any(|d| {
+        is_promotable_trusted_builder_error(
+            trusted_builders,
+            trusted_promotable_errors,
+            builder_id,
+            &d.sim_error,
+        )
+    }) {
+        let message = format!(
+            "automatically repromoting builder `{}` for error which may result in missed slot",
+            builder_id
+        );
+        telegram_alerts
+            .send_message_to_builder(&TelegramSafeAlert::new(&message), builder_id)
+            .await;
+    }
 }
 
 pub async fn run_promotion_monitor(
@@ -171,17 +187,46 @@ pub async fn run_promotion_monitor(
 
     let demotions = get_builder_demotions(relay_pool, &checkpoint, canonical_horizon).await?;
     let missed_slots = get_missed_slots(mev_pool, &checkpoint).await?;
-    let eligible = get_eligible_builders(
-        &APP_CONFIG.trusted_builder_ids,
-        &APP_CONFIG.trusted_builder_promotable_errors,
-        demotions,
-        missed_slots,
+
+    debug!(
+        "scanning for promotable demotions, demotions: {:?}, missed_slots {:?}",
+        &demotions, &missed_slots
     );
 
-    if !eligible.is_empty() {
-        info!("found builder ids eligible for promotion: {:?}", &eligible);
+    let demotions_with_ids = filter_known_builder_demotions(demotions);
+    let grouped_demotions = demotions_with_ids.into_iter().into_group_map();
 
-        let _promoted = promote_builder_ids(relay_pool, &eligible).await?;
+    let mut eligible_builders = Vec::new();
+    let telegram_alerts = TelegramAlerts::new();
+    let trusted_builders = &APP_CONFIG.trusted_builder_ids;
+    let trusted_promotable_errors = &APP_CONFIG.trusted_builder_promotable_errors;
+
+    for (builder_id, demotions) in grouped_demotions {
+        if check_eligibility(
+            trusted_builders,
+            trusted_promotable_errors,
+            &builder_id,
+            &demotions,
+            &missed_slots,
+        ) {
+            eligible_builders.push(builder_id.clone());
+            send_telegram_alerts(
+                trusted_builders,
+                trusted_promotable_errors,
+                &telegram_alerts,
+                &builder_id,
+                &demotions,
+            )
+            .await;
+        }
+    }
+
+    if !eligible_builders.is_empty() {
+        info!(
+            "found builder ids eligible for promotion: {:?}",
+            &eligible_builders
+        );
+        promote_builder_ids(relay_pool, &eligible_builders).await?;
     }
 
     checkpoint::put_checkpoint(mev_pool, CheckpointId::Promotion, canonical_horizon).await?;
@@ -194,6 +239,31 @@ mod tests {
     use crate::phoenix::env::Geo;
 
     use super::*;
+
+    fn get_eligible_builders(
+        trusted_builders: &HashSet<String>,
+        trusted_promotable_errors: &HashSet<String>,
+        demotions: Vec<BuilderDemotion>,
+        missed_slots: Vec<i64>,
+    ) -> Vec<String> {
+        let demotions_with_ids = filter_known_builder_demotions(demotions);
+        let grouped_demotions = demotions_with_ids.into_iter().into_group_map();
+
+        let mut eligible_builders = Vec::new();
+        for (builder_id, demotions) in grouped_demotions {
+            if check_eligibility(
+                trusted_builders,
+                trusted_promotable_errors,
+                &builder_id,
+                &demotions,
+                &missed_slots,
+            ) {
+                eligible_builders.push(builder_id.clone());
+            }
+        }
+        eligible_builders
+    }
+
     #[test]
     fn test_get_eligible_builders_all_eligible() {
         let demotions = vec![
