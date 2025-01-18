@@ -20,6 +20,8 @@ use super::{
     env::{Geo, APP_CONFIG},
 };
 
+const DIRECT_MESSAGE_BUILDER_IDS: &[&str] = &["titan", "beaverbuild", "beaverbuild-staging"];
+
 #[derive(Debug, Clone)]
 pub struct BuilderDemotion {
     pub geo: Geo,
@@ -221,9 +223,11 @@ async fn generate_and_send_alerts(
                     telegram_alerts
                         .send_demotion_with_button(&alert_message, &button_url)
                         .await;
-                    telegram_alerts
-                        .send_message_to_builder(&alert_message, builder_id, Some(&button_url))
-                        .await;
+                    if DIRECT_MESSAGE_BUILDER_IDS.contains(&builder_id) {
+                        telegram_alerts
+                            .send_message_to_builder(&alert_message, builder_id, Some(&button_url))
+                            .await;
+                    }
                 }
                 Err(err) => {
                     tracing::error!(%err, "failed to generate and store promotion token");
