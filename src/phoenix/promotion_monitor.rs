@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::LazyLock};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -84,6 +84,15 @@ const PROMOTABLE_ERRORS: &[&str] = &[
     "simulation queue timed out"
 ];
 
+static PROMOTABLE_TRUSTED_BUILDER_ERRORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    vec![
+        "simulation failed: could not apply tx".to_string(),
+        "simulation failed: invalid merkle root".to_string(),
+    ]
+    .into_iter()
+    .collect()
+});
+
 pub fn is_promotable_error(error: &str) -> bool {
     PROMOTABLE_ERRORS
         .iter()
@@ -93,12 +102,11 @@ pub fn is_promotable_error(error: &str) -> bool {
 
 fn is_promotable_trusted_builder_error(
     trusted_builders: &HashSet<String>,
-    trusted_promotable_errors: &HashSet<String>,
     builder_id: &String,
     error: &str,
 ) -> bool {
     trusted_builders.contains(builder_id)
-        && trusted_promotable_errors
+        && PROMOTABLE_TRUSTED_BUILDER_ERRORS
             .iter()
             // Use starts_with to account for additional info in gas limit error
             .any(|e| error.starts_with(e))
@@ -122,7 +130,6 @@ fn filter_known_builder_demotions(
 
 fn check_eligibility(
     trusted_builders: &HashSet<String>,
-    trusted_promotable_errors: &HashSet<String>,
     builder_id: &String,
     demotions: &[BuilderDemotion],
     missed_slots: &[i64],
@@ -130,31 +137,21 @@ fn check_eligibility(
     let no_missed_slots = demotions.iter().all(|d| !missed_slots.contains(&d.slot));
     let all_eligible_errors = demotions.iter().all(|d| {
         is_promotable_error(&d.sim_error)
-            || is_promotable_trusted_builder_error(
-                trusted_builders,
-                trusted_promotable_errors,
-                builder_id,
-                &d.sim_error,
-            )
+            || is_promotable_trusted_builder_error(trusted_builders, builder_id, &d.sim_error)
     });
     no_missed_slots && all_eligible_errors
 }
 
 async fn send_telegram_alerts(
     trusted_builders: &HashSet<String>,
-    trusted_promotable_errors: &HashSet<String>,
     telegram_alerts: &TelegramBot,
     builder_id: &String,
     demotions: &[BuilderDemotion],
 ) {
-    if demotions.iter().any(|d| {
-        is_promotable_trusted_builder_error(
-            trusted_builders,
-            trusted_promotable_errors,
-            builder_id,
-            &d.sim_error,
-        )
-    }) {
+    if demotions
+        .iter()
+        .any(|d| is_promotable_trusted_builder_error(trusted_builders, builder_id, &d.sim_error))
+    {
         let message = format!(
             "automatically repromoting builder `{}` for error which may result in missed slot",
             builder_id
@@ -199,25 +196,11 @@ pub async fn run_promotion_monitor(
     let mut eligible_builders = Vec::new();
     let telegram_alerts = TelegramBot::new();
     let trusted_builders = &APP_CONFIG.trusted_builder_ids;
-    let trusted_promotable_errors = &APP_CONFIG.trusted_builder_promotable_errors;
 
     for (builder_id, demotions) in grouped_demotions {
-        if check_eligibility(
-            trusted_builders,
-            trusted_promotable_errors,
-            &builder_id,
-            &demotions,
-            &missed_slots,
-        ) {
+        if check_eligibility(trusted_builders, &builder_id, &demotions, &missed_slots) {
             eligible_builders.push(builder_id.clone());
-            send_telegram_alerts(
-                trusted_builders,
-                trusted_promotable_errors,
-                &telegram_alerts,
-                &builder_id,
-                &demotions,
-            )
-            .await;
+            send_telegram_alerts(trusted_builders, &telegram_alerts, &builder_id, &demotions).await;
         }
     }
 
@@ -242,7 +225,6 @@ mod tests {
 
     fn get_eligible_builders(
         trusted_builders: &HashSet<String>,
-        trusted_promotable_errors: &HashSet<String>,
         demotions: Vec<BuilderDemotion>,
         missed_slots: Vec<i64>,
     ) -> Vec<String> {
@@ -251,13 +233,7 @@ mod tests {
 
         let mut eligible_builders = Vec::new();
         for (builder_id, demotions) in grouped_demotions {
-            if check_eligibility(
-                trusted_builders,
-                trusted_promotable_errors,
-                &builder_id,
-                &demotions,
-                &missed_slots,
-            ) {
+            if check_eligibility(trusted_builders, &builder_id, &demotions, &missed_slots) {
                 eligible_builders.push(builder_id.clone());
             }
         }
@@ -287,12 +263,7 @@ mod tests {
         ];
         let missed_slots = vec![];
 
-        let result = get_eligible_builders(
-            &HashSet::default(),
-            &HashSet::default(),
-            demotions,
-            missed_slots,
-        );
+        let result = get_eligible_builders(&HashSet::default(), demotions, missed_slots);
         assert_eq!(result, vec!["builder1".to_string(), "builder2".to_string()]);
     }
 
@@ -318,12 +289,7 @@ mod tests {
         ];
         let missed_slots = vec![2];
 
-        let result = get_eligible_builders(
-            &HashSet::default(),
-            &HashSet::default(),
-            demotions,
-            missed_slots,
-        );
+        let result = get_eligible_builders(&HashSet::default(), demotions, missed_slots);
 
         assert_eq!(result, Vec::<String>::new());
     }
@@ -358,12 +324,7 @@ mod tests {
         ];
         let missed_slots = vec![2];
 
-        let result = get_eligible_builders(
-            &HashSet::default(),
-            &HashSet::default(),
-            demotions,
-            missed_slots,
-        );
+        let result = get_eligible_builders(&HashSet::default(), demotions, missed_slots);
 
         assert_eq!(result, vec!["builder1".to_string()]);
     }
@@ -398,12 +359,7 @@ mod tests {
         ];
         let missed_slots = vec![];
 
-        let result = get_eligible_builders(
-            &HashSet::default(),
-            &HashSet::default(),
-            demotions,
-            missed_slots,
-        );
+        let result = get_eligible_builders(&HashSet::default(), demotions, missed_slots);
 
         assert_eq!(result, vec!["builder1".to_string()]);
     }
@@ -440,22 +396,11 @@ mod tests {
 
         let result = get_eligible_builders(
             &HashSet::from_iter(vec!["builder1".to_string()]),
-            &HashSet::from_iter(vec!["simulation failed: invalid merkle root".to_string()]),
             demotions.clone(),
             missed_slots.clone(),
         );
 
         assert_eq!(result, vec!["builder1".to_string()]);
-
-        // Trusted builder but no configured errors should not match
-        let result = get_eligible_builders(
-            &HashSet::from_iter(vec!["builder1".to_string()]),
-            &HashSet::from_iter(vec![]),
-            demotions,
-            missed_slots,
-        );
-
-        assert_eq!(result.len(), 0);
     }
 
     #[test]
@@ -490,7 +435,6 @@ mod tests {
 
         let result = get_eligible_builders(
             &HashSet::from_iter(vec!["builder1".to_string()]),
-            &HashSet::from_iter(vec!["simulation failed: invalid merkle root".to_string()]),
             demotions,
             missed_slots,
         );

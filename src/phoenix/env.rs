@@ -53,9 +53,6 @@ pub struct AppConfig {
     /// List of builder ids that we allow some extra leniency in demotions
     #[serde(default, deserialize_with = "deserialize_hash_set")]
     pub trusted_builder_ids: HashSet<String>,
-    /// Errors that trusted builders get auto promoted from unless there's a missed slot
-    #[serde(default, deserialize_with = "deserialize_hash_set")]
-    pub trusted_builder_promotable_errors: HashSet<String>,
 }
 
 fn default_max_lookback_updates_slot_lag() -> u32 {
