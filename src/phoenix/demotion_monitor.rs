@@ -221,6 +221,9 @@ async fn generate_and_send_alerts(
                     telegram_alerts
                         .send_demotion_with_button(&alert_message, &button_url)
                         .await;
+                    telegram_alerts
+                        .send_message_to_builder(&alert_message, builder_id, Some(&button_url))
+                        .await;
                 }
                 Err(err) => {
                     tracing::error!(%err, "failed to generate and store promotion token");

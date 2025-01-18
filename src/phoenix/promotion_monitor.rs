@@ -160,7 +160,7 @@ async fn send_telegram_alerts(
             builder_id
         );
         telegram_alerts
-            .send_message_to_builder(&TelegramMessage::new(&message), builder_id)
+            .send_message_to_builder(&TelegramMessage::new(&message), builder_id, None)
             .await;
     }
 }

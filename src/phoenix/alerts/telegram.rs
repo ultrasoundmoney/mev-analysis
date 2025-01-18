@@ -215,10 +215,15 @@ impl TelegramBot {
         self.send_message_with_retry(message, channel, None).await;
     }
 
-    pub async fn send_message_to_builder(&self, message: &TelegramMessage, builder_id: &str) {
+    pub async fn send_message_to_builder(
+        &self,
+        message: &TelegramMessage,
+        builder_id: &str,
+        button_url: Option<&str>,
+    ) {
         match BUILDER_ID_CHANNEL_ID_MAP.get(builder_id) {
             Some(channel_id) => {
-                self.send_message_with_retry(message, Channel::Id(channel_id.clone()), None)
+                self.send_message_with_retry(message, Channel::Id(channel_id.clone()), button_url)
                     .await;
             }
             None => {
