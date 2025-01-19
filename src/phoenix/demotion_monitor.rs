@@ -235,6 +235,7 @@ async fn generate_and_send_alerts(
                         .await;
 
                     if DIRECT_MESSAGE_BUILDER_IDS.contains(&builder_id.to_string()) {
+                        info!(%alert_message, builder_id, "sending telegram message to builder");
                         telegram_alerts
                             .send_message_to_builder(&alert_message, builder_id, Some(&button_url))
                             .await;
