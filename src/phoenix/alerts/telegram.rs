@@ -141,12 +141,10 @@ impl TelegramBot {
         });
 
         // Add button only for demotion alerts with a provided button URL
-        if *channel == Channel::Demotions {
-            if let Some(url) = button_url {
-                json_body["reply_markup"] = serde_json::json!({
-                    "inline_keyboard": [[{"text": "repromote", "url": url}]]
-                });
-            }
+        if let Some(url) = button_url {
+            json_body["reply_markup"] = serde_json::json!({
+                "inline_keyboard": [[{"text": "repromote", "url": url}]]
+            });
         }
 
         let response = self.client.post(&url).json(&json_body).send().await?;
