@@ -229,7 +229,7 @@ async fn generate_and_send_alerts(
                         APP_CONFIG.relay_analytics_url(),
                         token
                     );
-                    info!(?alert_message, "sending telegram alert");
+                    info!(%alert_message, "sending telegram message to demotions channel");
                     telegram_alerts
                         .send_demotion_with_button(&alert_message, &button_url)
                         .await;

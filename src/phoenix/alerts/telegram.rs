@@ -59,7 +59,7 @@ impl TelegramMessage {
     pub fn from_escaped_string(input: String) -> Self {
         if input.len() > TELEGRAM_SAFE_MESSAGE_LENGTH {
             tracing::warn!(
-                "telegram alert too long, truncating to {} characters",
+                "telegram message too long, truncating to {} characters",
                 TELEGRAM_SAFE_MESSAGE_LENGTH
             );
             Self(input).slice_to_limit()
@@ -185,7 +185,7 @@ impl TelegramBot {
 
             match send_result {
                 Ok(_) => {
-                    tracing::debug!(%message, "sent telegram alert");
+                    tracing::debug!(%message, "sent telegram message");
                     return;
                 }
                 Err(err) => {
@@ -193,7 +193,7 @@ impl TelegramBot {
                         attempt = index,
                         %message,
                         %err,
-                        "failed to send telegram alert"
+                        "failed to send telegram message"
                     );
 
                     // We did not succeed, wait then move on to the next attempt.
@@ -204,7 +204,7 @@ impl TelegramBot {
 
         // Last attempt. This message intentionally does not contain *any* special
         // characters as many require escaping, and is within the character limit.
-        let message = TelegramMessage::new("failed to send telegram alert please check logs");
+        let message = TelegramMessage::new("failed to send telegram message please check logs");
         self.send_message_request(&channel, &message.0, None)
             .await
             .ok();
