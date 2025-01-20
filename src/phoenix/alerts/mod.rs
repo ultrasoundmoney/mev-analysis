@@ -34,9 +34,7 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
                     let message = format!("failed to send OpsGenie alert: {}", escaped_err);
                     TelegramMessage::from_escaped_string(message)
                 };
-                telegram_bot
-                    .send_message(&message, Channel::Alerts)
-                    .await;
+                telegram_bot.send_message(&message, Channel::Alerts).await;
             }
         }
     }
