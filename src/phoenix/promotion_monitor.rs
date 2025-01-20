@@ -144,7 +144,7 @@ fn check_eligibility(
 
 async fn send_telegram_alerts(
     trusted_builders: &HashSet<String>,
-    telegram_alerts: &TelegramBot,
+    telegram_bot: &TelegramBot,
     builder_id: &String,
     demotions: &[BuilderDemotion],
 ) {
@@ -156,7 +156,7 @@ async fn send_telegram_alerts(
             "automatically repromoting builder `{}` for error which may result in missed slot",
             builder_id
         );
-        telegram_alerts
+        telegram_bot
             .send_message_to_builder(&TelegramMessage::new(&message), builder_id, None)
             .await;
     }
@@ -194,7 +194,7 @@ pub async fn run_promotion_monitor(
     let grouped_demotions = demotions_with_ids.into_iter().into_group_map();
 
     let mut eligible_builders = Vec::new();
-    let telegram_alerts = TelegramBot::new();
+    let telegram_bot = TelegramBot::new();
     let trusted_builders = &APP_CONFIG.trusted_builder_ids;
 
     for (builder_id, demotions) in grouped_demotions {

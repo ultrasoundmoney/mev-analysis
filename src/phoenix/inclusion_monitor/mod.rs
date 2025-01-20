@@ -305,10 +305,10 @@ async fn report_missing_payload(
         );
     }
 
-    let telegram_alerts = telegram::TelegramBot::new();
+    let telegram_bot = telegram::TelegramBot::new();
     let escaped_message = TelegramMessage::from_escaped_string(message);
 
-    telegram_alerts
+    telegram_bot
         .send_message(&escaped_message, Channel::BlockNotFound)
         .await;
 

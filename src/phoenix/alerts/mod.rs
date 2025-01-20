@@ -12,9 +12,9 @@ use super::env::APP_CONFIG;
 
 /// Sends a telegram alert message, and if the network is Mainnet, also sends an OpsGenie alert.
 pub async fn send_opsgenie_telegram_alert(message: &str) {
-    let telegram_alerts = telegram::TelegramBot::new();
+    let telegram_bot = telegram::TelegramBot::new();
 
-    telegram_alerts
+    telegram_bot
         .send_message(&TelegramMessage::new(message), Channel::Alerts)
         .await;
 
@@ -34,7 +34,7 @@ pub async fn send_opsgenie_telegram_alert(message: &str) {
                     let message = format!("failed to send OpsGenie alert: {}", escaped_err);
                     TelegramMessage::from_escaped_string(message)
                 };
-                telegram_alerts
+                telegram_bot
                     .send_message(&message, Channel::Alerts)
                     .await;
             }

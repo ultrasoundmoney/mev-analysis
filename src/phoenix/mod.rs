@@ -60,14 +60,14 @@ impl AlarmType {
 
 struct Alarm {
     last_fired: HashMap<AlarmType, DateTime<Utc>>,
-    telegram_alerts: TelegramBot,
+    telegram_bot: TelegramBot,
 }
 
 impl Alarm {
     fn new() -> Self {
         Self {
             last_fired: HashMap::new(),
-            telegram_alerts: TelegramBot::new(),
+            telegram_bot: TelegramBot::new(),
         }
     }
 
@@ -88,7 +88,7 @@ impl Alarm {
         match alarm_type {
             AlarmType::Opsgenie => alerts::send_opsgenie_telegram_alert(message).await,
             AlarmType::Telegram => {
-                self.telegram_alerts
+                self.telegram_bot
                     .send_message(&TelegramMessage::new(message), Channel::Warnings)
                     .await
             }
@@ -304,35 +304,33 @@ pub async fn monitor_critical_services() -> Result<()> {
     sqlx::migrate!().run(&mut db_conn).await?;
     db_conn.close().await?;
 
-    let telegram_alerts = TelegramBot::new();
+    let telegram_bot = TelegramBot::new();
 
     // Skip global checks and only check nodes
     if APP_CONFIG.ff_node_check_only {
         let result = tokio::try_join!(mount_health_route(), run_alarm_loop());
         match result {
-            Ok(_) => handle_unexpected_exit(telegram_alerts).await,
-            Err(err) => handle_unexpected_error(telegram_alerts, err).await,
+            Ok(_) => handle_unexpected_exit(telegram_bot).await,
+            Err(err) => handle_unexpected_error(telegram_bot, err).await,
         }
     }
     // Run all checks
     else {
         let result = tokio::try_join!(mount_health_route(), run_alarm_loop(), run_ops_monitors());
         match result {
-            Ok(_) => handle_unexpected_exit(telegram_alerts).await,
-            Err(err) => handle_unexpected_error(telegram_alerts, err).await,
+            Ok(_) => handle_unexpected_exit(telegram_bot).await,
+            Err(err) => handle_unexpected_error(telegram_bot, err).await,
         }
     }
 }
 
-async fn handle_unexpected_exit(telegram_alerts: TelegramBot) -> Result<()> {
+async fn handle_unexpected_exit(telegram_bot: TelegramBot) -> Result<()> {
     let message = TelegramMessage::new("phoenix processes exited unexpectedly");
-    telegram_alerts
-        .send_message(&message, Channel::Alerts)
-        .await;
+    telegram_bot.send_message(&message, Channel::Alerts).await;
     Err(anyhow!(message))
 }
 
-async fn handle_unexpected_error(telegram_alerts: TelegramBot, err: anyhow::Error) -> Result<()> {
+async fn handle_unexpected_error(telegram_bot: TelegramBot, err: anyhow::Error) -> Result<()> {
     let shortned_err = err
         .to_string()
         .chars()
@@ -348,8 +346,6 @@ async fn handle_unexpected_error(telegram_alerts: TelegramBot, err: anyhow::Erro
         "
     );
     let message = TelegramMessage::from_escaped_string(formatted_message);
-    telegram_alerts
-        .send_message(&message, Channel::Alerts)
-        .await;
+    telegram_bot.send_message(&message, Channel::Alerts).await;
     Err(anyhow!(err))
 }
