@@ -7,7 +7,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
 use super::{
-    alerts::telegram::{TelegramBot, TelegramMessage},
+    alerts::telegram::{Channel, TelegramBot, TelegramMessage},
     checkpoint::{self, CheckpointId},
     demotion_monitor::{get_builder_demotions, BuilderDemotion},
     env::APP_CONFIG,
@@ -142,7 +142,7 @@ fn check_eligibility(
     no_missed_slots && all_eligible_errors
 }
 
-async fn send_telegram_alerts(
+async fn send_trusted_promotion_messages(
     trusted_builders: &HashSet<String>,
     telegram_bot: &TelegramBot,
     builder_id: &String,
@@ -156,8 +156,16 @@ async fn send_telegram_alerts(
             "automatically repromoting builder `{}` for error which may result in missed slot",
             builder_id
         );
+        let message = TelegramMessage::new(&message);
+
+        // Send to ultra sound demotions channel
         telegram_bot
-            .send_message_to_builder(&TelegramMessage::new(&message), builder_id, None)
+            .send_message(&message, Channel::Demotions)
+            .await;
+
+        // Send to builder
+        telegram_bot
+            .send_message_to_builder(&message, builder_id, None)
             .await;
     }
 }
@@ -200,7 +208,13 @@ pub async fn run_promotion_monitor(
     for (builder_id, demotions) in grouped_demotions {
         if check_eligibility(trusted_builders, &builder_id, &demotions, &missed_slots) {
             eligible_builders.push(builder_id.clone());
-            send_telegram_alerts(trusted_builders, &telegram_alerts, &builder_id, &demotions).await;
+            send_trusted_promotion_messages(
+                trusted_builders,
+                &telegram_bot,
+                &builder_id,
+                &demotions,
+            )
+            .await;
         }
     }
 
