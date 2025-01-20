@@ -9,11 +9,8 @@ use crate::phoenix::env::APP_CONFIG;
 pub static BUILDER_ID_CHANNEL_ID_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     vec![
         ("titan".to_string(), "-1002036721274".to_string()),
-        ("beaverbuild".to_string(), "-100614386130".to_string()),
-        (
-            "beaverbuild-staging".to_string(),
-            "-100614386130".to_string(),
-        ),
+        ("beaverbuild".to_string(), "--614386130".to_string()),
+        ("beaverbuild-staging".to_string(), "--614386130".to_string()),
     ]
     .into_iter()
     .collect()
