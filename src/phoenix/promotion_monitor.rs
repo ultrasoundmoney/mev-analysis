@@ -80,6 +80,7 @@ const PROMOTABLE_ERRORS: &[&str] = &[
     "Post \"http://prio-load-balancer:80\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
     "json error: request timeout hit before processing",
     "simulation failed: unknown ancestor",
+    "simulation failed: parent block not found",
     "simulation failed: incorrect gas limit set",
     "simulation queue timed out"
 ];
