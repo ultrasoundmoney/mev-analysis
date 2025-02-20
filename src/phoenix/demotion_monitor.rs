@@ -120,12 +120,14 @@ fn filter_demotions(demotions: Vec<BuilderDemotion>) -> Vec<BuilderDemotion> {
         .collect_vec()
 }
 
+// this fn sometimes produces a message telegram doesn't like.
+// our current attempt to fix this is to escape the code block.
 fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     let explorer_url = APP_CONFIG.network.to_beacon_explorer_url();
     let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
     let escaped_builder_id = telegram::escape_str(builder_id);
     let builder_pubkey = &demotion.builder_pubkey;
-    let error = telegram::escape_str(&demotion.sim_error);
+    let error = telegram::escape_code_block(&demotion.sim_error);
     let slot = &demotion.slot;
     let geo = &demotion.geo;
     let block_hash = &demotion.block_hash;

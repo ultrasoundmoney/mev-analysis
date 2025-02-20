@@ -16,8 +16,8 @@ pub static BUILDER_ID_CHANNEL_ID_MAP: LazyLock<HashMap<String, String>> = LazyLo
     .collect()
 });
 
-// Used to escape characters in telegram messages.
-// https://core.telegram.org/bots/api#markdownv2-style
+/// Used to escape characters in telegram messages.
+/// https://core.telegram.org/bots/api#markdownv2-style
 pub fn escape_str(input: &str) -> String {
     let mut output = String::new();
     for c in input.chars() {
@@ -29,6 +29,20 @@ pub fn escape_str(input: &str) -> String {
             _ => (),
         };
         output.push(c);
+    }
+    output
+}
+
+/// Inside a ``` code block, we need to escape only backticks and backslashes.
+/// https://core.telegram.org/bots/api#markdownv2-style
+pub fn escape_code_block(input: &str) -> String {
+    let mut output: String = String::new();
+    for c in input.chars() {
+        match c {
+            '`' => output.push_str("\\`"),
+            '\\' => output.push_str("\\\\"),
+            _ => output.push(c),
+        }
     }
     output
 }
