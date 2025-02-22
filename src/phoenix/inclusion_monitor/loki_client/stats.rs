@@ -1,5 +1,6 @@
 use anyhow::Context;
 use chrono::{DateTime, TimeZone, Utc};
+use tracing::warn;
 
 type JsonValue = serde_json::Value;
 
@@ -53,10 +54,16 @@ pub fn published_stats_from_logs(
                 .signed_duration_since(received_at)
                 .num_milliseconds();
 
-            let publish_duration_ms = payload_published_log
+            let publish_duration_ms = match payload_published_log
                 .get("msNeededForPublishing")
                 .and_then(|timestamp| timestamp.as_i64())
-                .context("failed to parse msNeededForPublishing as i64")?;
+            {
+                Some(value) => value,
+                None => {
+                    warn!("failed to parse msNeededForPublishing, defaulting to 0. original value: {:?}", payload_published_log.get("msNeededForPublishing"));
+                    0
+                }
+            };
 
             let request_download_duration_ms = decoded_at
                 .signed_duration_since(received_at)
