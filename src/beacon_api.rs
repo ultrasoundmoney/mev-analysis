@@ -183,7 +183,6 @@ impl BeaconApi {
             .json::<BeaconResponse<SyncStatus>>()
             .await
             .map(|body| body.data)
-            .map_err(Into::into)
     }
 
     pub async fn sync_status_all(&self) -> Vec<reqwest::Result<SyncStatus>> {
