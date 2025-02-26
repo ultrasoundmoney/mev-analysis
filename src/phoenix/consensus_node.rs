@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use tracing::{debug, error};
+use std::time::Duration;
+use tokio::time::sleep;
+use tracing::{debug, error, info};
 
 use super::{env::APP_CONFIG, PhoenixMonitor};
 use crate::beacon_api::BeaconApi;
@@ -16,7 +18,7 @@ impl ConsensusNodeMonitor {
         }
     }
 
-    async fn num_unsynced_nodes(&self) -> usize {
+    async fn check_nodes_once(&self) -> Vec<bool> {
         let mut results = Vec::new();
 
         let statuses = self.beacon_api.sync_status_all().await;
@@ -27,6 +29,36 @@ impl ConsensusNodeMonitor {
                     error!("error getting consensus node status: {}", err);
                     results.push(false)
                 }
+            }
+        }
+
+        results
+    }
+
+    async fn num_unsynced_nodes(&self) -> usize {
+        // First attempt
+        let mut results = self.check_nodes_once().await;
+        let mut offline_nodes = results.iter().filter(|is_synced| !**is_synced).count();
+
+        // If any nodes are offline, retry after 3 seconds
+        if offline_nodes > 0 {
+            info!(
+                "found {} offline consensus nodes, retrying in 3s",
+                offline_nodes
+            );
+            sleep(Duration::from_secs(3)).await;
+
+            results = self.check_nodes_once().await;
+            offline_nodes = results.iter().filter(|is_synced| !**is_synced).count();
+
+            // If still offline, try one last time
+            if offline_nodes > 0 {
+                info!(
+                    "still found {} offline consensus nodes, final retry in 3s",
+                    offline_nodes
+                );
+                sleep(Duration::from_secs(3)).await;
+                results = self.check_nodes_once().await;
             }
         }
 
