@@ -82,7 +82,8 @@ const PROMOTABLE_ERRORS: &[&str] = &[
     "simulation failed: unknown ancestor",
     "simulation failed: parent block not found",
     "simulation failed: incorrect gas limit set",
-    "simulation queue timed out"
+    "simulation queue timed out",
+    "parent_beacon_block_root is None for V3 request"
 ];
 
 static PROMOTABLE_TRUSTED_BUILDER_ERRORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
