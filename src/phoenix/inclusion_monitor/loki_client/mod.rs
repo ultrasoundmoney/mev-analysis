@@ -5,6 +5,7 @@ use anyhow::Context;
 use chrono::{DateTime, TimeZone, Utc};
 use itertools::Itertools;
 use reqwest::Url;
+use tracing::warn;
 
 use slot::Slot;
 pub use stats::{LatePayloadStats, PublishedPayloadStats};
@@ -13,8 +14,13 @@ type JsonValue = serde_json::Value;
 
 /// Parses loki query response into a list of log lines. Oldest log line is first.
 fn loki_res_into_json_logs(text: &str) -> anyhow::Result<Vec<JsonValue>> {
-    let log_response_json: JsonValue =
-        serde_json::from_str(text).context("failed to parse payload log request body as JSON")?;
+    let log_response_json: JsonValue = match serde_json::from_str(text) {
+        Ok(json) => json,
+        Err(e) => {
+            warn!("failed to parse payload log request body as json: {}", e);
+            return Ok(Vec::new());
+        }
+    };
 
     // Loki queries many nodes, each may return a stream of logs. We first discard all metadata
     // leaving only a list of streams.
