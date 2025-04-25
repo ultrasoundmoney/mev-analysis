@@ -228,7 +228,7 @@ fn get_fully_traversed_interval(batch: BlockProductionBatch) -> Vec<DeliveredPay
         .iter()
         .filter_map(|(_, payloads)| payloads.last().map(|p| p.slot_number))
         .sorted()
-        .last()
+        .next_back()
         .expect("at least one payload should be present");
 
     batch
