@@ -185,6 +185,7 @@ impl TelegramBot {
         message: &TelegramMessage,
         channel: Channel,
         button_url: Option<&str>,
+        fallback_channel: Option<Channel>,
     ) {
         // Retry twice, with a delay in between.
         for index in 0..3 {
@@ -211,17 +212,21 @@ impl TelegramBot {
             }
         }
 
+        // Determine the channel to send the final fallback message to.
+        let final_fallback_channel = fallback_channel.unwrap_or(channel);
+
         // Last attempt. This message intentionally does not contain *any* special
         // characters as many require escaping, and is within the character limit.
         let message = TelegramMessage::new("failed to send telegram message please check logs");
-        self.send_message_request(&channel, &message.0, None)
+        self.send_message_request(&final_fallback_channel, &message.0, None)
             .await
             .ok();
     }
 
     /// Send a simple telegram message to any channel.
     pub async fn send_message(&self, message: &TelegramMessage, channel: Channel) {
-        self.send_message_with_retry(message, channel, None).await;
+        self.send_message_with_retry(message, channel, None, None)
+            .await;
     }
 
     pub async fn send_message_to_builder(
@@ -232,14 +237,20 @@ impl TelegramBot {
     ) {
         match BUILDER_ID_CHANNEL_ID_MAP.get(builder_id) {
             Some(channel_id) => {
-                self.send_message_with_retry(message, Channel::Id(channel_id.clone()), button_url)
-                    .await;
+                self.send_message_with_retry(
+                    message,
+                    Channel::Id(channel_id.clone()),
+                    button_url,
+                    Some(Channel::Alerts), // Fallback to internal alerts
+                )
+                .await;
             }
             None => {
                 error!("failed to find channel_id for builder_id: {}", builder_id);
                 let fallback_message =
                     TelegramMessage::new("failed to find channel_id, please check logs");
-                self.send_message_with_retry(&fallback_message, Channel::Alerts, None)
+                // This specific fallback (channel not found) should still go to Alerts.
+                self.send_message_with_retry(&fallback_message, Channel::Alerts, None, None)
                     .await;
             }
         }
@@ -247,7 +258,7 @@ impl TelegramBot {
 
     /// Send a demotion message with a button to the Demotions channel.
     pub async fn send_demotion_with_button(&self, message: &TelegramMessage, button_url: &str) {
-        self.send_message_with_retry(message, Channel::Demotions, Some(button_url))
+        self.send_message_with_retry(message, Channel::Demotions, Some(button_url), None)
             .await;
     }
 }
