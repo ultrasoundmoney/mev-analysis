@@ -46,24 +46,9 @@ pub struct AppConfig {
     pub unsynced_nodes_threshold_og_alert: usize,
     #[serde(default = "default_max_auction_analysis_slot_lag")]
     pub max_auction_analysis_slot_lag: u32,
-    #[serde(default = "default_max_header_delay_updates_slot_lag")]
-    pub max_header_delay_updates_slot_lag: u32,
-    #[serde(default = "default_max_lookback_updates_slot_lag")]
-    pub max_lookback_updates_slot_lag: u32,
     /// List of builder ids that we allow some extra leniency in demotions
     #[serde(default, deserialize_with = "deserialize_hash_set")]
     pub trusted_builder_ids: HashSet<String>,
-}
-
-fn default_max_lookback_updates_slot_lag() -> u32 {
-    // Note that this is more heuristic: since theoretically there could just be no updates because
-    // of the way the update algorithm works
-    600
-}
-
-fn default_max_header_delay_updates_slot_lag() -> u32 {
-    // Should be configured considering the configured schedule for the update cron job
-    60
 }
 
 fn default_max_auction_analysis_slot_lag() -> u32 {

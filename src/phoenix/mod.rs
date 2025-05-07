@@ -2,11 +2,9 @@ mod alerts;
 mod auction_analysis_monitor;
 mod checkpoint;
 mod consensus_node;
-mod delay_update_monitor;
 mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
-mod lookback_update_monitor;
 mod promotion_monitor;
 mod util;
 mod validation_node;
@@ -32,10 +30,8 @@ use crate::phoenix::{
 use self::{
     alerts::telegram::{self, TelegramBot, TelegramMessage},
     auction_analysis_monitor::run_auction_analysis_monitor,
-    delay_update_monitor::run_header_delay_updates_monitor,
     demotion_monitor::run_demotion_monitor,
     inclusion_monitor::{run_inclusion_monitor, LokiClient},
-    lookback_update_monitor::run_lookback_updates_monitor,
     promotion_monitor::run_promotion_monitor,
 };
 
@@ -276,8 +272,6 @@ async fn run_ops_monitors() -> Result<()> {
 
     // Separate alarm instances mean throttling will be applied separately
     let mut auction_analysis_alarm = Alarm::new();
-    let mut header_delay_updates_alarm = Alarm::new();
-    let mut run_lookback_updates_monitor_alarm = Alarm::new();
 
     loop {
         // We only check for failures up to this point, some outcomes may still hang in the balance
@@ -287,8 +281,6 @@ async fn run_ops_monitors() -> Result<()> {
         run_inclusion_monitor(&relay_pool, &mev_pool, &canonical_horizon, &loki_client).await?;
         run_promotion_monitor(&relay_pool, &mev_pool, &canonical_horizon).await?;
         run_auction_analysis_monitor(&mev_pool, &mut auction_analysis_alarm).await?;
-        run_header_delay_updates_monitor(&mev_pool, &mut header_delay_updates_alarm).await?;
-        run_lookback_updates_monitor(&mev_pool, &mut run_lookback_updates_monitor_alarm).await?;
         info!(
             %canonical_horizon,
             "ops monitors completed, sleeping for 1 minute"
