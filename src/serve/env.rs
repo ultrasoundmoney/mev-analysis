@@ -12,6 +12,7 @@ pub struct AppConfig {
     pub database_url: String,
     pub global_database_url: String,
     pub redis_uri: String,
+    // will add a trailing slash if not present.
     #[serde(deserialize_with = "deserialize_urls")]
     pub consensus_nodes: Vec<Url>,
 }

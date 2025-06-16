@@ -77,7 +77,7 @@ impl BeaconApi {
     /// Fetch a validator index from a pubkey.
     pub async fn validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
         let url = format!(
-            "{}/eth/v1/beacon/states/head/validators/{}",
+            "{}eth/v1/beacon/states/head/validators/{}",
             self.random_host(),
             pubkey
         );
@@ -102,7 +102,7 @@ impl BeaconApi {
         node: &Url,
         slot: i64,
     ) -> anyhow::Result<Option<ExecutionPayload>> {
-        let url = format!("{}/eth/v2/beacon/blocks/{}", node, slot);
+        let url = format!("{}eth/v2/beacon/blocks/{}", node, slot);
         let res = self.client.get(&url).send().await?;
         match res.status() {
             // Could mean:
