@@ -97,7 +97,7 @@ impl BeaconApi {
         node: &Url,
         slot: i64,
     ) -> anyhow::Result<Option<ExecutionPayload>> {
-        let url = format!("{}eth/v2/beacon/blocks/{}", node, slot);
+        let url = format!("{}/eth/v2/beacon/blocks/{}", node, slot);
         let res = self.client.get(&url).send().await?;
         match res.status() {
             // Could mean:
