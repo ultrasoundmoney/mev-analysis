@@ -14,10 +14,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use sqlx::{
-    postgres::{PgPool, PgPoolOptions},
-    Connection, PgConnection,
-};
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -42,9 +39,10 @@ pub struct AppState {
 pub async fn start_server() -> Result<()> {
     log::init();
 
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
-    sqlx::migrate!().run(&mut db_conn).await?;
-    db_conn.close().await?;
+    // let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    // disable db migrations, they fail on holesky for unclear reasons.
+    // sqlx::migrate!().run(&mut db_conn).await?;
+    // db_conn.close().await?;
 
     let addr = SocketAddr::from(([0, 0, 0, 0], APP_CONFIG.port));
 
