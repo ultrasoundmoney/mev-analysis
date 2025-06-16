@@ -149,18 +149,31 @@ pub async fn validator_registrations(
 
     for v in non_cached {
         futs.push(async move {
-            let idx = beacon_api.validator_index(&v.pubkey).await.unwrap();
-
-            ValidatorWithIndex {
-                inserted_at: v.inserted_at,
-                pubkey: v.pubkey.to_string(),
-                pubkey_fragment: v.pubkey[0..8].to_string(),
-                index: idx,
+            match beacon_api.validator_index(&v.pubkey).await {
+                Ok(Some(idx)) => Some(ValidatorWithIndex {
+                    inserted_at: v.inserted_at,
+                    pubkey: v.pubkey.to_string(),
+                    pubkey_fragment: v.pubkey[0..8].to_string(),
+                    index: idx,
+                }),
+                Ok(None) => {
+                    tracing::debug!("validator not found with pubkey: {}", v.pubkey);
+                    None
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "failed to get validator index for pubkey {}: {}",
+                        v.pubkey,
+                        e
+                    );
+                    None
+                }
             }
         })
     }
 
-    let new_validators = join_all(futs).await;
+    let new_validators: Vec<ValidatorWithIndex> =
+        join_all(futs).await.into_iter().flatten().collect();
 
     // update cache
     state.validator_index_cache.lock().unwrap().extend(

@@ -75,7 +75,7 @@ impl BeaconApi {
     }
 
     /// Fetch a validator index from a pubkey.
-    pub async fn validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
+    pub async fn validator_index(&self, pubkey: &String) -> anyhow::Result<Option<String>> {
         let url = format!(
             "{}eth/v1/beacon/states/head/validators/{}",
             self.random_host(),
@@ -87,13 +87,23 @@ impl BeaconApi {
             pubkey, url
         );
 
-        self.client
-            .get(url)
-            .send()
-            .await?
-            .json::<BeaconResponse<Validator>>()
-            .await
-            .map(|body| body.data.index)
+        let res = self.client.get(url).send().await?;
+
+        match res.status() {
+            StatusCode::OK => {
+                let validator = res.json::<BeaconResponse<Validator>>().await?.data;
+                Ok(Some(validator.index))
+            }
+            StatusCode::NOT_FOUND => {
+                debug!("validator not found for pubkey {}", pubkey);
+                Ok(None)
+            }
+            status => Err(anyhow!(
+                "failed to fetch validator index. pubkey = {}, status = {}",
+                pubkey,
+                status
+            )),
+        }
     }
 
     /// Method to fetch the payload from a node and a slot.
