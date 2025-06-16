@@ -77,7 +77,7 @@ impl BeaconApi {
     /// Fetch a validator index from a pubkey.
     pub async fn validator_index(&self, pubkey: &String) -> reqwest::Result<String> {
         let url = format!(
-            "{}eth/v1/beacon/states/head/validators/{}",
+            "{}/eth/v1/beacon/states/head/validators/{}",
             self.random_host(),
             pubkey
         );
@@ -174,7 +174,7 @@ impl BeaconApi {
 
     // Method to fetch the sync status from a node
     async fn sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {
-        let url = format!("{}eth/v1/node/syncing", node_url);
+        let url = format!("{}/eth/v1/node/syncing", node_url);
         self.client
             .get(&url)
             .send()
