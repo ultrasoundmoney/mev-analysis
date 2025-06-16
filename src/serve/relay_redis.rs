@@ -8,10 +8,11 @@ pub async fn get_known_validator_count(client: &redis::Client) -> anyhow::Result
         "boost-relay/{}:stats",
         &APP_CONFIG.env.to_network().to_string()
     );
-    redis::cmd("HGET")
+    let count: Option<i64> = redis::cmd("HGET")
         .arg(key)
         .arg("validators-total")
         .query_async(&mut conn)
-        .await
-        .map_err(Into::into)
+        .await?;
+
+    Ok(count.unwrap_or(0))
 }
