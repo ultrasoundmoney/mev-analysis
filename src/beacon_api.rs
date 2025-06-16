@@ -82,6 +82,11 @@ impl BeaconApi {
             pubkey
         );
 
+        debug!(
+            "fetching validator index for pubkey {} from {}",
+            pubkey, url
+        );
+
         self.client
             .get(url)
             .send()
