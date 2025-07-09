@@ -25,9 +25,10 @@ pub use self::relay::RelayId;
 pub async fn start_block_production_ingest() -> Result<()> {
     log::init();
 
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
-    sqlx::migrate!().run(&mut db_conn).await?;
-    db_conn.close().await?;
+    // disable db migrations, db ownership has moved.
+    // let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    // sqlx::migrate!().run(&mut db_conn).await?;
+    // db_conn.close().await?;
 
     let db = PostgresCensorshipDB::new().await?;
 

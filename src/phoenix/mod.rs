@@ -292,9 +292,10 @@ async fn run_ops_monitors() -> Result<()> {
 pub async fn monitor_critical_services() -> Result<()> {
     log::init();
 
-    let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
-    sqlx::migrate!().run(&mut db_conn).await?;
-    db_conn.close().await?;
+    // disable db migrations, db ownership has moved.
+    // let mut db_conn = PgConnection::connect(&APP_CONFIG.database_url).await?;
+    // sqlx::migrate!().run(&mut db_conn).await?;
+    // db_conn.close().await?;
 
     let telegram_bot = TelegramBot::new();
 
