@@ -189,7 +189,7 @@ impl BeaconApi {
 
     // Method to fetch the sync status from a node
     async fn sync_status(&self, node_url: &Url) -> reqwest::Result<SyncStatus> {
-        let url = format!("{}/eth/v1/node/syncing", node_url);
+        let url = format!("{}eth/v1/node/syncing", node_url);
         self.client
             .get(&url)
             .send()
