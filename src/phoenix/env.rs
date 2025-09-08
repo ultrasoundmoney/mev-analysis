@@ -84,6 +84,8 @@ pub enum Geo {
     RBX,
     #[sqlx(rename = "vin")]
     VIN,
+    #[sqlx(rename = "tyo")]
+    TYO,
 }
 
 impl fmt::Display for Geo {
@@ -91,6 +93,7 @@ impl fmt::Display for Geo {
         let str = match &self {
             Geo::RBX => "rbx",
             Geo::VIN => "vin",
+            Geo::TYO => "tyo",
         };
         write!(f, "{}", str)
     }
@@ -102,6 +105,7 @@ impl str::FromStr for Geo {
         match s {
             "rbx" => Ok(Geo::RBX),
             "vin" => Ok(Geo::VIN),
+            "tyo" => Ok(Geo::TYO),
             _ => Err(format!("invalid auction geo: {}", s)),
         }
     }
