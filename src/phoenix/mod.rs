@@ -18,7 +18,7 @@ use axum::{http::StatusCode, routing::get, Router};
 use chrono::{DateTime, Duration, Utc};
 use env::APP_CONFIG;
 use indoc::formatdoc;
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, warn};
 
