@@ -8,7 +8,6 @@ use chrono::{Duration, Utc};
 use enum_iterator::all;
 use futures::future;
 use itertools::Itertools;
-use sqlx::{Connection, PgConnection};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process;
