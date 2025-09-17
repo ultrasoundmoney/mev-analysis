@@ -43,6 +43,7 @@ impl<'de> Deserialize<'de> for Env {
 pub enum Network {
     Mainnet,
     Holesky,
+    Hoodi,
 }
 
 impl fmt::Display for Network {
@@ -50,6 +51,7 @@ impl fmt::Display for Network {
         let str = match &self {
             Network::Mainnet => "mainnet",
             Network::Holesky => "holesky",
+            Network::Hoodi => "hoodi",
         };
         write!(f, "{}", str)
     }
@@ -76,6 +78,7 @@ where
     match s.as_ref() {
         "mainnet" => Ok(Network::Mainnet),
         "holesky" => Ok(Network::Holesky),
+        "hoodi" => Ok(Network::Hoodi),
         _ => Err(Error::custom("network present but not mainnet or goerli")),
     }
 }
@@ -99,6 +102,7 @@ impl ToBeaconExplorerUrl for Network {
         match *self {
             Network::Mainnet => "https://beaconcha.in",
             Network::Holesky => "https://holesky.beaconcha.in",
+            Network::Hoodi => "https://hoodi.beaconcha.in",
         }
         .to_string()
     }

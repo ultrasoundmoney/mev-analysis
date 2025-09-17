@@ -118,6 +118,7 @@ impl AppConfig {
         match self.network {
             Network::Mainnet => "https://relay-analytics.ultrasound.money",
             Network::Holesky => "https://relay-analytics-holesky.ultrasound.money",
+            Network::Hoodi => "https://relay-analytics-hoodi.ultrasound.money",
         }
     }
 }
