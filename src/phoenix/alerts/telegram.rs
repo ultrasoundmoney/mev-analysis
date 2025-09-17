@@ -11,6 +11,8 @@ pub static BUILDER_ID_CHANNEL_ID_MAP: LazyLock<HashMap<String, String>> = LazyLo
         ("titan".to_string(), "-1002036721274".to_string()),
         ("beaverbuild".to_string(), "-614386130".to_string()),
         ("beaverbuild-staging".to_string(), "-614386130".to_string()),
+        ("flashbots".to_string(), "-4827360620".to_string()),
+        ("buildernet".to_string(), "-4827360620".to_string()),
     ]
     .into_iter()
     .collect()
