@@ -1,4 +1,3 @@
-mod slot;
 mod stats;
 
 use anyhow::Context;
@@ -7,8 +6,9 @@ use itertools::Itertools;
 use reqwest::Url;
 use tracing::warn;
 
-use slot::Slot;
 pub use stats::{LatePayloadStats, PublishedPayloadStats};
+
+use crate::phoenix::slot::Slot;
 
 type JsonValue = serde_json::Value;
 

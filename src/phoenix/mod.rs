@@ -6,6 +6,7 @@ mod demotion_monitor;
 mod env;
 mod inclusion_monitor;
 mod promotion_monitor;
+mod slot;
 mod util;
 mod validation_node;
 
