@@ -134,7 +134,7 @@ pub async fn start_server() -> Result<()> {
 async fn health(State(state): State<AppState>) -> StatusCode {
     let mev_conn = state.mev_db_pool.acquire().await;
     let relay_conn = state.global_db_pool.acquire().await;
-    let redis_conn = state.redis_client.get_async_connection().await;
+    let redis_conn = state.redis_client.get_multiplexed_async_connection().await;
     match (mev_conn, relay_conn, redis_conn) {
         (Ok(_), Ok(_), Ok(_)) => StatusCode::OK,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
