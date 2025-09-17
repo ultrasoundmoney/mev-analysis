@@ -28,11 +28,11 @@ impl Slot {
     }
 
     pub fn now() -> Self {
-        Self::from_date_time_rounded_down(Utc::now())
+        Self::from_date_time_rounded_down(&Utc::now())
     }
 
-    pub fn from_date_time_rounded_down(date_time: DateTime<Utc>) -> Self {
-        if date_time < *GENESIS_TIMESTAMP {
+    pub fn from_date_time_rounded_down(date_time: &DateTime<Utc>) -> Self {
+        if date_time < &*GENESIS_TIMESTAMP {
             return Self(0);
         }
         let duration_since_genesis = date_time.signed_duration_since(*GENESIS_TIMESTAMP);
@@ -76,27 +76,27 @@ mod tests {
         let genesis_date_time = "2020-12-01T12:00:23Z".parse::<DateTime<Utc>>().unwrap();
 
         // Exactly genesis.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time);
+        let slot = Slot::from_date_time_rounded_down(&genesis_date_time);
         assert_eq!(slot, Slot(0));
 
         // 11 seconds after genesis, still slot 0.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time + Duration::seconds(11));
+        let slot = Slot::from_date_time_rounded_down(&(genesis_date_time + Duration::seconds(11)));
         assert_eq!(slot, Slot(0));
 
         // 12 seconds after genesis, slot 1.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time + Duration::seconds(12));
+        let slot = Slot::from_date_time_rounded_down(&(genesis_date_time + Duration::seconds(12)));
         assert_eq!(slot, Slot(1));
 
         // 1 second before genesis, slot 0.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time - Duration::seconds(1));
+        let slot = Slot::from_date_time_rounded_down(&(genesis_date_time - Duration::seconds(1)));
         assert_eq!(slot, Slot(0));
 
         // 12 seconds before genesis, slot 0.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time - Duration::seconds(12));
+        let slot = Slot::from_date_time_rounded_down(&(genesis_date_time - Duration::seconds(12)));
         assert_eq!(slot, Slot(0));
 
         // 13 seconds before genesis, slot 0.
-        let slot = Slot::from_date_time_rounded_down(genesis_date_time - Duration::seconds(13));
+        let slot = Slot::from_date_time_rounded_down(&(genesis_date_time - Duration::seconds(13)));
         assert_eq!(slot, Slot(0));
     }
 }

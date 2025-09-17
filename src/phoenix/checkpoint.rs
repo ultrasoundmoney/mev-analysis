@@ -3,9 +3,11 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::fmt;
 
+#[derive(Clone, Copy)]
 pub enum CheckpointId {
     Demotion,
-    Inclusion,
+    InclusionDelivered,
+    InclusionPayloadRequests,
     Promotion,
 }
 
@@ -13,7 +15,10 @@ impl fmt::Display for CheckpointId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CheckpointId::Demotion => write!(f, "demotion_monitor"),
-            CheckpointId::Inclusion => write!(f, "inclusion_monitor"),
+            CheckpointId::InclusionDelivered => write!(f, "inclusion_monitor_delivered"),
+            CheckpointId::InclusionPayloadRequests => {
+                write!(f, "inclusion_monitor_payload_requests")
+            }
             CheckpointId::Promotion => write!(f, "promotion_monitor"),
         }
     }

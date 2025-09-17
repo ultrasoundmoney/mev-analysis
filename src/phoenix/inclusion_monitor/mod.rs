@@ -18,6 +18,7 @@ use crate::{
         inclusion_monitor::proposer_meta::{
             get_proposer_ip, proposer_label_meta, proposer_location,
         },
+        slot::Slot,
     },
 };
 
@@ -38,6 +39,12 @@ struct DeliveredPayload {
     proposer_pubkey: String,
     slot: i64,
     geo: Geo,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DetectionMethod {
+    DeliveredPayload,
+    RequestIntersection,
 }
 
 async fn get_delivered_payloads(
@@ -85,6 +92,28 @@ async fn insert_missed_slot(
     relayed: &String,
     canonical: Option<&String>,
 ) -> anyhow::Result<()> {
+    // avoid duplicate entries in case the same miss is detected via multiple paths
+    let exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM missed_slots WHERE slot_number = $1 AND relayed_block_hash = $2
+        )
+        "#,
+    )
+    .bind(slot_number)
+    .bind(relayed)
+    .fetch_one(mev_pool)
+    .await?;
+
+    if exists {
+        debug!(
+            slot = slot_number,
+            relayed_block_hash = relayed,
+            "missed slot already recorded, skipping insert"
+        );
+        return Ok(());
+    }
+
     sqlx::query!(
         r#"
         INSERT INTO missed_slots (slot_number, relayed_block_hash, canonical_block_hash)
@@ -140,6 +169,7 @@ async fn report_missing_payload(
     payload: &DeliveredPayload,
     relay_pool: &PgPool,
     is_attempted_reorg: bool,
+    detection_method: DetectionMethod,
 ) -> anyhow::Result<()> {
     insert_missed_slot(
         mev_pool,
@@ -167,6 +197,15 @@ async fn report_missing_payload(
         on\\_chain\\_block\\_hash: {on_chain_block_hash}
         "
     );
+
+    match detection_method {
+        DetectionMethod::DeliveredPayload => {
+            message.push_str("detected_via: delivered_payload\n");
+        }
+        DetectionMethod::RequestIntersection => {
+            message.push_str("detected_via: request_intersection\n");
+        }
+    }
 
     let is_adjustment_hash = check_is_adjustment_hash(relay_pool, &payload.block_hash).await?;
     message.push_str(&format!("is\\_adjustment: {}", is_adjustment_hash));
@@ -339,6 +378,8 @@ async fn check_missing_payload(
 
     match block {
         Some(ExecutionPayload { block_hash, .. }) => {
+            // payload.block_hash = hash from the delivered payload we relayed
+            // block_hash = hash from the actual block that was included on-chain
             if payload.block_hash == block_hash {
                 debug!(
                     slot = payload.slot,
@@ -361,6 +402,7 @@ async fn check_missing_payload(
                     payload,
                     relay_pool,
                     false,
+                    DetectionMethod::DeliveredPayload,
                 )
                 .await
             }
@@ -378,47 +420,289 @@ async fn check_missing_payload(
                 payload,
                 relay_pool,
                 attempted_reorg,
+                DetectionMethod::DeliveredPayload,
             )
             .await
         }
     }
 }
 
-pub async fn run_inclusion_monitor(
-    relay_pool: &PgPool,
-    mev_pool: &PgPool,
-    canonical_horizon: &DateTime<Utc>,
-    loki_client: &LokiClient,
-) -> anyhow::Result<()> {
-    let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
+#[derive(Debug, Clone)]
+struct HeaderServed {
+    slot: i64,
+    block_hash: String,
+    proposer_pubkey: String,
+    received_at: DateTime<Utc>,
+    geo: Geo,
+}
 
-    let checkpoint = match checkpoint::get_checkpoint(mev_pool, CheckpointId::Inclusion).await? {
-        Some(c) => c,
+#[derive(Debug, Clone)]
+struct PayloadRequestRow {
+    slot: i64,
+    block_hash: String,
+    received_at: DateTime<Utc>,
+}
+
+async fn get_header_requests(
+    relay_pool: &PgPool,
+    start_slot: i64,
+    end_slot: i64,
+) -> anyhow::Result<Vec<HeaderServed>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT slot, block_hash, proposer_pubkey, received_at, geo
+        FROM turbo_header_requests
+        WHERE slot > $1 AND slot <= $2
+          AND block_hash IS NOT NULL
+          AND cancelled_at IS NULL
+        ORDER BY received_at ASC
+        "#,
+    )
+    .bind(start_slot)
+    .bind(end_slot)
+    .fetch_all(relay_pool)
+    .await?;
+
+    let headers = rows
+        .iter()
+        .map(|row| HeaderServed {
+            slot: row.get::<i32, _>("slot") as i64,
+            block_hash: row.get::<String, _>("block_hash"),
+            proposer_pubkey: row.get::<String, _>("proposer_pubkey"),
+            received_at: Utc.from_utc_datetime(&row.get("received_at")),
+            geo: row.get("geo"),
+        })
+        .collect();
+
+    Ok(headers)
+}
+
+async fn get_payload_requests(
+    mev_pool: &PgPool,
+    start_slot: i64,
+    end_slot: i64,
+) -> anyhow::Result<Vec<PayloadRequestRow>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT slot, block_hash, received_at
+        FROM payload_requests
+        WHERE slot > $1 AND slot <= $2
+          AND block_hash IS NOT NULL
+          AND received_at IS NOT NULL
+        ORDER BY slot ASC
+        "#,
+    )
+    .bind(start_slot)
+    .bind(end_slot)
+    .fetch_all(mev_pool)
+    .await?;
+
+    let reqs = rows
+        .iter()
+        .map(|row| PayloadRequestRow {
+            slot: row.get::<i32, _>("slot") as i64,
+            block_hash: row.get::<String, _>("block_hash"),
+            received_at: Utc.from_utc_datetime(&row.get("received_at")),
+        })
+        .collect();
+
+    Ok(reqs)
+}
+
+async fn check_missing_candidate(
+    beacon_api: &BeaconApi,
+    loki_client: &LokiClient,
+    mev_pool: &PgPool,
+    relay_pool: &PgPool,
+    candidate: &DeliveredPayload,
+) -> anyhow::Result<()> {
+    let block = beacon_api.block_by_slot_any(candidate.slot).await?;
+
+    match block {
+        Some(ExecutionPayload { block_hash, .. }) => {
+            if candidate.block_hash == block_hash {
+                debug!(
+                    slot = candidate.slot,
+                    block_hash = candidate.block_hash,
+                    "found matching block hash"
+                );
+                Ok(())
+            } else {
+                warn!(
+                    slot = candidate.slot,
+                    block_hash_payload = candidate.block_hash,
+                    block_hash_on_chain = block_hash,
+                    "block hash on chain does not match payload (candidate)"
+                );
+
+                report_missing_payload(
+                    Some(block_hash),
+                    loki_client,
+                    mev_pool,
+                    candidate,
+                    relay_pool,
+                    false,
+                    DetectionMethod::RequestIntersection,
+                )
+                .await
+            }
+        }
+        None => {
+            warn!(
+                "delivered block not found for slot {} (candidate)",
+                candidate.slot
+            );
+            report_missing_payload(
+                None,
+                loki_client,
+                mev_pool,
+                candidate,
+                relay_pool,
+                false,
+                DetectionMethod::RequestIntersection,
+            )
+            .await
+        }
+    }
+}
+
+async fn get_or_init_inclusion_checkpoint(
+    relay_pool: &PgPool,
+    id: CheckpointId,
+) -> anyhow::Result<DateTime<Utc>> {
+    match checkpoint::get_checkpoint(relay_pool, id).await? {
+        Some(c) => {
+            debug!("found inclusion checkpoint: {}", c);
+            Ok(c)
+        }
         None => {
             info!("no checkpoint found, initializing");
             let now = Utc::now();
-            checkpoint::put_checkpoint(mev_pool, CheckpointId::Inclusion, &now).await?;
-            now
+            checkpoint::put_checkpoint(relay_pool, id, &now).await?;
+            Ok(now)
         }
-    };
+    }
+}
 
-    debug!(
-        "checking inclusions between {} and {}",
-        &checkpoint, canonical_horizon
-    );
-
-    let payloads = get_delivered_payloads(relay_pool, &checkpoint, canonical_horizon).await?;
+async fn process_delivered_payloads(
+    beacon_api: &BeaconApi,
+    loki_client: &LokiClient,
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+    start: &DateTime<Utc>,
+    end: &DateTime<Utc>,
+    processed: &mut std::collections::HashSet<(i64, String)>,
+) -> anyhow::Result<Option<i64>> {
+    debug!("fetching delivered payloads between {} and {}", start, end);
+    let payloads = get_delivered_payloads(relay_pool, start, end).await?;
+    debug!("fetched {} delivered payloads", payloads.len());
     for payload in &payloads {
-        check_missing_payload(&beacon_api, loki_client, mev_pool, payload, relay_pool).await?;
+        processed.insert((payload.slot, payload.block_hash.clone()));
+        check_missing_payload(beacon_api, loki_client, mev_pool, payload, relay_pool).await?;
         debug!(
             slot = payload.slot,
             block_hash = payload.block_hash,
             "done checking payload"
         );
     }
+    if payloads.is_empty() {
+        debug!("no delivered payloads to check in this window");
+    } else {
+        info!("checked {} delivered payloads", payloads.len());
+    }
+    Ok(payloads.last().map(|p| p.slot))
+}
 
-    let last_slot_delivered = payloads.last().map(|p| p.slot);
-    if let Some(last_slot) = last_slot_delivered {
+async fn process_header_payload_candidates(
+    beacon_api: &BeaconApi,
+    loki_client: &LokiClient,
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+    start: &DateTime<Utc>,
+    end: &DateTime<Utc>,
+    processed: &mut std::collections::HashSet<(i64, String)>,
+) -> anyhow::Result<Option<i64>> {
+    let start_slot = Slot::from_date_time_rounded_down(start).0 as i64;
+    let end_slot = Slot::from_date_time_rounded_down(end).0 as i64;
+    debug!(
+        "fetching header/payload requests between slots {} and {}",
+        start_slot, end_slot
+    );
+
+    let headers = get_header_requests(relay_pool, start_slot, end_slot).await?;
+    let payload_reqs = get_payload_requests(mev_pool, start_slot, end_slot).await?;
+    debug!(
+        "fetched {} headers and {} payload requests",
+        headers.len(),
+        payload_reqs.len()
+    );
+
+    use std::collections::HashMap;
+    let mut header_by_key: HashMap<(i64, String), &HeaderServed> = HashMap::new();
+    for h in &headers {
+        header_by_key.insert((h.slot, h.block_hash.clone()), h);
+    }
+
+    let mut candidates: Vec<DeliveredPayload> = Vec::new();
+    const TIMELY_PAYLOAD_REQUEST_MS: i64 = 3000;
+    for r in &payload_reqs {
+        let key = (r.slot, r.block_hash.clone());
+        if let Some(h) = header_by_key.get(&key) {
+            // compute ms into slot for payload request
+            let slot_dt: DateTime<Utc> = (&Slot(r.slot as i32)).into();
+            let ms_into_slot = r
+                .received_at
+                .signed_duration_since(slot_dt)
+                .num_milliseconds();
+            if ms_into_slot > TIMELY_PAYLOAD_REQUEST_MS {
+                debug!(
+                    slot = r.slot,
+                    ms_into_slot,
+                    threshold_ms = TIMELY_PAYLOAD_REQUEST_MS,
+                    "skipping late payload request candidate"
+                );
+                continue;
+            }
+
+            if !processed.contains(&(h.slot, h.block_hash.clone())) {
+                candidates.push(DeliveredPayload {
+                    block_hash: h.block_hash.clone(),
+                    block_number: 0,
+                    inserted_at: h.received_at,
+                    proposer_pubkey: h.proposer_pubkey.clone(),
+                    slot: h.slot,
+                    geo: h.geo.clone(),
+                });
+                processed.insert((h.slot, h.block_hash.clone()));
+            }
+        }
+    }
+    if candidates.is_empty() {
+        debug!("no header/payload candidates to check in this window");
+    } else {
+        info!("checking {} header/payload candidates", candidates.len());
+    }
+    for candidate in &candidates {
+        check_missing_candidate(beacon_api, loki_client, mev_pool, relay_pool, candidate).await?;
+        debug!(
+            slot = candidate.slot,
+            block_hash = candidate.block_hash,
+            "done checking candidate payload"
+        );
+    }
+
+    if !candidates.is_empty() {
+        info!("checked {} header/payload candidates", candidates.len());
+    }
+
+    Ok(candidates.last().map(|c| c.slot))
+}
+
+async fn maybe_alert_recent_missed_slots(
+    mev_pool: &PgPool,
+    last_slot_opt: Option<i64>,
+) -> anyhow::Result<()> {
+    if let Some(last_slot) = last_slot_opt {
         let start = last_slot - APP_CONFIG.missed_slots_check_range;
         let end = last_slot;
 
@@ -431,10 +715,104 @@ pub async fn run_inclusion_monitor(
             );
             warn!("{}", &message);
             alerts::send_opsgenie_telegram_alert(&message).await;
+        } else {
+            debug!(
+                "missed {} slots in the last {} slots (below threshold)",
+                missed_slot_count, APP_CONFIG.missed_slots_check_range
+            );
         }
     }
+    Ok(())
+}
 
-    checkpoint::put_checkpoint(mev_pool, CheckpointId::Inclusion, canonical_horizon).await?;
+pub async fn run_inclusion_monitor(
+    relay_pool: &PgPool,
+    mev_pool: &PgPool,
+    canonical_horizon: &DateTime<Utc>,
+    loki_client: &LokiClient,
+) -> anyhow::Result<()> {
+    let beacon_api = BeaconApi::new(&APP_CONFIG.consensus_nodes);
+
+    // use separate checkpoints for the delivered and intersection flows
+    let delivered_checkpoint =
+        get_or_init_inclusion_checkpoint(mev_pool, CheckpointId::InclusionDelivered).await?;
+    let payload_requests_checkpoint =
+        get_or_init_inclusion_checkpoint(mev_pool, CheckpointId::InclusionPayloadRequests).await?;
+
+    debug!(
+        "checking delivered between {} and {}",
+        &delivered_checkpoint, canonical_horizon
+    );
+    debug!(
+        "checking payload_requests between {} and {}",
+        &payload_requests_checkpoint, canonical_horizon
+    );
+
+    use std::collections::HashSet;
+    let mut processed: HashSet<(i64, String)> = HashSet::new();
+
+    let last_from_delivered = process_delivered_payloads(
+        &beacon_api,
+        loki_client,
+        relay_pool,
+        mev_pool,
+        &delivered_checkpoint,
+        canonical_horizon,
+        &mut processed,
+    )
+    .await?;
+
+    let last_from_candidates = process_header_payload_candidates(
+        &beacon_api,
+        loki_client,
+        relay_pool,
+        mev_pool,
+        &payload_requests_checkpoint,
+        canonical_horizon,
+        &mut processed,
+    )
+    .await?;
+
+    let last_slot_delivered = last_from_delivered.or(last_from_candidates);
+
+    maybe_alert_recent_missed_slots(mev_pool, last_slot_delivered).await?;
+
+    checkpoint::put_checkpoint(
+        mev_pool,
+        CheckpointId::InclusionDelivered,
+        canonical_horizon,
+    )
+    .await?;
+    checkpoint::put_checkpoint(
+        mev_pool,
+        CheckpointId::InclusionPayloadRequests,
+        canonical_horizon,
+    )
+    .await?;
+    info!("inclusion monitor run completed");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Duration, TimeZone};
+
+    #[test]
+    fn test_ms_into_slot_calculation() {
+        // pick an arbitrary timestamp, derive its slot start, and validate ms offsets
+        let ts = Utc.timestamp_millis_opt(1_700_000_000_000).unwrap();
+        let slot = Slot::from_date_time_rounded_down(&ts);
+        let slot_start: DateTime<Utc> = (&slot).into();
+
+        let within = slot_start + Duration::milliseconds(2_500);
+        let late = slot_start + Duration::milliseconds(3_100);
+
+        let ms_within = within.signed_duration_since(slot_start).num_milliseconds();
+        let ms_late = late.signed_duration_since(slot_start).num_milliseconds();
+
+        assert!(ms_within <= 3_000);
+        assert!(ms_late > 3_000);
+    }
 }
