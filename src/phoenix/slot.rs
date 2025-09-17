@@ -3,13 +3,19 @@ use std::{fmt::Display, ops, str::FromStr, sync::LazyLock};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
+#[cfg(not(test))]
 use crate::{env::Network, phoenix::env::APP_CONFIG};
 
+#[cfg(not(test))]
 static GENESIS_TIMESTAMP: LazyLock<DateTime<Utc>> = LazyLock::new(|| match APP_CONFIG.network {
     Network::Mainnet => "2020-12-01T12:00:23Z".parse().unwrap(),
     Network::Holesky => "2023-09-28T12:00:00Z".parse().unwrap(),
     Network::Hoodi => "2025-03-17T12:10:00Z".parse().unwrap(),
 });
+
+#[cfg(test)]
+static GENESIS_TIMESTAMP: LazyLock<DateTime<Utc>> =
+    LazyLock::new(|| "2020-12-01T12:00:23Z".parse().unwrap());
 
 #[derive(Debug, Copy, Clone, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
 pub struct Slot(pub i32);
