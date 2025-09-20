@@ -484,11 +484,15 @@ async fn get_payload_requests(
 ) -> anyhow::Result<Vec<PayloadRequestRow>> {
     let rows = sqlx::query(
         r#"
-        SELECT slot, block_hash, received_at
+        SELECT
+            slot,
+            signed_blinded_block -> 'message' -> 'body' -> 'execution_payload_header' ->> 'block_hash' AS block_hash,
+            received_at
         FROM payload_requests
-        WHERE slot > $1 AND slot <= $2
-          AND block_hash IS NOT NULL
+        WHERE slot > $1
+          AND slot <= $2
           AND received_at IS NOT NULL
+          AND signed_blinded_block -> 'message' -> 'body' -> 'execution_payload_header' ->> 'block_hash' IS NOT NULL
         ORDER BY slot ASC
         "#,
     )
