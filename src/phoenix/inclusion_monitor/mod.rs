@@ -444,7 +444,7 @@ struct PayloadRequestRow {
 }
 
 async fn get_header_requests(
-    relay_pool: &PgPool,
+    mevdb_pool: &PgPool,
     start_slot: i64,
     end_slot: i64,
 ) -> anyhow::Result<Vec<HeaderServed>> {
@@ -460,7 +460,7 @@ async fn get_header_requests(
     )
     .bind(start_slot)
     .bind(end_slot)
-    .fetch_all(relay_pool)
+    .fetch_all(mevdb_pool)
     .await?;
 
     let headers = rows
@@ -622,7 +622,7 @@ async fn process_header_payload_candidates(
     beacon_api: &BeaconApi,
     loki_client: &LokiClient,
     relay_pool: &PgPool,
-    mev_pool: &PgPool,
+    mevdb_pool: &PgPool,
     start: &DateTime<Utc>,
     end: &DateTime<Utc>,
     processed: &mut std::collections::HashSet<(i64, String)>,
@@ -634,8 +634,8 @@ async fn process_header_payload_candidates(
         start_slot, end_slot
     );
 
-    let headers = get_header_requests(relay_pool, start_slot, end_slot).await?;
-    let payload_reqs = get_payload_requests(mev_pool, start_slot, end_slot).await?;
+    let headers = get_header_requests(mevdb_pool, start_slot, end_slot).await?;
+    let payload_reqs = get_payload_requests(mevdb_pool, start_slot, end_slot).await?;
     debug!(
         "fetched {} headers and {} payload requests",
         headers.len(),
@@ -684,7 +684,7 @@ async fn process_header_payload_candidates(
         info!("checking {} header/payload candidates", candidates.len());
     }
     for candidate in &candidates {
-        check_missing_candidate(beacon_api, loki_client, mev_pool, relay_pool, candidate).await?;
+        check_missing_candidate(beacon_api, loki_client, mevdb_pool, relay_pool, candidate).await?;
         debug!(
             slot = candidate.slot,
             block_hash = candidate.block_hash,
