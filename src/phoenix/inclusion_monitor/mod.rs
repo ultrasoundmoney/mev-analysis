@@ -469,7 +469,7 @@ async fn get_header_requests(
             slot: row.get::<i32, _>("slot") as i64,
             block_hash: row.get::<String, _>("block_hash"),
             proposer_pubkey: row.get::<String, _>("proposer_pubkey"),
-            received_at: Utc.from_utc_datetime(&row.get("received_at")),
+            received_at: row.get::<DateTime<Utc>, _>("received_at"),
             geo: row.get("geo"),
         })
         .collect();
@@ -506,7 +506,7 @@ async fn get_payload_requests(
         .map(|row| PayloadRequestRow {
             slot: row.get::<i32, _>("slot") as i64,
             block_hash: row.get::<String, _>("block_hash"),
-            received_at: Utc.from_utc_datetime(&row.get("received_at")),
+            received_at: row.get::<DateTime<Utc>, _>("received_at"),
         })
         .collect();
 
