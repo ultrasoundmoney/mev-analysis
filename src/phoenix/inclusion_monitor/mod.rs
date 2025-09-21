@@ -200,10 +200,10 @@ async fn report_missing_payload(
 
     match detection_method {
         DetectionMethod::DeliveredPayload => {
-            message.push_str("detected_via: delivered_payload\n");
+            message.push_str("detected\\_via: delivered\\_payload\n");
         }
         DetectionMethod::RequestIntersection => {
-            message.push_str("detected_via: request_intersection\n");
+            message.push_str("detected\\_via: request\\_intersection\n");
         }
     }
 
