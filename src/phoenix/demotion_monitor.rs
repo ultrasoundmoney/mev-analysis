@@ -127,8 +127,10 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
     const ERROR_TRUNCATION_MARKER: &str = "..TRUNCATED..";
 
     let explorer_url = APP_CONFIG.network.to_beacon_explorer_url();
+    let network = APP_CONFIG.network.to_string();
     let builder_id = demotion.builder_id.as_deref().unwrap_or("unknown");
     let escaped_builder_id = telegram::escape_str(builder_id);
+    let escaped_network = telegram::escape_str(&network);
     let builder_pubkey = &demotion.builder_pubkey;
     let mut escaped_error = telegram::escape_code_block(&demotion.sim_error);
 
@@ -153,6 +155,7 @@ fn format_demotion_message(demotion: &BuilderDemotion) -> String {
         "
         [beaconcha\\.in/slot/{slot}]({explorer_url}/slot/{slot})
         slot: `{slot}`
+        network: `{escaped_network}`
         geo: `{geo}`
         builder\\_id: `{escaped_builder_id}`
         builder\\_pubkey: `{builder_pubkey}`
